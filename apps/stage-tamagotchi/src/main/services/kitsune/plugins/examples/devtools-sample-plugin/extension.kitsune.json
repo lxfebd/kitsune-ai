@@ -1,0 +1,32 @@
+{
+  "apiVersion": "v1",
+  "kind": "manifest.extension.kitsune.ai",
+  "id": "devtools-sample-plugin",
+  "permissions": {
+    "apis": [
+      {
+        "key": "kitsune:plugin-sdk:apis:protocol:capabilities:wait",
+        "actions": ["invoke"]
+      },
+      {
+        "key": "kitsune:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["invoke"]
+      }
+    ],
+    "resources": [
+      {
+        "key": "kitsune:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["read"]
+      }
+    ],
+    "capabilities": [
+      {
+        "key": "kitsune:plugin-sdk:apis:protocol:resources:providers:list-providers",
+        "actions": ["wait"]
+      }
+    ]
+  },
+  "entrypoints": {
+    "electron": "./devtools-sample-plugin.mjs"
+  }
+}

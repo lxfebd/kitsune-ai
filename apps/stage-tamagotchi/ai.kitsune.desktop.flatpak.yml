@@ -1,0 +1,49 @@
+app-id: ai.kitsune.desktop
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '24.08'
+command: kitsune-ai.sh
+
+finish-args:
+  # GUI environment
+  - --share=network
+  - --socket=x11
+  - --socket=wayland
+  - --device=all
+  - --socket=pulseaudio
+  - --socket=system-bus
+  - --socket=session-bus
+  - --share=ipc
+
+  # DBus
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --system-talk-name=org.freedesktop.login1
+  - --system-talk-name=org.freedesktop.UPower
+  - --filesystem=home:rw
+
+modules:
+  - name: KitsuneAI-App
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin
+      - mkdir -p /app/bin/kitsune-ai
+      - cp -r ./* /app/bin/kitsune-ai/
+      - install kitsune-ai.sh /app/bin/kitsune-ai.sh
+      - chmod +x /app/bin/kitsune-ai/kitsune-ai.sh
+      - chmod +x /app/bin/kitsune-ai/kitsune-ai
+    sources:
+      - type: dir
+        only-arches: [x86_64]
+        path: dist/linux-unpacked
+      - type: dir
+        only-arches: [aarch64]
+        path: dist/linux-arm64-unpacked
+      - type: script
+        dest-filename: kitsune-ai.sh
+        commands:
+          - ulimit -c 0
+          - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
+          - exec zypak-wrapper /app/bin/kitsune-ai/kitsune-ai "$@"

@@ -1,0 +1,2105 @@
+common:
+  save: 儲存
+hearing:
+  microphone-permission-required: 需要麥克風權限
+  transcription: 語音轉文字
+  auto-send: 自動傳送
+  input-device: 輸入裝置
+  select-microphone: 選擇麥克風
+  audio-input-device: 音訊輸入裝置
+  audio-input-device-description: 選擇聽覺模組的音訊輸入裝置
+  select-audio-input-device: 選擇音訊輸入裝置
+  start-monitoring: 開始監聽
+  stop-monitoring: 停止監聽
+  input-level: 輸入音量
+  speech-probability: 語音機率
+  silence: 靜音
+  speech: 語音
+  detection-threshold: 偵測閾值
+  sensitivity: 靈敏度
+  sensitivity-description: 調整語音偵測閾值
+  speaking-detected: 偵測到語音
+  hearing-input: 聽覺輸入
+  transcription-error: 轉錄錯誤
+  provider: 服務來源
+nav:
+  system: 通用設定
+  models: 模型配置
+  speech: 語音設定
+  hearing: 聽寫設定
+  scene: 場景設定
+  data: 資料管理
+  modules: 外掛模組
+  environment: 環境適配
+  sidecar: 本機服務
+settings-groups:
+  core: 核心設定
+  features: 功能特性
+  data: 資料管理
+  advanced: 進階選項
+  other: 其他
+about:
+  title: 專案
+  build-info: 應用程式建構資訊
+  version: 版本
+  branch: 分支
+  commit: 提交
+  built-on: 建構時間
+  about: 關於
+  links:
+    homepage: 主頁
+    docs: 文件
+validation-details:
+  title: 驗證詳情
+  close: 關閉
+  no-failures: 沒有失敗的檢查。
+  validation-failed: 驗證失敗。
+live2d-report:
+  title: Live2D 模型審核報告
+  model-audit: 模型審核報告
+  structure: 結構
+  file-count: 檔案數
+  critical-issues: 嚴重問題
+  warnings: 警告
+  quick-fix: 快速修復
+  cancel: 取消
+  import-anyway: 仍然匯入
+  confirm-import: 確認匯入
+  invalid-model: 無效模型無法匯入
+  fix: 修復
+chat:
+  thinking: 思考中...
+animations:
+  stage-transitions:
+    title: 是否開啟舞台切換動畫
+  use-page-specific-transitions:
+    description: 某些頁面會有自己的過場動畫，這將覆蓋舞台過場動畫
+    title: 是否使用頁面特定過場動畫
+dialogs:
+  onboarding:
+    official:
+      title: 官方服務
+    title: 歡迎來到 Kitsune AI！
+    description: 讓我們設定您的第一個服務來源來開始使用。
+    selectProvider: 選擇服務來源
+    configureProvider: 配置 {provider}
+    apiKey: API 密鑰
+    apiKeyHelp: 從 {provider} 取得您的 API 密鑰並貼上到這裡
+    baseUrl: 基礎 URL
+    baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
+    accountId: 帳戶 ID
+    validationRunning: 執行測試
+    validationSuccess: 配置驗證成功
+    validationPartial: 配置部分驗證
+    validationFailed: 配置驗證失敗
+    validationError: 驗證錯誤：{error}
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping 測試失敗
+    retryPingCheck: 重試
+    skipForNow: 暫時跳過
+    saveAndContinue: 儲存並繼續
+    next: 下一步
+    retry: 重試
+    enableChatCheck: 允許 Kitsune AI 向第一個可用的聊天模式傳送「ping」訊息以檢查可用性
+    start: 開始吧！
+    startAction: 開始配置
+    flux: Flux 電量
+    buyFlux: 補充 Flux 電量
+    select-model: 選擇模型
+    no-models: 找不到可用模型
+    no-models-help: 請返回上一步並檢查您的 API Key，或檢查網路連線。
+    permissions:
+      title: 通知
+      description: 您現在可以允許通知或者繼續並稍後設定。
+      notificationsTitle: 通知
+      notificationsDescription: 允許提醒以及重要的狀態更新。
+      notificationsAction: 需要取得訊息通知權限
+      notificationsNotGrantedHint: 如果拒絕，您可以稍後從 iOS 設定中啟用通知。
+      openSettings: 開啟系統/偏好設定
+      optionalHint: 即使沒有授予通知權限，您也可以繼續。
+      stateUnknown: 未請求
+      stateRequesting: 正在取得...
+      stateGranted: 已授權
+      stateNotGranted: 未授權
+  bug-report:
+    title: Bug 回報 (´;ω;`)ヾ(･∀･`)
+    subtitle: 壞喔，看起來我們不小心搞砸了一些東西。可以分享一下遇到了什麼問題嗎？
+    trigger-label: 回報程式錯誤
+    submit-label: 傳送錯誤報告
+    triage-description: 包含螢幕截圖和頁面上的上下文來幫助我們對這個問題進行分析。
+    description-placeholder: 複製的步驟，預期的行為和實際行為
+    include-current-page-screenshot: 包含目前頁面截圖
+    manual-media:
+      label: 手動選擇螢幕截圖/錄影
+      optional: 選用的。
+    media-files:
+      label: 媒體檔案
+      description: 選用：手動選擇。
+      placeholder: 選擇螢幕截圖或影片檔案
+      selected-count: 已選擇 {count} 個檔案
+    last-submitted-preview: 提交前預覽
+language:
+  title: 語言
+  description: >
+    介面語言。您也可以稍後再設定角色語言。
+controls-island:
+  icon-size:
+    title: 控制島圖示大小
+    description: 調整控制島圖示的大小
+    auto: 自動（響應式）
+    large: 大（預設）
+    small: 小
+appearance:
+  title: 介面外觀
+  description: 調整布局尺寸、卡片樣式和動效，以符合你的偏好。
+  sidebar-width:
+    title: 側欄寬度
+    description: 導覽側欄的寬度。更窄可為內容區留出更多空間。
+  content-max-width:
+    title: 內容區寬度
+    description: 設定內容區的最大寬度。
+    compact: 緊湊
+    normal: 標準
+    wide: 寬鬆
+  card-radius:
+    title: 卡片圓角
+    description: 設定卡片的圓角半徑。
+    sharp: 銳利
+    normal: 標準
+    round: 圓潤
+  density:
+    title: 間距密度
+    description: 卡片的內邊距與間距密度。
+    compact: 緊湊
+    normal: 標準
+    comfortable: 寬鬆
+  motion-intensity:
+    title: 動效強度
+    description: 介面過渡動畫的強度。
+    off: 關閉
+    reduced: 減弱
+    normal: 標準
+analytics:
+  toggle:
+    title: 允許收集使用資料及崩潰分析
+    description: 關閉任何非必要使用資料及崩潰分析的採集與上傳
+  disabled:
+    title: 此開發版本的使用資料及崩潰分析功能已停用
+model-select:
+  panel-callout:
+    support-status-header: 同時支援 2D 與 3D 模型
+    support-status: 點擊 {select-button} 選擇或匯入模型。目前支援 {zip}（Live2D 模型）和 {vrm}（VRM 模型）。
+    model-type-example: Neuro-sama 使用 Live2D Inc 開發的 2D 模型框架，而 Grok Ani（Grok Companion）使用 VRM / MMD 開放格式的 3D 模型。
+  select-model:
+    title: 模型選擇器
+    button: 選擇模型
+    select: 選擇
+    import: 匯入
+    remove: 移除
+    confirm: 確認
+    no-preview: 無預覽
+    model-name-placeholder: 模型名稱...
+    options-for-display-models: 顯示模型選項
+background-picker:
+  title: 背景選擇器
+  add-custom-background: 新增自訂背景
+  blur: 模糊
+live2d:
+  change-model:
+    from-file: 從檔案載入
+    from-file-select: 選擇
+    from-url: 從 URL 載入
+    from-url-confirm: 載入
+    from-url-placeholder: 輸入 Live2D 模型 URL
+    title: 更換模型
+  edit-motion-map:
+    title: 編輯動作對應
+  map-motions:
+    play: 播放動作
+    title: 對應動作
+  title: Live2D 設定
+  scale-and-position:
+    title: 縮放與位置
+    scale: 縮放
+    x: X
+    y: Y
+  switch-to-vrm:
+    title: 想切換至3D虛擬形象？
+    change-to-vrm: 切換至3D虛擬形象設定頁面（VRM）
+  theme-color-from-model:
+    title: 從模型提取主題顏色
+    description: 從目前渲染畫布中提取突出顏色，點擊顏色即可套用到 Kitsune AI。 如果顏色不理想，可讓模型擺出不同姿勢後多次提取。
+    button-extract:
+      title: 提取
+  animation:
+    title: 動畫
+    focus:
+      title: 啟用滑鼠追蹤
+      description: 滑鼠移動時注視游標。游標停止後恢復閒置眼球運動。
+      offset: 眼睛偏移(%)
+    force-idle-eye-animation:
+      title: 閒置眼球運動
+      description: 沒有活動游標焦點時隨機環顧四周。
+    blink-enable:
+      title: 啟用眨眼
+      description: 讓模型眨眼。
+    auto-blink:
+      title: 自動
+      description: 使用模型預設的眨眼動畫
+    force-auto-blink:
+      title: 強制
+      description: 使用外部計時器強制眨眼動畫
+    blink-mode:
+      title: 眨眼模式
+      description: 選擇模型內建眨眼或 Kitsune AI 的強制眨眼計時器。
+    idle-motion:
+      title: 閒置動畫
+      no-motion: 沒有可用的動畫
+      placeholder: 選擇動畫
+      disable-motion: 已停用
+      disable-motion-description: 停用閒置動畫
+  parameters:
+    title: 模型參數
+    render-scale:
+      title: 渲染縮放
+    fps:
+      title: 幀率
+      description: 限制渲染幀率
+      options:
+        unlimited: ∞
+    shadow: 投影
+    reset-parameters: 恢復預設參數
+    reset-value: 重設為預設值
+    groups:
+      head-rotation: 頭部旋轉
+      eyes: 眼睛
+      eyebrows: 眉毛
+      mouth: 嘴巴
+      face: 臉部
+      body: 身體
+    labels:
+      angle-x: X 軸角度
+      angle-y: Y 軸角度
+      angle-z: Z 軸角度
+      left-eye-open: 左眼 張開/閉合
+      right-eye-open: 右眼 張開/閉合
+      left-eye-smile: 左眼 微笑
+      right-eye-smile: 右眼 微笑
+      left-eyebrow-lr: 左眉 左右
+      right-eyebrow-lr: 右眉 左右
+      left-eyebrow-y: 左眉 Y
+      right-eyebrow-y: 右眉 Y
+      left-eyebrow-angle: 左眉 角度
+      right-eyebrow-angle: 右眉 角度
+      left-eyebrow-form: 左眉 形狀
+      right-eyebrow-form: 右眉 形狀
+      mouth-open: 嘴巴 張開/閉合
+      mouth-form: 嘴巴 形狀
+      cheek: 臉頰
+      body-rotation-x: 身體旋轉 X
+      body-rotation-y: 身體旋轉 Y
+      body-rotation-z: 身體旋轉 Z
+      breath: 呼吸
+  clear-model-cache: 清除模型快取
+  model-cache:
+    refresh: 重新整理
+  expressions:
+    title: 表情
+    override-toggle: 表情系統
+    sdk-preset-preserved-notice: >
+      停用時保留 SDK 表情管理器和眨眼功能。
+    no-expression: 此模型沒有可用的表情。
+    llm-integration-wip: LLM 工具整合尚未接入。
+    save-default: 儲存表情預設值
+    reset: 重設所有表情
+    expose-to-llm-toggle: 暴露給 LLM
+    expose-to-llm-options:
+      none: 無
+      all: 全部
+      custom: 自訂
+microphone: 麥克風
+models: 模型
+pages:
+  card:
+    activate: 啟用
+    active: 已啟用
+    active_badge: 目前使用中
+    cancel: 取消操作
+    save: 儲存更改
+    card_not_found: 找不到角色卡
+    character: 角色設定
+    close: 關閉
+    chat:
+      provider: 聊天 / 提供者
+    consciousness:
+      model: LLM / 模型
+    vision:
+      provider: 視覺 / 提供者
+      model: 視覺 / 模型
+    created_by: 建立者
+    creator_notes: 建立者筆記
+    delete: 刪除
+    delete_card: 刪除角色卡
+    delete_confirmation: 確定要刪除這張角色卡嗎？
+    select-sort-option: 選擇排序方式
+    select-background: 選擇背景
+    description: 使用 Kitsune AI 角色卡預設
+    description_label: 描述
+    drop_here: 放開以上傳檔案
+    create_card: 建立新角色卡
+    edit_card: 卡片編輯
+    refresh-gallery: 重新整理圖庫
+    edit-card: 編輯卡片
+    gallery: 圖庫
+    pinned-background: 釘選背景
+    pinned-background-description: 選擇角色啟用時顯示的圖片。
+    no-images: 圖庫中還沒有圖片。
+    creation:
+      identity: 身份
+      name: 名字
+      nickname: 暱稱
+      description: 描述
+      behavior: 行為
+      greetings: 問候語（每行一個）
+      settings: 設定
+      version: 版本
+      create: 建立
+      defaults:
+        name: 名字
+        personality: 你是一個普通人，對一切都充滿好奇。
+        scenario: 你最近醒來，忘記了之前的所有生活。
+        systemprompt: 你將收到訊息，請像真實人類一樣回覆。
+        posthistoryinstructions: 記得模仿人類的行為。
+      modules_info: 為此角色卡配置模組。如未設定，將使用預設模組配置。
+      use_default: 使用預設
+      use_default_not_configured: 使用預設（未配置）
+      fields_info:
+        subtitle: 您可以在這裡填寫有關您正在建立的角色的一些詳細資訊，解釋他的背景和情境，以及應該如何回應您的互動。
+        name: 是該角色的正式名稱。
+        nickname: 您也可以提供一個暱稱，它將被優先使用。
+        description: 該角色的描述。
+        notes: 如果您想新增一些個人備註。
+        personality: 在這裡描述您的角色的個性。例如：害羞？好奇？其他？
+        scenario: 周圍環境是怎樣的？目前的情境是什麼？
+        greetings_field: 問候語
+        greetings: 您的角色應該如何說「你好」？
+        systemprompt: 在這裡向 AI LLM 解釋當被提示時應該如何回應。
+        posthistoryinstructions: 在訊息歷史之後，放入 AI LLM 應該閱讀的內容。
+        version: 卡片版本，如果您從之前的卡片做了更改，應當增加此版本號。
+        consciousness_model: 為這個角色選擇 AI 模型。
+        speech_model: 為此角色指定語音合成模型與音色。
+      errors:
+        name: 錯誤：你必須提供一個有效的名稱！
+        version: 錯誤：版本號無效！
+        description: 錯誤：你必須為此卡片提供描述。
+        personality: 錯誤：必須為該角色提供性格描述。
+        scenario: 錯誤：必須提供一個情境。
+        systemprompt: 錯誤：請提供系統提示。
+        posthistoryinstructions: 錯誤：必須提供訊息歷史後的提示。
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: None
+      persona-tab:
+        title: 角色人格
+        description: 配置角色的人格模式、靈魂定義和稱呼設定。靈魂和身份內容會融入系統提示詞。
+        mode-title: 人格模式
+        modes:
+          rational: 理性 — 簡潔、結構化、技術性
+          idol: 偶像 — 溫暖、富有表現力、鼓舞人心
+          hybrid: 混合 — 理性(60)與感性(40)的平衡
+          strict: 嚴格 — 最小化情緒，高精度
+        soul-label: 靈魂 (Soul)
+        soul-description: 角色的核心人格定義，描述這個角色是誰、有什麼特質
+        identity-label: 身份 (Identity)
+        identity-description: 角色的行為準則、說話風格和行為約束
+        addressing-title: 稱呼設定
+        default-addressing: 預設稱呼
+        default-addressing-description: 角色對使用者的預設稱呼
+        custom-name: 自訂名稱
+        custom-name-description: 使用者偏好的名稱（留空則使用預設稱呼）
+    modules: 模組
+    name_asc: 名稱 (A-Z)
+    name_desc: 名稱 (Z-A)
+    no_cards: 還沒有任何角色卡，點擊上方按鈕上傳一個吧！
+    no_results: 沒有找到符合的角色卡
+    personality: 性格
+    posthistoryinstructions: 歷史提示指令
+    recent: 最近新增
+    scenario: 場景
+    search: 搜尋角色卡...
+    sort_by: 排序方式
+    body-model: 身體 / 顯示模型
+    speech:
+      provider: 語音 / 提供者
+      model: 聲音 / 模型
+      voice: 聲音 / 聲線
+    systemprompt: 系統提示詞
+    title: Kitsune AI 角色卡
+    try_different_search: 嘗試使用其他關鍵字搜尋
+    upload: 上傳
+    upload_desc: 點擊或拖曳檔案到此處上傳
+  memory:
+    description: 存放記憶的地方，以及策略
+    title: 記憶體
+  data:
+    title: 資料管理
+    description: 管理儲存 Kitsune AI 資料、匯出和重設
+    sections:
+      chats:
+        title: 聊天會話
+        description: 匯出或匯入儲存的聊天會話。
+        export: 匯出聊天記錄
+        import: 匯入聊天記錄
+        delete: 刪除所有聊天會話
+      models:
+        title: 模型
+        description: 刪除匯入的Live2D/VRM模型。
+        delete: 刪除所有模型
+      modules:
+        title: 模組
+        description: 重設模組偏好設定和憑據。
+        reset: 重設模組設定
+      providers:
+        title: 服務來源
+        description: 重設所有提供者設定和憑據。
+        reset: 重設提供者設定
+      danger:
+        title: 危險區域
+        description: 不可逆操作。繼續之前，請匯出您需要的內容。
+      all:
+        title: 刪除所有資料
+        description: 清除每個本地設定、提供者配置和模型。
+        delete: 刪除所有資料
+      desktop-folder:
+        title: 開啟應用程式資料資料夾
+        description: 在檔案管理員中開啟 Kitsune AI 的資料資料夾。
+        open: 開啟資料夾
+      desktop:
+        title: 重設桌面設定和狀態
+        description: 清除 Kitsune AI 桌面設定和運行狀態。
+        reset: 重設桌面資料
+    confirmations:
+      tooltip: 您確定嗎？
+      'yes': 是
+    status:
+      exported: 聊天會話已匯出。
+      imported: 聊天會話已匯入。
+      import_error: 無法匯入聊天會話。請檢查檔案格式。
+      chats_deleted: 聊天會話已刪除。
+      models_deleted: 模型已刪除。
+      modules_reset: 重設模組設定。
+      providers_reset: 服務端設定重設。
+      all_deleted: 已刪除所有本地資料。
+      desktop_reset: 桌面資料重設。
+  models:
+    description: 切換角色的 Live2D，VRM 模型
+    title: 角色模型
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: 配置 Live2D 模型
+        vrm:
+          title: VRM
+          description: 配置 3D VRM 模型
+        scene: 場景
+  modules:
+    persona:
+      title: 角色人格
+      description: 定義 AI 的性格和說話風格
+      mode-title: 人格模式
+      mode-description: 選擇對話的 AI 性格模式
+      modes:
+        rational:
+          label: 理性
+          description: 簡潔、結構化、技術性
+        idol:
+          label: 偶像
+          description: 溫暖、富有表現力、鼓舞人心
+        hybrid:
+          label: 混合
+          description: 理性(60)與感性(40)的平衡
+        strict:
+          label: 嚴格
+          description: 最小化情緒，高精度
+      profile:
+        title: 個人資料
+        profile-name: 檔案名稱
+        address-user-as: 稱呼使用者為
+      emotion-mapper:
+        title: 情感對應器
+        description: 情感對應器自動將 AI 工具呼叫和回應對應到 Live2D/Spine 表情。無需手動配置。
+      character-system:
+        title: 角色系統
+        description: 管理具有獨特人格、聲音和模型的 AI 角色。可透過 SOUL.md 和 IDENTITY.md 檔案配置角色。
+    llm-routing:
+      title: LLM 路由
+      description: 根據訊息複雜度自動路由至本機或雲端提供者
+      routing-rules: 路由規則
+      add-rule: 新增規則
+      edit-rule: 編輯規則
+      rule-name: 規則名稱
+      rule-name-placeholder: 輸入規則名稱
+      target: 目標
+      local: 本機
+      cloud: 雲端
+      min-length: 最小長度
+      no-min: 無限制
+      max-length: 最大長度
+      no-max: 無限制
+      match-code-blocks: 符合程式碼區塊
+      match-tool-keywords: 符合工具關鍵字
+      keywords: 關鍵字（逗號分隔）
+      keywords-placeholder: 關鍵字1, 關鍵字2
+      priority: 優先順序（越小越優先）
+      save: 儲存
+      cancel: 取消
+      edit: 編輯
+      delete: 刪除
+      chars: 字元
+      code-blocks: 程式碼區塊
+      tool-keywords: 工具關鍵字
+      keywords-label: 關鍵字
+    beat_sync:
+      description: 隨音源節拍律動
+      title: 同步音律
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: 開始螢幕錄製
+            stop: 停止
+          description: 選擇音訊來源以偵測其中的節拍
+          title: 音訊來源
+        beat_visualizer:
+          title: 節拍視覺化
+        parameters:
+          advanced_parameters: 進階參數
+          description: 調整節拍偵測參數
+          title: 參數
+          parameters:
+            adaptive_threshold:
+              description: 是否根據訊號隨時間變化的方差套用自適應閾值
+              label: 自適應閾值
+            buffer_duration:
+              description: 內部分析緩衝區的持續時間
+              label: 緩衝時長
+            envelope_filter_frequency:
+              description: 套用於平滑能量變化的包絡濾波器頻率
+              label: 包絡濾波器頻率
+            highpass_filter_frequency:
+              description: 高通濾波器的頻率設定，用於抑制低頻雜訊（如次低頻雜訊）
+              label: 高通濾波器頻率
+            lowpass_filter_frequency:
+              description: 低通濾波器的頻率設定，用於削减高頻訊號（如人聲）
+              label: 低通濾波器頻率
+            min_beat_interval:
+              description: 最大每分鐘節拍數（BPM）或偵測到的節拍之間最小間隔
+              label: 最大BPM / 最小節拍間隔
+            sensitivity:
+              label: 靈敏度
+            spectral_flux:
+              description: 啟用基於頻譜流的節拍起始偵測。
+              label: 頻譜流
+            warmup:
+              description: 在偵測節拍之前進行預熱，以提高準確性
+              label: 預熱
+    artistry:
+      title: 圖像創作
+      description: 圖像生成、場景背景和繪畫。
+      page:
+        title: 圖像創作提供者配置
+        description: 選擇图像生成的後端提供者。角色可以在其卡片設定中覆蓋此配置。
+      providers:
+        none:
+          name: 無
+          description: 跳過並全域停用图像生成模組。
+        comfyui:
+          name: ComfyUI (本機)
+          description: 透過 WSL 使用本機 ComfyUI 實例進行图像生成。
+        replicate:
+          name: Replicate.ai (雲端)
+          description: 透過 Replicate API 使用雲端模型。
+        nanobanana:
+          name: Nano Banana (預覽)
+          description: 使用 Google AI Studio 進行圖像預覽和反應。
+      card:
+        description: 配置 Kitsune AI 如何生成圖像和視覺內容。
+        comfyui_empty: 未配置 ComfyUI 工作流。請前往 設定 → 提供者 → ComfyUI 上傳工作流範本。
+        exposed_fields: '{count} 個暴露欄位'
+        open_on_replicate: 在 Replicate 上開啟
+        instruction_sync:
+          title: ComfyUI 指令同步
+          description: 為您的 {workflowName} 工作流準備了專用提示詞。套用此提示詞將覆蓋目前的小部件指令，以便 AI 知道如何使用此特定範本。
+          apply: 套用推薦提示詞
+          keep: 保留現有
+      provider: 圖像創作提供者
+      spawn_mode:
+        label: 呈現模式 (生成模式)
+        description: 選擇圖像如何呈現到介面。
+        options:
+          bg: 背景環境
+          inline: 內聯聊天
+          widget: 覆蓋小部件
+          bg_widget: 雙重 (背景 + 小部件)
+      autonomous:
+        title: 自主創作 (自動藝術家)
+        description: 啟用後，「製片人」將與角色並行運行，以決定是否需要視覺內容。這可以防止角色忘記呈現場景。
+        threshold: 呈現閾值
+        threshold_description: 使用 {min} 進行積極的場景建立，或使用 {max} 要求更強的證據才生成。
+        threshold_min: 始終生成 (0%)
+        threshold_max: 嚴格 (100%)
+      model:
+        label: 圖像創作模型 (可選覆蓋)
+        description: 如果提供者需要，填寫模型識別碼
+      prompt-prefix:
+        label: 圖像創作提示詞預設前綴
+        description: 預置到傳送給圖像生成器的每個提示詞前。
+      options:
+        label: 圖像創作提供者選項 (JSON)
+      widget-instructions:
+        label: 小部件系統提示詞
+        description: AI 如何使用生成能力的自訂指令。
+    categories:
+      essential: 基礎
+      messaging: 訊息
+      gaming: 遊戲
+      artistry: 圖像創作
+    consciousness:
+      description: 角色人格設定與 LLM 模型選擇
+      sections:
+        section:
+          provider-model-selection:
+            collapse: 摺疊
+            custom_model_placeholder: 輸入自訂模型名稱
+            current_model_label: 目前模型：
+            description: 為 LLM 選擇合適的服務來源
+            error: 取得出錯啦
+            health_check_failed: 健康檢查失敗
+            no_providers_configured_title: 沒有配置服務來源
+            no_providers_configured_description: 點擊這裡設定您的 LLM 服務來源
+            expand: 展開
+            loading: 取得模型中...
+            manual_model_name: 模型名字
+            manual_model_placeholder: 輸入與該服務來源一起使用的模型名稱
+            no_models: 沒有任何可用的模型
+            no_models_description: 該服務來源的模型列表沒有返回任何的資料
+            no_search_results: 沒有符合的模型
+            no_search_results_description: 沒有模型符合 '{query}' 關鍵字，請嘗試一下別的關鍵字呢
+            not_supported: 無法列出模型
+            not_supported_description: 此服務來源不支援列出模型的功能
+            search_placeholder: 搜尋模型...
+            search_results: 找到 {count} / {total} 個模型
+            show_less: 顯示更多
+            show_more: 收起
+            subtitle: 選擇一個預設模型
+            title: 模型
+      title: LLM
+    description: 思維，視覺，言語綜合，遊戲等
+    gaming-factorio:
+      description: 一起玩 Factorio！
+      title: 異星工廠 Factorio
+      enable: 啟用異星工廠整合
+      enable-description: 允許Kitsune AI與異星工廠遊戲互動
+      server-address: 伺服器位址
+      server-address-description: 異星工廠伺服器的IP位址或主機名稱
+      server-address-placeholder: 輸入伺服器位址（例如：localhost或192.168.1.100）
+      server-port: 伺服器連接埠
+      server-port-description: 異星工廠伺服器的連接埠號碼（預設 34197）
+      username: 使用者名稱
+      username-description: 您在異星工廠伺服器中的使用者名稱
+      username-placeholder: 輸入您的異星工廠使用者名稱
+      configured: 異星工廠已正確配置！
+    gaming-minecraft:
+      description: 一起玩 Minecraft！
+      title: 我的世界 Minecraft
+      enable: 啟用我的世界整合
+      enable-description: 在 Chat 介面 中包含 Minecraft 自己的上下文和認知，並保持 Passive runtime visibility 啟用。
+      configured: 我的世界已正確配置！
+      read-only:
+        title: 唯讀外殼
+        description: 目前此 Minecraft 管理介面將作為一個被動的外殼。你可以在這裡觀察運行狀態，但服務配置仍然存在於 Minecraft 服務檔案中。
+      setup:
+        title: 配置
+        description: 你可以在下面的檔案中找到設定 Minecraft bot 的說明
+      runtime:
+        title: 可觀測
+        connection: 連線
+        latest-context: 最後的 Bot 狀態
+        waiting: 等待一個新的 Bot 上下文推送。
+        unknown: 未知
+      debug:
+        title: Minecraft流量
+        empty: 還沒有觀察到任何 Minecraft 流量。
+        source: '來源: {source}'
+      status:
+        service-online: 服務已上線
+        service-offline: 服務已離線
+        no-runtime-context: 尚未觀察到 Bot 狀態
+        last-context-seconds: 最後一次 Bot 狀態更新：{seconds} 秒之前
+        last-context-stale: 最後一次 Bot 狀態：掛起
+    hearing:
+      description: 語音識別
+      title: 聽覺
+      sections:
+        section:
+          provider-selection:
+            title: 語音提供者
+            description: 選擇合適的語音轉文本的服務來源
+            add: 新增提供者
+            empty-title: 未配置提供者
+            empty-description: 點擊此處設定您的轉錄提供者
+          provider-model-selection:
+            title: 模型
+            manual-description: 輸入要使用的轉錄模型（例如 'whisper-1'、'gpt-4o-transcribe'）
+          confidence-threshold:
+            title: 信心閾值
+            description: 篩選低信任的文字記錄以減少語音識別的幻覺。值靠近 0 更嚴格；拖動到左邊以停用。 僅對支援 Whisper API 的提供者有效（例如，OpenAI，Groq）。
+            disabled: 停用
+            verbose-json-note: 注意：如果您的提供者不支援 verbose_json 結果處理，此設定將不會有任何效果。
+            verbose-json-unsupported: 如果您的提供者沒有返回 verbose_json 結果。信心閾值將不會影響轉錄。
+          audio-input:
+            title: 音訊輸入裝置
+            description: 選擇聽覺模組的音訊輸入裝置
+          auto-send:
+            title: 自動傳送設定
+            description: 配置轉錄文字自動傳送到聊天
+            enabled:
+              label: 自動傳送轉錄文字
+              description: 延遲後自動將轉錄文字傳送到聊天。這可能會消耗令牌，如果您想在傳送前手動檢視和編輯轉錄，請停用此功能。
+            delay:
+              label: 自動傳送延遲
+              description: 自動傳送轉錄文字前的延遲（毫秒）（0 = 立即傳送，建議：1000-3000毫秒）
+              immediate: 立即
+          monitoring:
+            title: 音訊監控
+            description: 即時監控音訊輸入並視覺化語音活動
+            start: 開始監聽
+            stop: 停止監聽
+            error-title: 發生錯誤
+            input-level: 輸入電平
+            voice-probability: 語音機率
+            silence-label: 靜音
+            speech-label: 語音
+            threshold-label: 偵測閾值
+            sensitivity:
+              label: 靈敏度
+              description: 調整語音偵測的閾值
+            silence-duration:
+              label: 停止前的暫停
+              description: 靜音持續多久後認為語音已結束
+            speaking: 偵測到語音
+            silent: 靜音
+            mode:
+              model: 基於模型
+              volume: 基於音量
+              model-description: 使用 AI 模型進行更精確的語音偵測
+            model:
+              loading: 載入中...
+              loaded: 已啟用
+              error-title: 推理錯誤
+            vad:
+              title: 語音活動
+              subtitle: 最近 2 秒
+              active-label: 說話中
+              active-legend-label: 偵測到語音
+              inactive-legend-label: 靜音
+              threshold-label: 語音閾值
+          stt-test:
+            title: 語音轉文字測試
+            description: 使用選定的音訊裝置測試您的轉錄提供者。這將幫助驗證 STT 是否正常運作。
+            select-provider-first: 請先選擇一個轉錄提供者進行測試
+            select-device-first: 請選擇一個音訊輸入裝置進行測試
+            start: 開始語音轉文字測試
+            stop: 停止測試
+            transcribing: 轉錄中...
+            starting-stream: 啟動音訊串流...
+            starting-streaming: 開始串流轉錄...
+            recording: 正在錄音（3 秒）...
+            processing: 處理轉錄中...
+            listening: 正在監聽語音（串流模式已啟用）
+            waiting-for-speech: 等待語音...
+            complete: 轉錄完成！
+            failed: 轉錄失敗
+            error-title: 轉錄錯誤
+            stopped: 已停止
+            streaming-mode-hint: 串流模式：轉錄結果將在您說話時即時顯示
+            transcribing-recording: 正在轉錄錄音...
+            error-with-message: 錯誤：{error}
+            start-stream-error: 啟動音訊串流失敗。請檢查麥克風權限。
+            status:
+              starting-stream: 啟動音訊串流...
+              starting-streaming: 開始串流轉錄...
+              recording: 正在錄音（3 秒）...
+              processing: 處理轉錄中...
+              listening: 正在監聽語音（串流模式已啟用）
+              transcribing-streaming: 轉錄中...（串流）
+              waiting-for-speech: 等待語音...
+              complete: 轉錄完成！
+              failed: 轉錄失敗
+              stopped: 已停止
+              error: 錯誤：{error}
+            result:
+              title: 轉錄結果
+              streaming: 目前轉錄（串流）
+              final: 最終轉錄
+              placeholder: 暫無轉錄結果。點擊「開始語音轉文字測試」並對麥克風說話。
+            provider: 提供者
+            model: 模型
+            mode:
+              streaming: 串流（即時）
+              recording: 錄音（檔案）
+    memory-long-term:
+      description: 長期記憶
+      title: 長期記憶
+    memory-short-term:
+      description: 短期記憶
+      title: 短期記憶
+    messaging-discord:
+      description: Discord 發訊息和語音聊天
+      title: Discord
+      enable: 啟用Discord整合
+      enable-description: 允許Kitsune AI透過Discord進行互動
+      token: 機器人令牌
+      token-description: 您的Discord機器人令牌
+      token-placeholder: 輸入您的Discord機器人令牌
+      configured: Discord已正確配置！
+    speech:
+      description: 語音合成
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: 停止
+            select-voice:
+              loading: 正在載入模型……
+              required: 請選擇聲線
+            title: 語音測試
+            description: 輸入文字並試聽生成的語音效果
+            error: 生成失敗
+            generating: 生成中...
+            test-speech: 測試語音
+          voice-pack:
+            description: 為目前角色選擇精選語音
+            empty: 沒有可用的語音包
+            error: 載入語音包時出錯
+            loading: 正在載入語音包...
+            title: 語音包
+          provider-voice-selection:
+            custom_model_placeholder: 輸入指定模型名稱...
+            custom_voice_placeholder: 輸入指定聲線 ID...
+            description: 選擇合適的語音服務來源
+            no_models: 沒有任何可用的模型
+            no_models_description: 該服務來源的模型列表沒有返回任何的資料
+            no_voices: 沒有任何可用的聲線
+            no_voices_description: 該服務來源的聲線列表沒有返回任何的資料
+            no_voices_hint: 可以在下方輸入自訂聲線名字
+            pause: 暫停
+            play_sample: 播放
+            search_models_placeholder: 搜尋模型...
+            search_models_results: 找到 {count} / {total} 個模型
+            search_voices_placeholder: 搜尋聲線...
+            search_voices_results: 找到 {count} / {total} 個聲線
+            unsupported_voice_warning_title: 沒有支援的聲線
+            unsupported_voice_warning_content: 我們正在盡快支援該模型的所有音色，如果你迫切希望支援該模型音色，請在 GitHub 上聯絡我們 https://github.com/kitsune-ai/kitsune-ai/issues
+            show_less: 顯示更少
+            show_more: 顯示更多
+            title: 選擇語音合成服務來源
+          voice-settings:
+            input-ssml:
+              placeholder: 請輸入 SSML 文字
+            use-ssml:
+              description: 啟用後可以輸入原始 SSML 而不是純文字
+              label: 選用自訂 SSML
+            voice-id: 聲線 ID
+            voice-id-description: 輸入 OpenAI 相容 API 的聲線 ID
+            name: 語音名稱
+            name-description: 輸入自訂語音的名稱
+            name-placeholder: 例如 alloy、echo
+            language-filter:
+              all: 全部
+              zh: 中文
+              ja: 日本語
+            uploading: 上傳中...
+            upload-reference: 上傳參考音訊
+            upload-hint: 上傳 3~10 秒參考音訊即可建立新音色
+            load-error: 載入語音失敗
+          provider-selection:
+            title: 語音提供者
+            description: 選擇用於語音合成的服務提供者
+            add: 新增提供者
+            empty-title: 未配置語音提供者
+            empty-description: 點擊此處設定語音服務
+          model-input:
+            label: 模型名稱
+            placeholder: 輸入 TTS 模型名稱
+            error-description: 模型發現失敗時可手動輸入
+            empty-description: 無可用模型時可手動輸入
+            select-button: 選擇模型
+            subtitle: 選擇目前提供者使用的語音合成模型
+      title: 發聲
+    title: 機體模組
+    vision:
+      description: 視覺
+      title: 視覺
+      capture_cadence:
+        title: 視覺捕捉頻率
+        description: 調整視覺計時器捕捉幀的頻率。
+        capture_interval:
+          label: 捕捉間隔
+          description: 較低的值會更頻繁地捕捉，可能會增加資源使用。
+        ticker:
+          label: 計時器
+          active: 活躍
+          idle: 閒置
+          last_capture: 上次捕捉 {time}
+        captures:
+          label: 捕捉次數
+          last_update: 上次更新 {time}
+        context_updates:
+          label: 上下文更新
+          last_update: 上次更新 {time}
+        never: 從未
+        seconds_ago: '{count}秒前'
+        minutes_ago: '{count}分鐘前'
+        hours_ago: '{count}小時前'
+      provider_toggles:
+        title: 服務提供者請求開關
+        description: 控制視覺推理的服務提供者特定請求標誌。
+        thinking_ollama:
+          label: 思考模式 (Ollama)
+          description: '啟用後，透過 Ollama 傳送的視覺請求將包含 `think: true`。停用時，將包含 `think: false`。'
+    x:
+      description: X / Twitter 的瀏覽和使用
+      title: X / Twitter
+      enable: 啟用X / Twitter整合
+      enable-description: 允許Kitsune AI與X / Twitter互動
+      api-key: API密鑰
+      api-key-description: 您的X / Twitter API密鑰
+      api-key-placeholder: 輸入您的X / Twitter API密鑰
+      api-secret: API密鑰密文
+      api-secret-description: 您的X / Twitter API密鑰密文
+      api-secret-placeholder: 輸入您的X / Twitter API密鑰密文
+      access-token: 存取令牌
+      access-token-description: 您的X / Twitter存取令牌
+      access-token-placeholder: 輸入您的X / Twitter存取令牌
+      access-token-secret: 存取令牌密文
+      access-token-secret-description: 您的X / Twitter存取令牌密文
+      access-token-secret-placeholder: 輸入您的X / Twitter存取令牌密文
+      configured: X / Twitter已正確配置！
+    mcp-server:
+      title: MCP 整合
+      description: 配置其他 MCP 伺服器並將能力拓展至 Kitsune AI
+      config-path: 配置檔案
+      runtime-title: 運行狀態
+      empty: 尚無已配置的 MCP 整合 - 點擊「新增伺服器」來建立一個，或者透過「編輯 JSON」直接貼上配置
+      error-title: 壞了
+      success-title: 完成！
+      existing:
+        title: 配置完成
+        description: 在配置檔案中記錄了 MCP 伺服器。點擊展開後可以編輯它。
+        empty: 這裡什麼都還沒有喔，在下面新增一個！
+      add:
+        title: 新建
+        description: 填寫新的伺服器配置，然後點擊「儲存並重啟」，完成後將會更新至上方的「已配置」
+        pending-badge: 未儲存
+      status:
+        unknown: 未載入
+      actions:
+        open-config: 在檔案管理員中檢視
+        apply-and-restart: 儲存並重啟
+        restart: 重新整理 MCP 狀態
+        add-server: 新增
+        add-env: 新增變數
+        remove: 移除
+        test: 測試
+        edit-json: 編輯 JSON
+        close-json: 關閉
+        format-json: 格式化
+        reset-draft: 重設
+        apply-json: 套用
+        cancel: 取消
+        expand: 展開
+        collapse: 收起
+      fields:
+        identifier:
+          label: 唯一識別碼
+          description: 唯一名稱，作為 mcp.json 中的鍵。
+          placeholder: 例如：filesystem
+        command:
+          label: 命令
+          description: 透過 stdio 啟動的可執行程式。
+          placeholder: 例如：npx
+        args:
+          label: 命令參數
+          description: 每行一個，按順序傳入。
+          placeholder: >-
+            -y
+
+            some-package-name
+
+            /tmp
+        cwd:
+          label: 工作目錄
+          description: 選用，作為啟動行程時使用的工作目錄。
+          placeholder: 例如 /Users/you/project
+        env:
+          label: 環境變數
+          description: 注入到子行程的環境變數。
+          key-placeholder: 名稱
+          value-placeholder: 值
+        enabled:
+          label: 啟用
+      json:
+        title: 編輯 mcp.json
+        description: 可以直接修改 JSON，點擊「套用」時會自動解析，此時再次點擊「儲存並重啟」就能寫到磁碟上啦～
+        placeholder: 在這裡貼上 mcp.json...
+      test:
+        title: 測試連線
+        description: 我們會臨時把它啟動一次，看看命令能不能跑、能列出哪些工具
+        pick-server-label: 伺服器
+        no-servers: 還沒有可以測試的伺服器
+        no-server-selected: 先選一個伺服器吧
+        server-disabled: '"{name}" 還是停用狀態喔，先在卡片上啟用再測試吧'
+        disabled-suffix: 已停用
+        untitled: 未命名
+        running: 正在測試…
+        success: 連線成功！發現 {count} 個工具，耗時 {ms}ms
+        failure: 連線失敗了，耗時 {ms}ms
+      errors:
+        empty-identifier: 伺服器
+        duplicate-identifier: 識別碼 "{name}" 重複了，每個伺服器要用不同的名字。
+        empty-command: '"{name}" 還沒填啟動命令。'
+        invalid-shape: mcp.json 結構不對，最外層得有 "mcpServers" 這個欄位。
+      messages:
+        opened: 已經在檔案管理員裡開啟 {path} 啦
+        json-applied: JSON 已經解析完成了，點「儲存並重啟」就寫到磁碟上啦。
+        restarted: 重啟好啦！啟動了 {started} 個，失敗 {failed} 個，跳過 {skipped} 個
+  flux:
+    title: Flux
+    buy: 儲值
+    currency: 幣種
+    description: 儲值 Flux
+    packagesError: 暫時無法取得可用的 Flux 電量包。可以之後再試試嗎？
+    checkout:
+      success: 謝謝你！你的 Flux 通量已經更新好啦～
+      canceled: 支付被取消
+      error: 哎呀，出錯了，請稍後再試
+    audit:
+      title: 使用記錄
+      time: 時間
+      type: 類型
+      detail: 明細
+      amount: 金額
+      typeAddition: 充電
+      typeConsumption: 用量
+      typeInitial: 初始額度
+      typePromo: Promo Grant
+      loading: 載入歷史...
+      empty: 暫無消耗記錄
+      loadMore: 更多資訊
+      delayHint: Flux 電量歷史記錄是緩慢更新的，可能有延遲
+      ttsRequests: 請求
+    packages:
+      title: Flux 電池包
+      buy: 儲值
+      description: 可以選擇購入的 Flux 電池包
+  providers:
+    catalog:
+      edit:
+        config-id-not-found: 找不到服務來源配置。
+        definition-id-not-found: 找不到服務來源定義。
+        actions:
+          more-options: 更多選項
+          delete: 刪除
+        validation:
+          failed:
+            title: 請檢查您的服務來源設定，驗證失敗。
+            description: 如果你想要繼續，你仍然可以儲存目前的配置。
+            action: 仍要儲存
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: API 密鑰
+                  description: API 密鑰用於授權此服務來源的請求
+                  placeholder: sk-……
+                base-url:
+                  label: Base URL
+                  description: 用於連線遠端服務的 baseUrl。通常看起來像是 http://localhost:11434/v1 或 https://example.com/v1。
+                  placeholder: 基礎 Url……
+                headers:
+                  label: 新增自訂 HTTP 標頭
+                  description: 新增自訂 HTTP 標頭
+                  key:
+                    placeholder: 請求頭名字
+                  value:
+                    placeholder: 請求頭數值
+                thinking-mode:
+                  label: 深度思考模式
+                  description: >
+                    控制 Olama 深度思考的開關。GPT-OSS 只支援低/中/高水準。
+                  options:
+                    auto: 自動（預設服務來源）
+                    disable: 停用
+                    enable: 啟用
+                    low: 低
+                    medium: 中
+                    high: 高
+        validators:
+          actions:
+            validate: 驗證
+          empty: 沒有可用的驗證步驟。
+          openai-compatible:
+            check-config:
+              title: 配置
+            check-connectivity:
+              title: 連通性
+            check-supports-model-listing:
+              title: 能夠列出模型
+            check-supports-chat-completion:
+              title: 能夠處理 Chat Completion（聊天補全）請求
+          status:
+            validating: 驗證中……
+            valid: 通過
+            invalid: 錯誤
+          title: 檢查
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Ollama需要額外的配置
+                    content: 很抱歉，Ollama 連線檢查失敗。不要擔心，如果是 Ollama，需要額外配置才能通過 Ollama。 您需要在啟動 Olama 應用程式或 Ollama CLI 伺服器時明確設定 <code>OLLAMA_HOST</code> 詳情，請檢查 <a href="https://docs.kitsune-ai.dev/en/docs/manual/integrations/providers/chat/ollama">Ollama 整合指南</a>。
+    common:
+      continueAnyway: 仍然繼續
+      goToModelSelection: 選擇模型→
+      default-test-text: 您好！這是語音合成測試。
+      base-url-placeholder: 輸入服務來源的 Base URL
+      fields:
+        field:
+          api-key:
+            label: API 密鑰
+          model:
+            label: 模型
+            description: 選擇用於語音生成的 TTS 模型
+            placeholder: 選擇模型...
+          temperature:
+            label: 溫度
+            description: 控制語音生成的隨機性。較低的值使語音更可預測，較高的值使其更有創意。
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: 新增自訂 HTTP 標頭
+                key:
+                  placeholder: 請求頭名字
+                label: HTTP 請求頭
+                value:
+                  placeholder: 請求頭數值
+          title: 進階配置
+        basic:
+          description: 基本設定
+          title: 基礎配置
+        voice:
+          title: 聲音配置
+    filters:
+      pricing: 價格
+      deployment: 部署
+      all: 全部
+      free: 免費
+      paid: 付費
+      internal: 內部
+      local: 本機
+      cloud: 雲端
+    categories:
+      chat:
+        title: 聊天
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: 視覺
+        description: 用於圖像理解的視覺模型服務來源。
+      speech:
+        title: 語音合成
+        description: 語音合成（文字轉語音）模型服務來源，例如 ElevenLabs、Azure Speech。
+      transcription:
+        title: 語音識別
+        description: 語音識別（語音轉文字）模型服務來源，例如 Whisper.cpp、OpenAI、Azure Speech
+      artistry:
+        title: 圖像創作
+        description: 圖像生成和設計模型服務來源，例如 ComfyUI、Replicate。
+        items:
+          comfyui:
+            description: Local image generation runner.
+          replicate:
+            description: Cloud-based model inference service.
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: 第一次使用？
+      description: >
+        Kitsune AI 需要配置至少一個 {chat} 服務來源，才能正常思考和運作。你可以把它看作是 Kitsune AI 系統中角色的大腦。
+    explained:
+      chat: 文字生成模型服務來源，例如 OpenRouter, OpenAI, Ollama
+      Speech: 語音（文字轉語音）模型服務來源，例如 ElevenLabs, Azure Speech
+      Transcription: 轉錄（語音轉文字）模型服務來源，例如 Whisper.cpp, OpenAI, Azure Speech
+    description: LLM，語音合成，語音識別服務來源等
+    provider:
+      app-local-audio-transcription:
+        title: 應用內（本機）
+        description: 使用應用內本機模型進行語音識別
+      gpt-sovits:
+        title: GPT-SoVITS
+        description: 透過 GPT-SoVITS sidecar 進行本機語音合成（連接埠 9880）
+      browser-local-audio-transcription:
+        title: 瀏覽器內（本機）
+        description: 使用瀏覽器內建API進行語音識別
+      browser-local-audio-speech:
+        title: 瀏覽器內（本機）
+        description: 使用瀏覽器內建API進行語音合成
+      app-local-chat:
+        title: 應用內（本機）
+        description: 使用內建小體積本機模型進行聊天
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: 阿里百煉
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: AWS 區域
+            description: Bedrock 啟用的 AWS 區域（例如：us-east-1，us-west-2）
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: 開始之前
+          description:
+            part1: 雖然 Anthropic 最近宣布他們正在提供對 OpenAI SDK 相容性的 Beta 版支援
+            part2: （您可以在此處閱讀更多資訊）
+            part3: 但由於實作細節附帶
+            part4: 與 OpenAI SDK 不一致，目前無法在瀏覽器中使用此提供者。
+            part5: 如果您確實需要使用此提供者，則需要一個專用的代理後端，例如在
+            part6: 上執行的Serverless Function，或者一些繞過 CORS 的服務，以繞過 CORS 限制。
+      cloudflare-workers-ai:
+        description: Cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: Cloudflare 帳戶 ID
+              label: Cloudflare Account ID
+              placeholder: 請輸入 Cloudflare Account ID
+            api-key:
+              placeholder: 請輸入 Cloudflare Workers AI 的 API Key
+        title: Workers AI
+      common:
+        status:
+          validating: 正在驗證配置
+          valid: 配置似乎有效。
+        fields:
+          field:
+            pitch:
+              description: 調節合成語音的音高（比如更尖銳或者更粗曠）
+              label: 音高
+            speed:
+              description: 調節說話的語速
+              label: 語速
+            volume:
+              description: 調節語音的響度
+              label: 響度
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
+      speech-noop:
+        title: 無
+        description: 不使用語音合成
+      comfyui:
+        settings:
+          title: ComfyUI（本機）
+          heading: ComfyUI 原生 API
+          description: 連線到本機 ComfyUI 並使用您自己的工作流。
+          info:
+            what_you_need:
+              label: 所需條件
+              value: 在本機或網路上執行的 ComfyUI。
+            how_to_export:
+              label: 匯出方法
+              value: 啟用開發者模式 → 「儲存（API 格式）」。
+            scope_boundary:
+              label: 範圍限制
+              value: 模型下載和節點安裝需要您自行完成。
+          connection:
+            title: 連線
+            connected: 已連線
+            failed: 連線失敗
+            error_prefix: 錯誤
+            test: 測試
+            testing: 測試中...
+            unknown_error: 未知連線錯誤
+            unknown_gpu: 未知 GPU
+            server_url:
+              label: 伺服器 URL
+              description: ComfyUI 執行的位址
+              placeholder: http://localhost:8188
+          cors:
+            title: 偵測到 CORS 阻止
+            description: ComfyUI 預設阻止來自其他應用程式的請求。要允許 Kitsune AI 連線，您必須使用 `--enable-cors-header "*"` 標誌啟動 ComfyUI。
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: 工作流範本
+            upload: 上傳工作流
+            cancel_upload: 取消
+            empty: 尚未上傳工作流。點擊「上傳工作流」從 ComfyUI 匯入 workflow_api.json。
+            exposed_parameters: 暴露的參數
+            summary: '{nodes} 個節點 · {fields} 個暴露欄位'
+            remove: 移除
+            config_snippet: 創作配置片段
+            copy_json: 複製 JSON
+            paste_hint: 將此內容貼到您的 Kitsune AI 角色卡創作配置中以覆蓋這些節點。
+          upload:
+            prompt: 拖放或選擇 workflow_api.json 檔案
+            invalid_json: 無效的 JSON
+            workflow_name:
+              label: 工作流名稱
+              description: 為此工作流指定一個易於識別的名稱
+              placeholder: 例如 Anime Text2Img
+            select_fields: 選擇要暴露給 AI 代理的欄位：
+            fields_exposed: 已暴露 {count} 個欄位
+            save: 儲存工作流
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai 配置
+          description: 配置您的雲端圖像生成設定。
+          api_key:
+            label: API 密鑰
+            description: 您的 Replicate API 令牌（以 r8_ 開頭）
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: 預設模型
+            description: 當角色卡未指定時使用的備選 owner/model 字串
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: 寬高比
+            description: 預設圖像寬高比（例如 16:9、1:1、9:16）
+            placeholder: '16:9'
+          inference_steps:
+            label: 推理步數
+            description: 擴散過程的步數（越低越快，越高质量越好）
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: 配置 Google Gemini 的原生圖像生成能力。
+          api_key:
+            label: API 密鑰
+            description: 您的 Google AI Studio API 密鑰
+            placeholder: AIpk...
+          preferred_model:
+            label: 首選模型
+            description: 要使用的特定 Gemini 圖像預覽模型
+          default_resolution:
+            label: 預設解析度
+            description: 生成圖像的目標解析度
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+      deepseek:
+        description: DeepSeek.com
+        title: 深度求索 DeepSeek
+      elevenlabs:
+        description: Elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: 聲音相似性與依從性
+              label: 相似度修正
+            speaker-boost:
+              description: 增強說話者的相似性
+              label: 揚聲器增強
+            speed:
+              description: 語音生成速度
+              label: 語速
+            stability:
+              description: 語音穩定性和隨機性
+              label: 穩定性
+            style:
+              description: 誇張的語音風格
+              label: 風格
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: 生成中...
+                label: 測試聲音
+          fields:
+            field:
+              input:
+                placeholder: 輸入用於測試發音的文字
+              language:
+                description: 選擇語音語言
+                label: 語言
+              voice:
+                description: 選擇首選語音
+                label: 聲線
+          title: 實驗平台
+          validation:
+            error-missing-api-key: 需要填寫 API Key 才能用喔！
+        title: ElevenLabs (11labs)
+      kokoro-local:
+        description: 基於 Kokoro-82M 的本機語音合成
+        fields:
+          field:
+            model:
+              label: 模型選擇
+              description: 較小的模型載入更快，但質量可能略有下降。
+              placeholder: 選擇模型...
+        models:
+          q8-webgpu:
+            description: 8-bit 量化（WebGPU）— 推薦：顯存極小，音質接近滿血
+          fp32-webgpu:
+            description: 基於 WebGPU 的全精度模型 - 建議在支援的裝置上使用
+          fp32:
+            description: 全精度模型
+          fp16:
+            description: 半精度量化
+          q8:
+            description: 8-bit 量化
+          q4:
+            description: 4-bit 量化
+          q4f16:
+            description: 4-bit 量化 (FP16)
+        playground:
+          default-text: 您好！這是 Kokoro 文字轉語音（TTS）系統的測試。
+          title: 實驗平台
+        title: Kokoro TTS (本機)
+      fireworks:
+        description: Fireworks.ai
+        title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
+      mimo-audio-speech:
+        description: api.xiaomimimo.com
+        title: 小米 MiMo
+      player2-speech:
+        description: player2.game
+        title: Player2
+        download-hint: 請下載並執行 Player2 應用程式：
+        discord-hint: 下載後如果仍有問題，請在 Discord 上聯絡我們：
+      comet-api-speech:
+        description: CometAPI.com
+        title: Comet API
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: 服務 Endpoint 地區（比如亞太 eastasia 區域）
+              label: Endpoint 地區
+        title: Microsoft / Azure 語音服務
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: 暫不支援
+        callout_indextts2_unavailable: 目前尚未支援 IndexTTS2，請使用 IndexTTS。
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
+        resource-name: 資源名稱
+        resource-name-description: https://<前綴>.services.ai.azure.com 中使用的前綴
+        model-id: 模型 ID
+        model-id-description: Azure AI Foundry 上的模型 ID
+        api-version: API 版本
+        api-version-description: 模型快照的 API 版本
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
+        style-prompt-placeholder: 描述語調、節奏、情感和表達風格...
+        voice-sample-label: 聲音樣本（data URI）
+        voice-sample-description: 貼上 base64 聲音樣本，格式為 data:{MIME_TYPE};base64,$BASE64_AUDIO。MiMo 支援 mp3 和 wav 格式，最大 10 MB。
+      mimo-token-plan:
+        description: token-plan-cn.xiaomimimo.com
+        title: 小米 MiMo Token Plan
+      mimo-token-plan-speech:
+        description: token-plan-cn.xiaomimimo.com
+        title: 小米 MiMo Token Plan 語音合成
+      mimo-token-plan-transcription:
+        description: token-plan-cn.xiaomimimo.com
+        title: 小米 MiMo Token Plan 語音識別
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: Moonshot.ai
+        title: 月之暗面
+      modelscope:
+        description: modelscope.cn
+        title: 魔搭社區 ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: OpenAi.com
+        title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
+      openai-compatible:
+        description: OpenAI 相容 API
+        title: OpenAI 相容 API
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
+      n1n:
+        description: n1n.ai - 高性能的 AI API 提供者
+        title: n1n
+      openrouter:
+        description: OpenRouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      groq:
+        description: groq.com
+        title: Groq
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: 可在控制台取得的 App ID
+              label: App ID
+        title: 火山引擎
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
+      xai:
+        description: X.AI
+        title: xAI
+      zai:
+        description: 智譜大模型
+        title: Z.ai
+      302-ai:
+        description: 302.AI
+        title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      aliyun-nls:
+        description: Aliyun 智能語音服務
+        title: Aliyun 智能語音服務
+        access-key-id: Access Key ID
+        access-key-secret: Access Key Secret
+        app-key: App Key
+        app-key-placeholder: 請輸入 AppKey
+        region: 地域
+      browser-web-speech-api:
+        description: 瀏覽器原生STT (需要 Chrome/Edge/Safari)
+        title: Web 語音API
+        recognition-language: 識別語言
+        recognition-language-description: 選擇語音識別的語言
+        continuous-recognition: 連續識別
+        continuous-recognition-description: 持續監聽而不是在每個短語後停止
+        show-interim-results: 顯示臨時結果
+        show-interim-results-description: 在說話時即時顯示部分識別結果
+        test-title: 語音轉文字測試
+        test-description: 使用選定的音訊裝置測試 Web Speech API 轉錄。此測試將始終使用 Web Speech API，與預設聽覺提供者無關。
+        not-available: 此瀏覽器不支援 Web Speech API
+        audio-input-description: 選擇用於測試的音訊輸入裝置
+      transcriptions:
+        playground:
+          title: 實驗平台
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (九折優惠)
+    title: 服務來源
+  connection:
+    description: 配置 WebSocket 伺服器連線
+    title: 連線
+    websocket-url:
+      description: WebSocket 伺服器的完整位址(例如，ws://localhost:6121/ws)
+      label: WebSocket 伺服器位址
+      placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: 是否暴露在連線的網路下（WiFi，有線）
+      description: 選擇是否只允許此裝置與 Kitsune AI 進行配對，或是也允許來自其他本機網路的裝置進行配對
+      advanced-label: 會監聽的 hostname
+      advanced-description: 當您需要手動綁定時，使用指定的主機名稱或 IP 位址。
+      options:
+        this-device: 僅此裝置
+        all: 本機網路所有人
+        advanced: 進階配置
+    server-auth-token:
+      label: 認證憑據
+      description: 連線和配對需要安全令牌。如果留空，Kitsune AI 自動產生一個新的令牌。
+      placeholder: 自動產生
+    qr:
+      title: 從 Pocket（口袋）版配對
+      description: 從 Pocket（口袋）版掃描此二維碼以進行配對
+      refresh: 重新整理
+      image-alt: Kitsune AI 配對碼
+      candidates: 備選連線位址
+      token-hint: 二維碼包含了認證憑據，所以 Pocket（口袋）版可以自動配對，請不要公開分享此二維碼。
+      errors:
+        title: 二維碼暫不可用
+        unavailable: 無法產生配對二維碼
+    qr-scan:
+      title: 快速連線
+      description: 掃描桌面端的配對碼以快速配對
+      instructions: 將相機中心位置對準配對碼
+      action: 掃描
+      success:
+        title: 連線位址已更新
+        description: 現在配對到的 Kitsune AI 主端 {url}
+      errors:
+        title: 二維碼掃描失敗
+        failed: 掃描或連線二維碼失敗。
+  sidecar:
+    title: 本機服務管理
+    description: 管理本機子行程服務（ComfyUI 圖像生成、GPT-SoVITS 語音合成）的啟動、停止與狀態。
+  environment:
+    title: 環境適配中心
+    description: 管理 IDE 連接器、Agent API 適配、健康檢查與運行時策略。
+    connectors:
+      title: IDE 連接器
+      description: 已連線的 IDE 擴充套件（VSCode / Trae / IDEA）。擴充套件需在 IDE 側安裝；此處可斷開某個連線以停止接收任務。
+      empty: 暫無已連線的 IDE 連接器。請在 IDE 中安裝 Kitsune 擴充套件以開始。
+      fields:
+        name: 名稱
+        type: 類型
+        status: 狀態
+        last-context: 最後上下文
+      status:
+        connected: 已連線
+        disconnected: 已斷開
+      actions:
+        disconnect: 斷開
+        reconnect: 重連
+        disable: 停用
+        enable: 啟用
+    agent-api:
+      title: Agent API 適配
+      description: 直接向開放 API 推送任務（Cloud Code / OpenCode / Trae Builder）。密鑰落盤加密，UI 脫敏顯示。
+      empty: 暫未配置任何 Agent API 適配。
+      fields:
+        name: 名稱
+        provider: 類型
+        status: 狀態
+        api-key: API 密鑰
+        base-url: 基礎位址
+      status:
+        enabled: 已啟用
+        disabled: 已停用
+        has-key: 已設定
+        no-key: 未設定
+      actions:
+        edit: 編輯
+        save: 儲存
+        cancel: 取消
+    doctor:
+      title: 健康檢查
+      description: 跨配置、連通性、sidecar、權限、連接埠、TLS、資源等 7 類執行全量診斷。
+      actions:
+        run: 一鍵檢測適配狀態
+        fix: 自動修復
+        running: 檢測中...
+        fixing: 修復中...
+      levels:
+        PASS: 通過
+        WARN: 警告
+        FAIL: 失敗
+        INFO: 資訊
+      fix-levels:
+        FIXED: 已修復
+        MANUAL: 需人工
+      suggestion-label: 修復建議
+    log-level:
+      title: 日誌級別
+      description: 運行時調整全域日誌詳細度。
+      label: 級別
+      levels:
+        DEBUG: DEBUG
+        INFO: INFO
+        WARN: WARN
+        ERROR: ERROR
+      applied: 日誌級別已套用。
+    whitelist:
+      title: 權限白名單
+      description: 首次確認修正動作後可勾選「此類修正自動執行」加入白名單。刪除某條 key 後下次將再次彈窗確認。
+      empty: 暫無白名單條目。
+      fields:
+        key: 鍵
+        source: 來源
+        created-at: 建立時間
+      actions:
+        remove: 刪除
+        clear: 一鍵清空
+        clearing: 清空中...
+      cleared: 白名單已清空。
+      removed: 條目已刪除。
+
+    executor:
+      title: 自主執行
+      description: 將需求拆解為 CLI/IDE 混合任務列表並自動逐個執行。需先配置 API key（參考 providers.yaml 中 active_provider 對應的 api_key_env）。
+      input-placeholder: 輸入需求描述，如「優化 src/auth.ts 的效能瓶頸」
+      actions:
+        execute: 執行
+        stop: 停止
+        generate-only: 僅生成計畫
+      status:
+        idle: 閒置
+        generating: 正在生成計畫...
+        running: 執行中 ({current}/{total})
+        aborted: 已中止 (關鍵任務失敗)
+        completed: 已完成
+      plan-status:
+        pending: 等待中
+        completed: 已完成
+        aborted: 已中止
+      table:
+        task: 任務
+        type: 類型
+        title: 描述
+        status: 狀態
+        duration: 耗時
+      no-plan: 暫無計畫。在上方輸入框描述需求後點擊「執行」。
+      task-error-fmt: '%{idx} — %{error}'
+      permission-confirm:
+        title: 授權確認
+        source: 來源
+        type: 操作類型
+        add-to-whitelist: 同類操作自動允許（加入白名單）
+        reject: 拒絕
+        approve: 允許
+  system:
+    color-scheme:
+      description: 更改舞台的配色方案
+      title: 配色方案
+    developer:
+      description: 為開發者提供的選項
+      title: 開發者
+    general:
+      description: 深色主題、語言等選項
+      title: 通用
+    description: 自訂您的舞台外觀！
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: 強調色
+                rgb-on:
+                  title: RGB ON!
+          title: 配色
+        developer:
+          title: 開發者
+          sections:
+            section:
+              performance-visualizer:
+                title: 效能視覺化工具
+                description: 切換 FPS/長任務/記憶體疊加
+              markdown-stress:
+                title: Markdown Stress
+                description: 用大量聊天負載來測試 Markdown 的解析和渲染能力
+              use-magic-keys:
+                title: 快捷鍵測試
+                description: 測試快捷鍵回應
+              audio-record:
+                title: 音訊錄製
+                description: 測試音訊相關邏輯
+              background-gradient-blending:
+                title: 背景主題顏色混合
+                description: 測試混合與主題
+              background-removal:
+                title: 背景移除 (需要 WebGPU)
+                description: 背景移除工具
+              chat:
+                title: 聊天
+                description: 聊天測試
+              gesture-circle:
+                title: 手勢識別（僅限桌面端）
+                description: 測試手勢識別
+              image:
+                title: 圖像
+                description: 圖像測試
+              polaroid:
+                title: 拍立得
+                description: 拍攝模型照片的工具
+              context-flow:
+                description: 檢查傳入的上下文更新和傳出的聊天串流事件
+              websocket-inspector:
+                title: WebSocket 檢查器
+                description: 檢查原始 WebSocket 流量
+              vibrant:
+                title: 顏色提取
+                description: 測試顏色提取
+              providers-transcription-realtime-aliyun-nls:
+                title: 阿里雲即時轉寫
+                description: 將麥克風音訊串流傳輸到阿里雲 NLS 並檢查即時轉寫
+              performance-playground:
+                title: 效能測試場地
+                description: VRM 表情 + TTS lip sync 實驗平台
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: Kitsune AI Green
+              description: 預設的綠色主題，由 Kitsune AI 為您帶來！
+              title: 預設顏色
+            morandi:
+              colors:
+                color-1: 灰褐色
+                color-2: 米色
+                color-3: 灰白色
+                color-4: 淺灰褐色
+                color-5: 象牙色
+                color-6: 橄欖灰
+                color-7: 沙色
+                color-8: 暖灰色
+              description: 受喬治·莫蘭迪繪畫啟發的柔和、低調的色調
+              title: Morandi 顏色
+            monet:
+              colors:
+                color-1: 天藍色
+                color-2: 薄霧色
+                color-3: 沙色
+                color-4: 苔蘚綠
+                color-5: 睡蓮色
+                color-6: 小麥色
+                color-7: 板岩藍
+                color-8: 淺灰綠色
+              description: 受克勞德·莫奈作品啟發的印象派調色盤
+              title: 莫奈顏色
+            japanese:
+              colors:
+                color-1: 棕褐色
+                color-2: 暖灰褐色
+                color-3: 赭色
+                color-4: 咖啡色
+                color-5: 青銅色
+                color-6: 金色
+                color-7: 芥末色
+                color-8: 琥珀色
+              description: 傳統日本色彩調色盤
+              title: 日本顏色
+            nordic:
+              colors:
+                color-1: 北歐藍
+                color-2: 冰色
+                color-3: 峽灣色
+                color-4: 鋼鐵色
+                color-5: 冰川色
+                color-6: 板岩色
+                color-7: 雲色
+                color-8: 石頭色
+              description: 北歐極簡主義配色方案
+              title: 北歐顏色
+            chinese:
+              colors:
+                color-1: 霞光紅
+                color-2: 棗紅
+                color-3: 煙棕色
+                color-4: 竹青
+                color-5: 烏梅紫
+                color-6: 金黃色
+                color-7: 天藍色
+                color-8: 赭黃色
+              description: 中國傳統色彩，源自古代紡織品、瓷器和繪畫
+              title: 中國傳統顏色
+          title: 預設
+    title: 系統
+  page:
+    developers:
+      open-devtools:
+        title: 開啟開發者工具
+        button: 開啟
+  credits:
+    buy: 購買
+  scene:
+    title: 場景
+    description: 自訂角色的虛擬環境。
+    beta_label: 場景系統
+    beta_description: 每個角色卡可以從場景庫中指定自己偏好的背景。在此設定將作為目前活躍角色的預設背景。
+    background_image:
+      title: 活躍角色背景
+      no_background: 此角色沒有活躍背景。上傳正方形或橫向圖片以獲得最佳效果。
+      upload: 上傳到場景庫
+      change: 更換背景
+      clear: 清除預設
+    gallery:
+      title: 場景庫
+      empty: 場景庫中還沒有圖片，從上方上傳一張吧！
+      set_as_global: 設為角色預設
+      delete: 從場景庫刪除
+      global_badge: 角色預設
+      active_badge: 目前場景
+      delete_confirm: 確定要刪除這張背景嗎？
+      gallery: 圖庫
+      pinned-background: 釘選背景
+      pinned-background-description: 選擇角色啟用時顯示的圖片。
+      no-images: 圖庫中還沒有圖片。
+    tip:
+      label: 提示！
+      description: 使用正方形圖片將在豎屏模式下套用<b>封面</b>裁剪，聚焦場景中心。
+sections:
+  section:
+    general:
+      title: 通用
+theme:
+  title: 主題
+  description: >
+    切換 Kitsune AI 的基礎主題，亮色模式或暗色模式。
+title: 設定
+voices: 聲線
+vrm:
+  change-model:
+    from-file: 從檔案載入
+    from-file-select: 選擇
+    from-url: 從 URL 載入
+    from-url-confirm: 載入
+    from-url-placeholder: 輸入 VRM 模型 URL
+    title: 更換模型
+  title: VRM 設定
+  scale-and-position:
+    model-info-title: 模型尺寸資訊
+    model-info-x: 寬度（X軸）
+    model-info-y: 高度（Y軸）
+    model-info-z: 深度（Z軸）
+    tips: >
+      設定模型放置的空間坐標。
+
+      坐標軸已被視覺化。
+    tips-title: 提示
+    scale: 縮放
+    x: X軸偏移
+    y: Y 軸偏移
+    z: Z軸偏移
+    fov: 視角調整（度）
+    rotation-y: 模型朝向（Y軸旋轉）
+    camera-distance: 相機距離（畫面縮放）
+    eye-tracking-mode:
+      title: 模型注視方向
+      options:
+        option:
+          camera: 相機
+          mouse: 滑鼠
+          disabled: 停用
+    model-position: 模型位置
+    directional-light-rotation-x: 方向光旋轉 - X
+    directional-light-rotation-y: 方向光旋轉 - Y
+    directional-light-color: 方向光顏色
+    directional-light-intensity: 方向光強度
+    ambient-light-intensity: 環境光強度
+    ambient-light-color: 環境光顏色
+    environment: 環境
+    hemisphere: 半球
+    skybox: 天空盒
+    hemisphere-light-intensity: 半球光強度
+    hemisphere-sky-color: 半球天空顏色
+    hemisphere-ground-color: 半球地面顏色
+  switch-to-vrm:
+    title: 想切換至Live2D虛擬形象？
+    change-to-vrm: 切換至Live2D虛擬形象設定頁面
+  theme-color-from-model:
+    button-extract:
+      title: 提取
+  skybox:
+    skybox-intensity: 天空盒光照強度
+    skybox-specular-mix: 漫反射/鏡面反射混合係數
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    y: Y
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
+websocket-secure-enabled:
+  title: 啟用安全WebSocket (WSS)
+  description: 啟用 WSS (WebSocket Secure) 以便在開發模式下允許行動裝置(Pocket) 連線HTTPS 。這將自動產生一個自簽名憑證。
+wip:
+  title: 正在開發中
+  description: 此功能正在開發中，尚未公開發佈。請在未來的更新中再次檢視此功能。
+godot:
+  stage-experimental: Godot 舞台（實驗性）
+  view-title: Godot 視圖
+  camera-x: 相機 X
+  camera-y: 相機 Y
+  camera-z: 相機 Z
+  camera-yaw: 相機偏航
+  camera-pitch: 相機俯仰
+  camera-fov: 相機視野

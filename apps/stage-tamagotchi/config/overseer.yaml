@@ -1,0 +1,54 @@
+version: 1
+# 顶层启动开关 — 默认 false。设为 true 后服务创建时自动调用 start() 启动监控；
+# 关闭时仍可通过 IPC toggle 主动开启，UI 状态查询正常返回（显示未运行）
+enabled: false
+# 监控器轮询间隔（毫秒）。默认 10000（10 秒）。
+# 之前硬编码 3000ms 频繁触发 tasklist/ps 与文件读取，导致 CPU 占用偏高；
+# 10 秒间隔足以反映 Claude Code 状态变化，同时显著降低空载开销。
+pollInterval: 10000
+# Overseer 监工系统 — 监控工具清单
+# detect.processName 用于进程匹配；events 为该工具需要上报的事件类型
+# 配置缺失时主服务会回退到 DEFAULT_TOOLS（见 overseer/index.ts）
+tools:
+  - id: claude_code
+    name: Claude Code
+    type: process
+    detect:
+      processName: claude
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+      - compile_failed
+      - test_failed
+    enabled: true
+  - id: trae
+    name: Trae
+    type: process
+    detect:
+      processName: trae
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+  - id: cursor
+    name: Cursor
+    type: process
+    detect:
+      processName: cursor
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+  - id: codex
+    name: OpenAI Codex
+    type: process
+    detect:
+      processName: codex
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true

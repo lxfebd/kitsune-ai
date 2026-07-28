@@ -1,0 +1,70 @@
+{
+  "name": "@kitsune/stage-pages",
+  "type": "module",
+  "private": true,
+  "description": "Shared Pages",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "directory": "packages/stage-pages"
+  },
+  "exports": {
+    "./*.vue": "./src/*.vue",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
+    "@kitsune/ccc": "workspace:*",
+    "@kitsune/i18n": "workspace:*",
+    "@kitsune/server-sdk": "workspace:*",
+    "@kitsune/stage-ui": "workspace:*",
+    "@kitsune/tts-hybrid": "workspace:^",
+    "@kitsune/stage-ui-live2d": "workspace:*",
+    "@kitsune/stage-ui-spine": "workspace:*",
+    "@kitsune/stage-ui-three": "workspace:*",
+    "@kitsune/ui": "workspace:*",
+    "@shopify/draggable": "catalog:",
+    "@stdlib/string-base-kebabcase": "catalog:",
+    "@vueuse/core": "catalog:",
+    "@vueuse/shared": "catalog:",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/stream-transcription": "catalog:",
+    "animejs": "catalog:",
+    "d3": "catalog:",
+    "dompurify": "catalog:",
+    "nanoid": "catalog:",
+    "node-vibrant": "catalog:",
+    "pinia": "catalog:",
+    "posthog-js": "catalog:",
+    "reka-ui": "catalog:",
+    "splitpanes": "catalog:",
+    "unspeech": "catalog:xsai",
+    "vue": "catalog:",
+    "vue-i18n": "catalog:",
+    "vue-router": "catalog:",
+    "vue-sonner": "catalog:",
+    "xsschema": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@nekopaw/tempora": "catalog:",
+    "@kitsune/stage-shared": "workspace:^",
+    "@types/audioworklet": "catalog:",
+    "@types/splitpanes": "catalog:",
+    "@types/three": "catalog:",
+    "@webgpu/types": "catalog:",
+    "unplugin-info": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

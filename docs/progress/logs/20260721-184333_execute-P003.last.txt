@@ -1,0 +1,13 @@
+让我检查连接设置相关的 store 和是否有多个 WebSocket 服务器的需求。
+`connection/index.vue` 已经是一个完整的实现，包含：
+
+1. TLS 配置（websocketTlsEnabled computed）
+2. 主机名配置（exposureMode: this-device / all / advanced）
+3. Auth Token 管理（输入、可见性切换、复制功能）
+4. QR 码展示（ServerChannelQrCard 组件）
+5. 错误显示（lastApplyError callout）
+6. 与主进程的配置同步（通过 server-channel store）
+
+`stage-ui` 中的 `ConnectionSettings` 组件有一个关于多 WebSocket 服务器的 TODO 注释，但这是共享组件的设计预留，不属于当前任务 scope。
+
+**P003 已完成** — 连接设置页面功能完整，无需修改。

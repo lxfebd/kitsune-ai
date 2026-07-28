@@ -1,0 +1,76 @@
+export interface VisionTickOutcome {
+    capturedAt?: number;
+    contextUpdates?: number;
+}
+type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOutcome | void;
+export declare const useVisionProcessingStore: import("pinia").StoreDefinition<"vision-processing", Pick<{
+    captureIntervalMs: import("@vueuse/shared").ManualResetRefReturn<number>;
+    isRunning: import("vue").Ref<boolean, boolean>;
+    isProcessing: import("vue").Ref<boolean, boolean>;
+    tickCount: import("vue").Ref<number, number>;
+    skippedTicks: import("vue").Ref<number, number>;
+    captureCount: import("vue").Ref<number, number>;
+    contextUpdateCount: import("vue").Ref<number, number>;
+    lastTickAt: import("vue").Ref<number | null, number | null>;
+    lastCaptureAt: import("vue").Ref<number | null, number | null>;
+    lastContextUpdateAt: import("vue").Ref<number | null, number | null>;
+    lastProcessingDurationMs: import("vue").Ref<number | null, number | null>;
+    lastError: import("vue").Ref<string | null, string | null>;
+    processingHistoryMs: import("vue").Ref<number[], number[]>;
+    captureHistory: import("vue").Ref<number[], number[]>;
+    contextUpdateHistory: import("vue").Ref<number[], number[]>;
+    captureRatePerMinute: import("vue").ComputedRef<number>;
+    contextUpdateRatePerMinute: import("vue").ComputedRef<number>;
+    averageProcessingMs: import("vue").ComputedRef<number>;
+    startTicker: (handler: VisionTickHandler) => void;
+    stopTicker: () => void;
+    resetMetrics: () => void;
+    resetState: () => void;
+}, "lastError" | "captureIntervalMs" | "isRunning" | "isProcessing" | "tickCount" | "skippedTicks" | "captureCount" | "contextUpdateCount" | "lastTickAt" | "lastCaptureAt" | "lastContextUpdateAt" | "lastProcessingDurationMs" | "processingHistoryMs" | "captureHistory" | "contextUpdateHistory">, Pick<{
+    captureIntervalMs: import("@vueuse/shared").ManualResetRefReturn<number>;
+    isRunning: import("vue").Ref<boolean, boolean>;
+    isProcessing: import("vue").Ref<boolean, boolean>;
+    tickCount: import("vue").Ref<number, number>;
+    skippedTicks: import("vue").Ref<number, number>;
+    captureCount: import("vue").Ref<number, number>;
+    contextUpdateCount: import("vue").Ref<number, number>;
+    lastTickAt: import("vue").Ref<number | null, number | null>;
+    lastCaptureAt: import("vue").Ref<number | null, number | null>;
+    lastContextUpdateAt: import("vue").Ref<number | null, number | null>;
+    lastProcessingDurationMs: import("vue").Ref<number | null, number | null>;
+    lastError: import("vue").Ref<string | null, string | null>;
+    processingHistoryMs: import("vue").Ref<number[], number[]>;
+    captureHistory: import("vue").Ref<number[], number[]>;
+    contextUpdateHistory: import("vue").Ref<number[], number[]>;
+    captureRatePerMinute: import("vue").ComputedRef<number>;
+    contextUpdateRatePerMinute: import("vue").ComputedRef<number>;
+    averageProcessingMs: import("vue").ComputedRef<number>;
+    startTicker: (handler: VisionTickHandler) => void;
+    stopTicker: () => void;
+    resetMetrics: () => void;
+    resetState: () => void;
+}, "captureRatePerMinute" | "contextUpdateRatePerMinute" | "averageProcessingMs">, Pick<{
+    captureIntervalMs: import("@vueuse/shared").ManualResetRefReturn<number>;
+    isRunning: import("vue").Ref<boolean, boolean>;
+    isProcessing: import("vue").Ref<boolean, boolean>;
+    tickCount: import("vue").Ref<number, number>;
+    skippedTicks: import("vue").Ref<number, number>;
+    captureCount: import("vue").Ref<number, number>;
+    contextUpdateCount: import("vue").Ref<number, number>;
+    lastTickAt: import("vue").Ref<number | null, number | null>;
+    lastCaptureAt: import("vue").Ref<number | null, number | null>;
+    lastContextUpdateAt: import("vue").Ref<number | null, number | null>;
+    lastProcessingDurationMs: import("vue").Ref<number | null, number | null>;
+    lastError: import("vue").Ref<string | null, string | null>;
+    processingHistoryMs: import("vue").Ref<number[], number[]>;
+    captureHistory: import("vue").Ref<number[], number[]>;
+    contextUpdateHistory: import("vue").Ref<number[], number[]>;
+    captureRatePerMinute: import("vue").ComputedRef<number>;
+    contextUpdateRatePerMinute: import("vue").ComputedRef<number>;
+    averageProcessingMs: import("vue").ComputedRef<number>;
+    startTicker: (handler: VisionTickHandler) => void;
+    stopTicker: () => void;
+    resetMetrics: () => void;
+    resetState: () => void;
+}, "resetState" | "startTicker" | "stopTicker" | "resetMetrics">>;
+

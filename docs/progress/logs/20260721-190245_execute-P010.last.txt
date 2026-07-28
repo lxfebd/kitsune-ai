@@ -1,0 +1,12 @@
+`windows/shared/referenced-window.ts` 已经是一个完整的实现（100 行），包含：
+
+1. **ReferencedWindowHandle 接口** — id、window、context、eventa
+2. **ReferencedWindowManager 接口** — open、close 方法
+3. **createReferencedWindowManager 函数** — 创建 per-id 窗口管理器
+4. **窗口创建与复用** — 根据 id 创建或复用窗口
+5. **IPC 处理器** — pageMounted（返回载荷）、pageUnmounted（清理）
+6. **Base window invokes** — setupBaseWindowElectronInvokes
+7. **路由加载与显示** — loadRoute、show、focus
+8. **窗口清理** — close 方法 + closed 事件监听
+
+**P010 已完成** — 引用窗口功能完整，无需修改。

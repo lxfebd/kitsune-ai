@@ -1,0 +1,17 @@
+{
+  "name": "@kitsune/emotion-mapper",
+  "version": "1.0.0",
+  "description": "语义情绪映射 - emotion -> expression + parameters",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

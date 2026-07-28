@@ -1,0 +1,49 @@
+{
+  "name": "@kitsune/minecraft-bot",
+  "type": "module",
+  "private": true,
+  "description": "Minecraft bot for Kitsune AI",
+  "author": {
+    "name": "Kitsune Project",
+    "email": "contact@kitsune.build",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/yachiyo-airi.git",
+    "directory": "services/minecraft"
+  },
+  "scripts": {
+    "dev": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/main.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@kitsune/server-sdk": "workspace:^",
+    "@kitsune/server-shared": "workspace:^",
+    "minecraft-data": "catalog:",
+    "mineflayer": "catalog:",
+    "mineflayer-armor-manager": "catalog:",
+    "mineflayer-auto-eat": "catalog:",
+    "mineflayer-collectblock": "catalog:",
+    "mineflayer-pathfinder": "catalog:",
+    "mineflayer-pvp": "catalog:",
+    "mineflayer-tool": "catalog:",
+    "prismarine-block": "catalog:",
+    "prismarine-entity": "catalog:",
+    "prismarine-item": "catalog:",
+    "prismarine-recipe": "catalog:",
+    "prismarine-viewer": "catalog:",
+    "prismarine-windows": "catalog:",
+    "vec3": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}

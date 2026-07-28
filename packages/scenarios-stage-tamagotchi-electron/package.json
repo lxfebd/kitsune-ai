@@ -1,0 +1,21 @@
+{
+  "name": "@kitsune/scenarios-stage-tamagotchi-electron",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "Product-owned Electron scenarios for stage-tamagotchi raw screenshot capture",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@kitsune/vishot-runner-electron": "workspace:^"
+  }
+}

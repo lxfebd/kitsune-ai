@@ -1,0 +1,2107 @@
+common:
+  save: Save
+  close: Close
+  cancel: Cancel
+hearing:
+  microphone-permission-required: Microphone permission required
+  transcription: Speech-to-text
+  auto-send: Auto send
+  input-device: Input device
+  select-microphone: Select microphone
+  audio-input-device: Audio Input Device
+  audio-input-device-description: Select the audio input device for your hearing module
+  select-audio-input-device: Select an audio input device
+  start-monitoring: Start Monitoring
+  stop-monitoring: Stop Monitoring
+  input-level: Input Level
+  speech-probability: Probability of Speech
+  silence: Silence
+  speech: Speech
+  detection-threshold: Detection threshold
+  sensitivity: Sensitivity
+  sensitivity-description: Adjust the threshold for speech detection
+  speaking-detected: Speaking Detected
+  hearing-input: Hearing Input
+  transcription-error: Transcription Error
+  provider: Provider
+nav:
+  system: General
+  models: Models
+  speech: Speech
+  hearing: Hearing
+  scene: Scene
+  data: Data
+  modules: Modules
+  environment: Environment
+  sidecar: Local Services
+settings-groups:
+  core: Core Settings
+  features: Features
+  data: Data Management
+  advanced: Advanced Options
+  other: Other
+about:
+  title: Project
+  build-info: Build Information
+  version: Version
+  branch: Branch
+  commit: Commit
+  built-on: Built On
+  about: About
+  links:
+    homepage: Homepage
+    docs: Docs
+validation-details:
+  title: Validation Details
+  close: Close
+  no-failures: No failures.
+  validation-failed: Validation failed.
+live2d-report:
+  title: Live2D Model Audit Report
+  model-audit: Model Audit Report
+  structure: Structure
+  file-count: Files
+  critical-issues: Critical Issues
+  warnings: Warnings
+  quick-fix: Quick Fix
+  cancel: Cancel
+  import-anyway: Import Anyway
+  confirm-import: Confirm Import
+  invalid-model: Invalid model cannot be imported
+  fix: Fix
+chat:
+  thinking: Thinking...
+animations:
+  stage-transitions:
+    title: Disable Stage Transitions
+  use-page-specific-transitions:
+    description: Some pages will have their own transitions, this will override the stage transitions
+    title: Use Page Specific Transitions
+dialogs:
+  onboarding:
+    official:
+      title: Official Service
+    title: Welcome to Kitsune AI!
+    description: Let's set up your first AI provider to get started.
+    selectProvider: Choose an AI Provider
+    configureProvider: Configure {provider}
+    apiKey: API Key
+    apiKeyHelp: Get your API key from {provider} and paste it here
+    baseUrl: Base URL
+    baseUrlHelp: API endpoint URL (use default if unsure)
+    accountId: Account ID
+    validationRunning: Running tests
+    validationSuccess: Configuration validation success
+    validationPartial: Configuration partially validated
+    validationFailed: Configuration validation failed
+    validationError: 'Validation error: {error}'
+    testGeneration: Ping API
+    testGenerationRunning: Ping...
+    testGenerationFailed: Ping test failed
+    retryPingCheck: Retry
+    skipForNow: Skip for now
+    saveAndContinue: Save and Continue
+    next: Next
+    retry: Retry
+    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLocal: Kitsune AI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+    credentialsSafeOpenSource: Kitsune AI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+    enableChatCheck: Allow Kitsune AI to send a "ping" message to the first available chat model to check availability
+    start: Let's do it!
+    startAction: Get Started
+    flux: Flux
+    buyFlux: Charge Flux
+    select-model: Choose model
+    no-models: No available models
+    no-models-help: Please return to the previous step and check your API key, or check the network connection.
+    permissions:
+      title: Notifications
+      description: You can allow notifications now or continue and set it up later.
+      notificationsTitle: Notifications
+      notificationsDescription: Allow reminders and important status updates.
+      notificationsAction: Request notification permission
+      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
+      openSettings: Open iOS Settings
+      optionalHint: You can continue even if notification permission is not granted.
+      stateUnknown: Not requested
+      stateRequesting: Requesting...
+      stateGranted: Granted
+      stateNotGranted: Not granted
+  bug-report:
+    title: Bug report (´;ω;`)ヾ(･∀･`)
+    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
+    trigger-label: Report a Bug
+    submit-label: Send Bug Report
+    triage-description: Include screenshot and page context to help us triage this issue.
+    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
+    include-current-page-screenshot: Include current page screenshot
+    manual-media:
+      label: Manually choose screenshots / recordings
+      optional: Optional.
+    media-files:
+      label: Media files
+      description: 'Optional: manually select.'
+      placeholder: Choose screenshot or video file
+      selected-count: '{count} file(s) selected'
+    last-submitted-preview: Last Submitted Payload Preview
+language:
+  title: Language
+  description: >
+    UI language. You can set characters' language later.
+controls-island:
+  icon-size:
+    title: Controls Island Icon Size
+    description: Adjust the size of the controls island icons
+    auto: Auto (responsive)
+    large: Large (default)
+    small: Small
+
+appearance:
+  title: Interface Appearance
+  description: Adjust layout dimensions, card styling, and motion to suit your preference.
+  sidebar-width:
+    title: Sidebar Width
+    description: Width of the navigation sidebar. Narrower gives more room to content.
+  content-max-width:
+    title: Content Width
+    description: Maximum width of the settings content area.
+    compact: Compact
+    normal: Normal
+    wide: Wide
+  card-radius:
+    title: Card Roundness
+    description: Border radius of setting cards.
+    sharp: Sharp
+    normal: Normal
+    round: Round
+  density:
+    title: Spacing Density
+    description: Padding and gap density of cards.
+    compact: Compact
+    normal: Normal
+    comfortable: Comfortable
+  motion-intensity:
+    title: Motion Intensity
+    description: Intensity of interface transition animations.
+    off: Off
+    reduced: Reduced
+    normal: Normal
+
+analytics:
+  notice:
+    title: Usage analytics
+    description: Kitsune AI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
+    privacyPrefix: Read the
+    privacyLink: privacy policy
+    onboardingHint: You can turn analytics off later in Settings > System > General.
+    settingsHint: You can turn analytics off at any time.
+  toggle:
+    title: Enable usage analytics
+    description: Turn this off to opt out of analytics collection.
+  disabled:
+    title: Analytics disabled for this development build
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
+    no-preview: No Preview
+    model-name-placeholder: Model name...
+    options-for-display-models: Display model options
+background-picker:
+  title: Background Picker
+  add-custom-background: Add custom background
+  blur: Blur
+live2d:
+  change-model:
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter Live2D model URL
+    title: Change Model
+  edit-motion-map:
+    title: Edit motion map
+  map-motions:
+    play: Play Motion
+    title: Map Motions
+  title: Live2D Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    y: Y
+  switch-to-vrm:
+    title: Switch to 3D Avatar?
+    change-to-vrm: Click here to switch to the 3D avatar setting (VRM)
+  theme-color-from-model:
+    title: Extract colors from model
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to Kitsune AI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or Kitsune AI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: ∞
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+    reset-value: Reset value to default
+    groups:
+      head-rotation: Head Rotation
+      eyes: Eyes
+      eyebrows: Eyebrows
+      mouth: Mouth
+      face: Face
+      body: Body
+    labels:
+      angle-x: Angle X
+      angle-y: Angle Y
+      angle-z: Angle Z
+      left-eye-open: Left Eye Open/Close
+      right-eye-open: Right Eye Open/Close
+      left-eye-smile: Left Eye Smiling
+      right-eye-smile: Right Eye Smiling
+      left-eyebrow-lr: Left eyebrow Left/Right
+      right-eyebrow-lr: Right eyebrow Left/Right
+      left-eyebrow-y: Left Eyebrow Y
+      right-eyebrow-y: Right Eyebrow Y
+      left-eyebrow-angle: Left Eyebrow Angle
+      right-eyebrow-angle: Right Eyebrow Angle
+      left-eyebrow-form: Left Eyebrow Form
+      right-eyebrow-form: Right Eyebrow Form
+      mouth-open: Mouth Open/Close
+      mouth-form: Mouth Form
+      cheek: Cheek
+      body-rotation-x: Body rotation X
+      body-rotation-y: Body rotation Y
+      body-rotation-z: Body rotation Z
+      breath: Breath
+  clear-model-cache: Clear model cache
+  model-cache:
+    refresh: Refresh
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
+microphone: Microphone
+models: Model
+pages:
+  card:
+    activate: Activate
+    active: Active
+    active_badge: Currently Active
+    cancel: Cancel action
+    save: Save changes
+    card_not_found: Card not found
+    character: Character
+    close: Close
+    chat:
+      provider: Chat / Provider
+    consciousness:
+      model: Consciousness / Model
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
+    created_by: created by
+    creator_notes: Creator Notes
+    delete: Delete
+    delete_card: Delete Card
+    delete_confirmation: Are you sure you want to delete this card?
+    select-sort-option: Select sort option
+    select-background: Select background
+    description: Use Kitsune AI character card presets
+    description_label: Description
+    drop_here: Drop to upload
+    create_card: Create a new Card
+    edit_card: Edit Card
+    refresh-gallery: Refresh gallery
+    edit-card: Edit card
+    gallery: Gallery
+    pinned-background: Pinned Background
+    pinned-background-description: Select the image to show when this character is active.
+    no-images: No images in the journal yet.
+    creation:
+      identity: Identity
+      name: Name
+      nickname: Nickname
+      description: Description
+      behavior: Behavior
+      greetings: Greetings (one per line)
+      settings: Settings
+      version: Version
+      create: Create
+      defaults:
+        name: Name
+        personality: You are a regular human, curious about everything.
+        scenario: You recently woke up and forgot everything about your previous life.
+        systemprompt: You will receive messages, answer to them like a real human.
+        posthistoryinstructions: Remember to imitate an human.
+      modules_info: Configure modules for this character card. If not set, default module configuration will be used.
+      use_default: Use default
+      use_default_not_configured: Use default (not configured)
+      fields_info:
+        subtitle: You can put here some details about the character you are creating, explain his history and context, and how your interactions should be answered.
+        name: Is the formal name of this character.
+        nickname: You can also give a nickname that will be used in priority.
+        description: Description of this character.
+        notes: If you want to add some personal notes.
+        personality: Describe here the personality of your character. Shy ? Curious ? Anything else ?
+        scenario: What are the surroundings ? What is the current situation ?
+        greetings_field: Greetings
+        greetings: How your character should say "hello" ?
+        systemprompt: Explain here to the AI LLM how it should answer when prompted.
+        posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+        version: Card version, you should increase this if you are making changes from a previous card.
+        consciousness_model: Select the consciousness model (AI model) for this character.
+        speech_model: Select the speech synthesis model and voice for this character.
+      errors:
+        name: Name should be valid or non-empty.
+        version: 'Error: Invalid version number !'
+        description: 'Error: You must provide a description for this card.'
+        personality: 'Error: A personality must be provided for this character.'
+        scenario: 'Error: A scenario is required.'
+        systemprompt: 'Error: Please, provide a system prompt.'
+        posthistoryinstructions: 'Error: Post history prompt is required.'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+      none: None
+      persona-tab:
+        title: Persona
+        description: Configure the persona mode, soul, and addressing settings for this character. Soul and identity content will be incorporated into the system prompt.
+        mode-title: Persona Mode
+        modes:
+          rational: Rational — Concise, structured, technical
+          idol: Idol — Warm, expressive, encouraging
+          hybrid: Hybrid — Balanced rational(60) poetic(40)
+          strict: Strict — Minimal emotion, high precision
+        soul-label: Soul (Soul)
+        soul-description: The core persona definition of this character, describing who they are and what traits they have
+        identity-label: Identity (Identity)
+        identity-description: Behavioral guidelines, speaking style, and behavior constraints for this character
+        addressing-title: Addressing Settings
+        default-addressing: Default Address
+        default-addressing-description: How the character addresses the user by default
+        custom-name: Custom Name
+        custom-name-description: Preferred name for the user (leave empty to use default addressing)
+    modules: Modules
+    name_asc: Name (A-Z)
+    name_desc: Name (Z-A)
+    no_cards: No cards yet. Click the button above to upload one!
+    no_results: No matching cards found
+    personality: Personality
+    posthistoryinstructions: Post-History Instructions
+    recent: Recently Added
+    scenario: Scenario
+    search: Search cards...
+    sort_by: Sort by
+    body-model: Body / Display Model
+    speech:
+      provider: Speech / Provider
+      model: Speech / Model
+      voice: Speech / Voice
+    systemprompt: System Prompt
+    title: Kitsune AI Card
+    try_different_search: Try a different search term
+    upload: Upload
+    upload_desc: Click or drag file to upload
+  memory:
+    description: Where memories got stored, and organized
+    title: Memory
+  data:
+    title: Data Management
+    description: Manage stored Kitsune AI data, exports, and resets
+    sections:
+      chats:
+        title: Chat sessions
+        description: Export or import saved chat sessions.
+        export: Export chats
+        import: Import chats
+        delete: Delete all chat sessions
+      models:
+        title: Models
+        description: Remove imported Live2D/VRM models.
+        delete: Delete all models
+      modules:
+        title: Modules
+        description: Reset module preferences and credentials.
+        reset: Reset module settings
+      providers:
+        title: Providers
+        description: Reset all provider settings and credentials.
+        reset: Reset provider settings
+      danger:
+        title: Danger zone
+        description: Irreversible actions. Export what you need before continuing.
+      all:
+        title: Delete all data
+        description: Wipe every local setting, provider config, and model.
+        delete: Delete all data
+      desktop-folder:
+        title: Open app data folder
+        description: Open Kitsune AI's data folder in your file manager.
+        open: Open folder
+      desktop:
+        title: Reset desktop settings & states
+        description: Clear Kitsune AI desktop settings and runtime state.
+        reset: Reset desktop data
+    confirmations:
+      tooltip: Are you sure?
+      'yes': 'Yes'
+    status:
+      exported: Chat sessions exported.
+      imported: Chat sessions imported.
+      import_error: Failed to import chat sessions. Please check the file format.
+      chats_deleted: Chat sessions deleted.
+      models_deleted: Models deleted.
+      modules_reset: Module settings reset.
+      providers_reset: Provider settings reset.
+      all_deleted: All local data deleted.
+      desktop_reset: Desktop data reset.
+  models:
+    description: Live2D, VRM, etc.
+    title: Models
+    sections:
+      section:
+        live2d:
+          title: Live2D
+          description: Configure Live2D models and settings
+        vrm:
+          title: VRM
+          description: Configure 3D VRM models and settings
+        scene: Scene
+  modules:
+    persona:
+      title: Persona
+      description: Define AI personality and speaking style
+      mode-title: Persona Mode
+      mode-description: Select the AI personality mode for conversations
+      modes:
+        rational:
+          label: Rational
+          description: Concise, structured, technical
+        idol:
+          label: Idol
+          description: Warm, expressive, encouraging
+        hybrid:
+          label: Hybrid
+          description: Balanced rational(60) poetic(40)
+        strict:
+          label: Strict
+          description: Minimal emotion, high precision
+      profile:
+        title: Profile
+        profile-name: Profile Name
+        address-user-as: Address User As
+      emotion-mapper:
+        title: Emotion Mapper
+        description: The emotion mapper automatically maps AI tool calls and responses to Live2D/Spine expressions. No manual configuration needed.
+      character-system:
+        title: Character System
+        description: Manage AI characters with unique personas, voices, and models. Characters can be configured via SOUL.md and IDENTITY.md files.
+    beat_sync:
+      description: Vibe with beats from the audio source
+      title: Beat Sync
+      sections:
+        audio_source:
+          actions:
+            start_screen_capture: Start screen capture
+            stop: Stop
+          description: Select an audio source to detect beats from.
+          title: Audio source
+        beat_visualizer:
+          title: Beat visualizer
+        parameters:
+          advanced_parameters: Advanced Parameters
+          description: Tweak the beat detection parameters.
+          title: Parameters
+          parameters:
+            adaptive_threshold:
+              description: Whether to apply adaptive thresholds based on signal variance over time.
+              label: Adaptive threshold
+            buffer_duration:
+              description: Duration of the internal analysis buffer.
+              label: Buffer duration
+            envelope_filter_frequency:
+              description: Frequency for the envelope filter applied to smooth energy changes.
+              label: Envelope filter frequency
+            highpass_filter_frequency:
+              description: Frequency for the highpass filter applied to reduce low frequencies like sub-bass noises.
+              label: Highpass filter frequency
+            lowpass_filter_frequency:
+              description: Frequency for the lowpass filter applied to reduce high frequencies like vocals.
+              label: Lowpass filter frequency
+            min_beat_interval:
+              description: Maximum BPM or minimum interval between detected beats.
+              label: Max BPM / Min beat interval
+            sensitivity:
+              label: Sensitivity
+            spectral_flux:
+              description: Whether to enable spectral flux-based onset detection.
+              label: Spectral flux
+            warmup:
+              description: Whether to warm up before detecting beats for better accuracy.
+              label: Warmup
+    artistry:
+      title: Artistry
+      description: Image generation, scene background and drawing.
+      page:
+        title: Artistry Provider Configuration
+        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+      providers:
+        none:
+          name: None
+          description: Bypass and disable the image generation module globally.
+        comfyui:
+          name: ComfyUI (Local)
+          description: Use a local ComfyUI instance via WSL for image generation.
+        replicate:
+          name: Replicate.ai (Cloud)
+          description: Use cloud-based models via the Replicate API.
+        nanobanana:
+          name: Nano Banana (Preview)
+          description: Use Google AI Studio for image preview and reactions.
+      card:
+        description: Configure how Kitsune AI generates images and visual content.
+        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
+        instruction_sync:
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Artistry Provider
+      spawn_mode:
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
+        options:
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
+      autonomous:
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
+      model:
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
+      prompt-prefix:
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
+      options:
+        label: Artistry Provider Options (JSON)
+      widget-instructions:
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
+    categories:
+      essential: Essential
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
+    consciousness:
+      description: Personality, desired model, etc.
+      sections:
+        section:
+          provider-model-selection:
+            collapse: Collapse
+            custom_model_placeholder: Enter custom model name...
+            current_model_label: 'Current model:'
+            description: Select the suitable LLM provider for consciousness
+            error: Error loading models
+            health_check_failed: Health check failed
+            no_providers_configured_title: No Providers Configured
+            no_providers_configured_description: Click here to set up your LLM providers
+            expand: Expand
+            loading: Loading available models...
+            manual_model_name: Model Name
+            manual_model_placeholder: Enter the model name to use with this provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_search_results: No matching models
+            no_search_results_description: No models match '{query}'. Try a different search term.
+            not_supported: Model listing not supported
+            not_supported_description: This provider doesn't support model listing functionality
+            search_placeholder: Search models...
+            search_results: Found {count} of {total} models
+            show_less: Show less
+            show_more: Show more
+            subtitle: Select a default model from the provider
+            title: Model
+      title: Consciousness
+    llm-routing:
+      description: Automatically route messages to local or cloud providers based on complexity
+      title: LLM Routing
+      routing-rules: Routing Rules
+      add-rule: Add Rule
+      edit-rule: Edit Rule
+      rule-name: Rule Name
+      rule-name-placeholder: Enter rule name
+      target: Target
+      local: Local
+      cloud: Cloud
+      min-length: Min Length
+      no-min: No min
+      max-length: Max Length
+      no-max: No max
+      match-code-blocks: Match code blocks
+      match-tool-keywords: Match tool keywords
+      keywords: Keywords (comma separated)
+      keywords-placeholder: keyword1, keyword2
+      priority: Priority (lower = checked first)
+      save: Save
+      cancel: Cancel
+      edit: Edit
+      delete: Delete
+      chars: chars
+      code-blocks: code blocks
+      tool-keywords: tool keywords
+      keywords-label: keywords
+    description: Thinking, vision, speech synthesis, gaming, etc.
+    gaming-factorio:
+      description: Playing Factorio!
+      title: Factorio
+      enable: Enable Factorio Integration
+      enable-description: Allow Kitsune AI to interact with Factorio game
+      server-address: Server Address
+      server-address-description: The IP address or hostname of the Factorio server
+      server-address-placeholder: Enter server address (e.g., localhost or 192.168.1.100)
+      server-port: Server Port
+      server-port-description: The port number of the Factorio server (default 34197)
+      username: Username
+      username-description: Your username in the Factorio server
+      username-placeholder: Enter your Factorio username
+      configured: Factorio is properly configured!
+    gaming-minecraft:
+      description: Playing Minecraft!
+      title: Minecraft
+      enable: Enable Minecraft Integration
+      enable-description: Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+      configured: Minecraft is properly configured!
+      read-only:
+        title: Read-only shell
+        description: Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+      setup:
+        title: Setup
+        description: You can find the instructions for setting up the bot in the following file
+      runtime:
+        title: Observed runtime
+        connection: Connection
+        latest-context: Latest bot context
+        waiting: Waiting for a fresh bot-originated context push.
+        unknown: Unknown
+      debug:
+        title: Minecraft traffic
+        empty: No Minecraft traffic observed yet.
+        source: 'Source: {source}'
+      status:
+        service-online: Service online
+        service-offline: Service offline
+        no-runtime-context: No bot context observed yet
+        last-context-seconds: 'Last bot context: {seconds}s ago'
+        last-context-stale: 'Last bot context: Stale'
+    hearing:
+      description: Configure how speech recognition works
+      title: Hearing
+      sections:
+        section:
+          provider-selection:
+            title: Provider
+            description: Select the suitable speech recognition provider
+            add: Add Provider
+            empty-title: No Provider Configured
+            empty-description: Click here to set up your transcription provider
+          provider-model-selection:
+            title: Model
+            manual-description: Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
+          confidence-threshold:
+            title: Confidence Threshold
+            description: Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
+            disabled: Disabled
+            verbose-json-note: 'Note: If your provider does not support verbose_json responses, this setting will have no effect.'
+            verbose-json-unsupported: Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+          audio-input:
+            title: Audio Input Device
+            description: Select the audio input device for the hearing module
+          auto-send:
+            title: Auto-send Settings
+            description: Configure automatic sending of transcriptions to chat
+            enabled:
+              label: Auto-send transcriptions
+              description: Automatically send transcriptions to chat after a delay. This may consume tokens; disable if you want to review and edit transcriptions manually before sending.
+            delay:
+              label: Auto-send Delay
+              description: 'Delay in milliseconds before automatically sending the transcription (0 = immediate, recommended: 1000-3000ms)'
+              immediate: Immediate
+          monitoring:
+            title: Audio Monitoring
+            description: Monitor audio input in real time and visualize voice activity
+            start: Start Listening
+            stop: Stop Listening
+            error-title: Error
+            input-level: Input Level
+            voice-probability: Voice Probability
+            silence-label: Silence
+            speech-label: Speech
+            threshold-label: Threshold
+            sensitivity:
+              label: Sensitivity
+              description: Adjust the voice detection threshold
+            silence-duration:
+              label: Pause Before Stop
+              description: How long silence lasts before speech is considered ended
+            speaking: Speaking
+            silent: Silent
+            mode:
+              model: Model-based
+              volume: Volume-based
+              model-description: Use AI model for more accurate speech detection
+            model:
+              loading: Loading...
+              loaded: Active
+              error-title: Inference Error
+            vad:
+              title: Voice Activity
+              subtitle: Last 2 seconds
+              active-label: Speaking
+              active-legend-label: Speech detected
+              inactive-legend-label: Silence
+              threshold-label: Voice threshold
+          stt-test:
+            title: Speech-to-Text Test
+            description: Test your transcription provider with the selected audio device. This helps verify STT is working properly.
+            select-provider-first: Please select a transcription provider first
+            select-device-first: Please select an audio input device first
+            start: Start Speech-to-Text Test
+            stop: Stop Test
+            transcribing: Transcribing...
+            starting-stream: Starting audio stream...
+            starting-streaming: Starting streaming transcription...
+            recording: Recording audio (3 seconds)...
+            processing: Processing transcription...
+            listening: Listening for speech (streaming mode active)
+            waiting-for-speech: Waiting for speech...
+            complete: Transcription complete!
+            failed: Transcription failed
+            error-title: Transcription Error
+            stopped: Stopped
+            streaming-mode-hint: 'Streaming mode: transcription results will appear in real time as you speak'
+            transcribing-recording: Transcribing recording...
+            error-with-message: 'Error: {error}'
+            start-stream-error: Failed to start audio stream. Please check microphone permissions.
+            status:
+              starting-stream: Starting audio stream...
+              starting-streaming: Starting streaming transcription...
+              recording: Recording audio (3 seconds)...
+              processing: Processing transcription...
+              listening: Listening for speech (streaming mode active)
+              transcribing-streaming: Transcribing... (streaming)
+              waiting-for-speech: Waiting for speech...
+              complete: Transcription complete!
+              failed: Transcription failed
+              stopped: Stopped
+              error: 'Error: {error}'
+            result:
+              title: Transcription Result
+              streaming: Current transcription (streaming)
+              final: Final transcription
+              placeholder: No transcription result yet. Click "Start Speech-to-Text Test" and speak into the microphone.
+            provider: Provider
+            model: Model
+            mode:
+              streaming: Streaming (real-time)
+              recording: Recording (file)
+    memory-long-term:
+      description: Long-term memory specific settings and management
+      title: Long-Term Memory
+    memory-short-term:
+      description: Short-term memory specific settings and management
+      title: Short-Term Memory
+    messaging-discord:
+      description: Chat & voice chat over Discord
+      title: Discord
+      enable: Enable Discord Integration
+      enable-description: Allow Kitsune AI to interact through Discord
+      token: Bot Token
+      token-description: Your Discord bot token
+      token-placeholder: Enter your Discord bot token
+      configured: Discord is properly configured!
+    speech:
+      description: Speech synthesis
+      sections:
+        section:
+          playground:
+            buttons:
+              stop:
+                label: Stop
+            select-voice:
+              loading: Loading model...
+              required: Please select a voice
+            title: Speech Test
+            description: Enter text and preview the generated speech
+            error: Generation failed
+            generating: Generating...
+            test-speech: Test Speech
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
+          provider-voice-selection:
+            custom_model_placeholder: Enter custom model name...
+            custom_voice_placeholder: Enter custom voice ID...
+            description: Select the suitable speech provider
+            no_models: No models available
+            no_models_description: No models were found for this provider
+            no_voices: No voices available
+            no_voices_description: No voices were found for this provider
+            no_voices_hint: You can enter a custom voice name below.
+            pause: Pause
+            play_sample: Play Sample
+            search_models_placeholder: Search models...
+            search_models_results: Found {count} of {total} models
+            search_voices_placeholder: Search voices...
+            search_voices_results: Found {count} of {total} voices
+            unsupported_voice_warning_title: No supported voices
+            unsupported_voice_warning_content: Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/kitsune-ai/kitsune-ai/issues.
+            show_less: Show less
+            show_more: Show more
+            title: Provider
+          voice-settings:
+            input-ssml:
+              placeholder: Enter SSML text...
+            use-ssml:
+              description: Enable to input raw SSML instead of plain text
+              label: Use Custom SSML
+            voice-id: Voice ID
+            voice-id-description: Enter the voice ID for your OpenAI-compatible API
+            name: Voice Name
+            name-description: Enter the name for your custom voice
+            name-placeholder: e.g. alloy, echo
+            language-filter:
+              all: All
+              zh: Chinese
+              ja: Japanese
+            uploading: Uploading...
+            upload-reference: Upload Reference Audio
+            upload-hint: Upload a 3~10 second reference audio to create a new voice
+            load-error: Failed to load voices
+          provider-selection:
+            title: Provider
+            description: Select the service provider for speech synthesis
+            add: Add Provider
+            empty-title: No Speech Provider Configured
+            empty-description: Click here to set up your speech service
+          model-input:
+            label: Model Name
+            placeholder: Enter TTS model name
+            error-description: Enter model name manually when model discovery fails
+            empty-description: Enter model name manually when no models are available
+            select-button: Select Model
+            subtitle: Select the speech synthesis model for the current provider
+      title: Speech
+    title: Modules
+    vision:
+      description: Vision
+      title: Vision
+      capture_cadence:
+        title: Vision capture cadence
+        description: Tune how frequently the vision ticker captures a frame.
+        capture_interval:
+          label: Capture interval
+          description: Lower values capture more frequently and may increase resource use.
+        ticker:
+          label: Ticker
+          active: Active
+          idle: Idle
+          last_capture: Last capture {time}
+        captures:
+          label: Captures
+          last_update: Last update {time}
+        context_updates:
+          label: Context updates
+          last_update: Last update {time}
+        never: Never
+        seconds_ago: '{count}s ago'
+        minutes_ago: '{count}m ago'
+        hours_ago: '{count}h ago'
+      provider_toggles:
+        title: Provider request toggles
+        description: Control provider-specific request flags for vision inference.
+        thinking_ollama:
+          label: Thinking (Ollama)
+          description: 'When enabled, vision requests sent through Ollama include `think: true`. When disabled, they include `think: false`.'
+    x:
+      description: X / Twitter browsing and usage
+      title: X / Twitter
+      enable: Enable X / Twitter Integration
+      enable-description: Allow Kitsune AI to interact with X / Twitter
+      api-key: API Key
+      api-key-description: Your X / Twitter API key
+      api-key-placeholder: Enter your X / Twitter API key
+      api-secret: API Secret
+      api-secret-description: Your X / Twitter API secret
+      api-secret-placeholder: Enter your X / Twitter API secret
+      access-token: Access Token
+      access-token-description: Your X / Twitter access token
+      access-token-placeholder: Enter your X / Twitter access token
+      access-token-secret: Access Token Secret
+      access-token-secret-description: Your X / Twitter access token secret
+      access-token-secret-placeholder: Enter your X / Twitter access token secret
+      configured: X / Twitter is properly configured!
+    mcp-server:
+      title: MCP servers
+      description: Configure MCP servers and bring their tools into Kitsune AI.
+      config-path: Config file
+      runtime-title: Runtime status
+      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      error-title: Oops
+      success-title: Done!
+      existing:
+        title: Configured
+        description: Servers recorded in mcp.json. Click any row to expand and edit it.
+        empty: Nothing here yet. Add one below!
+      add:
+        title: New
+        description: Fill in a new server, then click "Save and restart" — it'll move into "Configured" above.
+        pending-badge: Unsaved
+      status:
+        unknown: not loaded
+      actions:
+        open-config: Reveal in file manager
+        apply-and-restart: Save and restart
+        restart: Restart MCP
+        add-server: Add server
+        add-env: Add var
+        remove: Remove
+        test: Test
+        edit-json: Edit JSON
+        close-json: Close
+        format-json: Format
+        reset-draft: Reset
+        apply-json: Apply
+        cancel: Cancel
+        expand: Expand
+        collapse: Collapse
+      fields:
+        identifier:
+          label: Identifier
+          description: Unique name; becomes the key in mcp.json.
+          placeholder: e.g. filesystem
+        command:
+          label: Command
+          description: Executable spawned over stdio.
+          placeholder: e.g. npx
+        args:
+          label: Arguments
+          description: One per line, in order.
+          placeholder: >-
+            -y
+
+            some-package-name
+
+            /tmp
+        cwd:
+          label: Working directory
+          description: Optional directory used as the process working directory.
+          placeholder: e.g. /Users/you/project
+        env:
+          label: Environment
+          description: Vars passed to the child process.
+          key-placeholder: KEY
+          value-placeholder: value
+        enabled:
+          label: Enabled
+      json:
+        title: Edit mcp.json
+        description: Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.
+        placeholder: Paste mcp.json here…
+      test:
+        title: Test connection
+        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        pick-server-label: Server
+        no-servers: Nothing to test yet
+        no-server-selected: Pick a server first.
+        server-disabled: '"{name}" is disabled — enable it on the card first.'
+        disabled-suffix: disabled
+        untitled: untitled
+        running: Testing…
+        success: Connected! Found {count} tools in {ms}ms.
+        failure: Connection failed after {ms}ms
+      errors:
+        empty-identifier: Server
+        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
+        empty-command: '"{name}" is missing a command.'
+        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+      messages:
+        opened: Opened {path} in your file manager
+        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+  flux:
+    title: Flux
+    buy: Charge
+    currency: Currency
+    description: Current Flux
+    packagesError: Failed to load packages. Please try again later.
+    checkout:
+      success: Payment successful! Your Flux has been topped up.
+      canceled: Payment was canceled.
+      error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      typePromo: Promo Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
+    packages:
+      title: Flux Packages
+      buy: Charge
+      description: Flux packages to choose from.
+  providers:
+    catalog:
+      edit:
+        config-id-not-found: Provider configuration not found.
+        definition-id-not-found: Provider definition not found.
+        actions:
+          more-options: More options
+          delete: Delete
+        validation:
+          failed:
+            title: Please check your provider settings, validation failed.
+            description: You can still save the current configuration if you want to proceed.
+            action: Save anyway
+        config:
+          common:
+            fields:
+              field:
+                api-key:
+                  label: API Key
+                  description: API Key used to authorize requests to this provider
+                  placeholder: sk-...
+                base-url:
+                  label: Base URL
+                  description: The base url used to connect to remote service. Often looks like http://localhost:11434/v1 or https://example.com/v1.
+                  placeholder: Base url...
+                headers:
+                  label: Custom HTTP Headers
+                  description: Add custom HTTP headers
+                  key:
+                    placeholder: Key
+                  value:
+                    placeholder: Value
+                thinking-mode:
+                  label: Thinking Mode
+                  description: >
+                    Controls Ollama thinking behavior. GPT-OSS only supports low/medium/high levels.
+                  options:
+                    auto: Auto (provider default)
+                    disable: Disable
+                    enable: Enable
+                    low: Low
+                    medium: Medium
+                    high: High
+        validators:
+          actions:
+            validate: Validate
+          empty: No validation steps available.
+          openai-compatible:
+            check-config:
+              title: Configuration
+            check-connectivity:
+              title: Connectivity
+            check-supports-model-listing:
+              title: List Models
+            check-supports-chat-completion:
+              title: Chat Completion
+          status:
+            validating: Validating...
+            valid: Passed
+            invalid: Errored
+          title: Checks
+        providers:
+          provider:
+            ollama:
+              troubleshooting:
+                validators:
+                  openai-compatible-check-connectivity:
+                    label: Extra configuration needed for Ollama
+                    content: Sorry to hear that Connectivity check failed for Ollama. Don't worry, for Ollama instances, extra configuration is needed for making it pass for Ollama. You need to set <code>OLLAMA_HOST</code> explicitly when start the Ollama application or Ollama CLI server, for detailed information, check <a href="https://docs.kitsune-ai.dev/en/docs/manual/integrations/providers/chat/ollama">Ollama integration guide</a>.
+    common:
+      continueAnyway: Continue Anyway
+      goToModelSelection: Select Model →
+      default-test-text: Hello! This is a test of the voice synthesis.
+      base-url-placeholder: Enter the Base URL of your provider
+      fields:
+        field:
+          api-key:
+            label: API Key Input
+          model:
+            label: Model
+            description: Select the TTS model to use for speech generation
+            placeholder: Select a model...
+          temperature:
+            label: Temperature
+            description: Controls randomness in speech generation. Lower values make speech more predictable, higher values make it more creative.
+      section:
+        advanced:
+          fields:
+            field:
+              headers:
+                description: Add custom HTTP headers
+                key:
+                  placeholder: Key
+                label: HTTP Headers
+                value:
+                  placeholder: Value
+          title: Advanced
+        basic:
+          description: Essential settings
+          title: Basic
+        voice:
+          title: Voice Settings
+    filters:
+      pricing: Pricing
+      deployment: Deployment
+      all: All
+      free: Free
+      paid: Paid
+      internal: Internal
+      local: Local
+      cloud: Cloud
+    categories:
+      chat:
+        title: Chat
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
+      speech:
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      transcription:
+        title: Transcription
+        description: Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+      artistry:
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        items:
+          comfyui:
+            description: Local image generation runner.
+          replicate:
+            description: Cloud-based model inference service.
+          nanobanana:
+            description: Google AI Studio Image Preview.
+    helpinfo:
+      title: First time here?
+      description: >
+        Kitsune AI requires at least one {chat} provider to be configured to think, and behave properly. You could think of it as the brain of the characters living in Kitsune AI system.
+    explained:
+      chat: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      Speech: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+      Transcription: Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+    description: LLMs, speech providers, etc.
+    provider:
+      app-local-audio-transcription:
+        title: App (Local)
+        description: Use in-app local model for speech recognition
+      gpt-sovits:
+        title: GPT-SoVITS
+        description: Local TTS via GPT-SoVITS sidecar (port 9880)
+      browser-local-audio-transcription:
+        title: Browser (Local)
+        description: Use browser built-in API for speech recognition
+      browser-local-audio-speech:
+        title: Browser (Local)
+        description: Use browser built-in API for speech synthesis
+      app-local-chat:
+        title: App (Local)
+        description: Built-in small local model running inside the app
+      alibaba-cloud-model-studio:
+        description: bailian.console.aliyun.com
+        title: Alibaba Cloud Model Studio
+      amazon-bedrock:
+        title: Amazon Bedrock
+        description: aws.amazon.com/bedrock
+        config:
+          api-key:
+            label: Bedrock API Key
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            placeholder: bedrock-...
+          region:
+            label: AWS Region
+            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
+      anthropic:
+        description: anthropic.com
+        title: Anthropic | Claude
+        helpinfo:
+          title: Before you start
+          description:
+            part1: While Anthropic recently did announce that they are having a beta support for OpenAI SDK compatibility
+            part2: (you can read more here)
+            part3: but due to the implementation details comes with
+            part4: restrictions which not aligned with the OpenAI SDK, it's currently not possible to use this provider in the browser.
+            part5: If you do need to use this provider, you will need a dedicated proxy backend like a Serverless Function running on
+            part6: or some CORS bypassing services to bypass the CORS restrictions.
+      cloudflare-workers-ai:
+        description: cloudflare.com
+        fields:
+          field:
+            account-id:
+              description: Cloudflare Account ID
+              label: Account ID
+              placeholder: Your Cloudflare Account ID
+            api-key:
+              placeholder: Input Cloudflare API Key
+        title: Cloudflare Workers AI
+      common:
+        status:
+          validating: Validating
+          valid: Configuration seems to be valid.
+        fields:
+          field:
+            pitch:
+              description: Tune the pitch of synthesized speech (e.g., sharper or coarser)
+              label: Pitch
+            speed:
+              description: Adjust the speed of speech
+              label: Speed
+            volume:
+              description: Adjust the volume of speech
+              label: Volume
+      deepgram-tts:
+        description: deepgram.com
+        title: Deepgram
+      speech-noop:
+        title: None
+        description: No speech output.
+      comfyui:
+        settings:
+          title: ComfyUI (Local)
+          heading: ComfyUI Native API
+          description: Connect to your local ComfyUI and bring your own workflows.
+          info:
+            what_you_need:
+              label: What You Need
+              value: ComfyUI running locally or on your network.
+            how_to_export:
+              label: How To Export
+              value: Enable Dev Mode → "Save (API Format)".
+            scope_boundary:
+              label: Scope Boundary
+              value: Model downloads & node installs are your job.
+          connection:
+            title: Connection
+            connected: Connected
+            failed: Connection failed
+            error_prefix: Error
+            test: Test
+            testing: Testing...
+            unknown_error: Unknown connection error
+            unknown_gpu: Unknown GPU
+            server_url:
+              label: Server URL
+              description: The address where ComfyUI is running
+              placeholder: http://localhost:8188
+          cors:
+            title: CORS Block Detected
+            description: ComfyUI blocks requests from other applications by default. To allow Kitsune AI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            command: python main.py --enable-cors-header "*"
+          workflows:
+            title: Workflow Templates
+            upload: Upload Workflow
+            cancel_upload: Cancel
+            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            exposed_parameters: Exposed Parameters
+            summary: '{nodes} nodes · {fields} exposed fields'
+            remove: Remove
+            config_snippet: Artistry Config Snippet
+            copy_json: Copy JSON
+            paste_hint: Paste this into your Kitsune AI Card artistry config to override these nodes.
+          upload:
+            prompt: Drop or select a workflow_api.json file
+            invalid_json: Invalid JSON
+            workflow_name:
+              label: Workflow Name
+              description: Give this workflow a recognizable name
+              placeholder: e.g. Anime Text2Img
+            select_fields: 'Select fields to expose to the AI agent:'
+            fields_exposed: '{count} field(s) exposed'
+            save: Save Workflow
+      replicate:
+        settings:
+          title: Replicate.ai
+          heading: Replicate.ai Configuration
+          description: Configure your cloud image generation settings.
+          api_key:
+            label: API Key
+            description: Your Replicate API token (starts with r8_)
+            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+          default_model:
+            label: Default Model
+            description: Fallback owner/model string to use if the character card doesn't specify one
+            placeholder: black-forest-labs/flux-schnell
+          aspect_ratio:
+            label: Aspect Ratio
+            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            placeholder: '16:9'
+          inference_steps:
+            label: Inference Steps
+            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      nanobanana:
+        settings:
+          title: Nano Banana
+          heading: Nano Banana (Google AI Studio)
+          description: Configure Google Gemini's native image generation capabilities.
+          api_key:
+            label: API Key
+            description: Your Google AI Studio API Key
+            placeholder: AIpk...
+          preferred_model:
+            label: Preferred Model
+            description: The specific Gemini image preview model to use
+          default_resolution:
+            label: Default Resolution
+            description: The target resolution for generated images
+          model_options:
+            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
+            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
+            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+      deepseek:
+        description: deepseek.com
+        title: DeepSeek
+      elevenlabs:
+        description: elevenlabs.io
+        fields:
+          field:
+            simularity-boost:
+              description: Voice similarity adherence
+              label: Similarity Boost
+            speaker-boost:
+              description: Enhance speaker similarity
+              label: Speaker Boost
+            speed:
+              description: Speech generation speed
+              label: Speed
+            stability:
+              description: Voice stability and randomness
+              label: Stability
+            style:
+              description: Voice style exaggeration
+              label: Style
+        playground:
+          buttons:
+            button:
+              test-voice:
+                generating: Generating...
+                label: Test Voice
+          fields:
+            field:
+              input:
+                placeholder: Enter text to test the voice...
+              language:
+                description: Select voice language
+                label: Language
+              voice:
+                description: Select preferred voice
+                label: Voice
+          title: Voice Playground
+          validation:
+            error-missing-api-key: Please enter an API key to test the voice.
+        title: ElevenLabs
+      kokoro-local:
+        description: Local text-to-speech using Kokoro-82M.
+        fields:
+          field:
+            model:
+              label: Model Selection
+              description: Smaller models load faster but may have slightly lower quality.
+              placeholder: Choose a model...
+        models:
+          q8-webgpu:
+            description: "8-bit quantized on WebGPU - Recommended: tiny VRAM, near-full quality"
+          fp32-webgpu:
+            description: Full precision model using WebGPU - Recommended for supported devices
+          fp32:
+            description: Full precision model
+          fp16:
+            description: Half precision
+          q8:
+            description: 8-bit quantized
+          q4:
+            description: 4-bit quantized
+          q4f16:
+            description: 4-bit with FP16
+        playground:
+          default-text: Hello! This is a test of the Kokoro text-to-speech system.
+          title: Voice Playground
+        title: Kokoro TTS (Local)
+      fireworks:
+        description: fireworks.ai
+        title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
+      microsoft-speech:
+        description: speech.microsoft.com
+        fields:
+          field:
+            region:
+              description: Speech Service region
+              label: Region
+        title: Microsoft / Azure Speech
+      index-tts-vllm:
+        description: https://index-tts.github.io/
+        title: Bilibili / IndexTTS
+        callout_indextts2_unavailable_title: Limited Support
+        callout_indextts2_unavailable: Support for IndexTTS2 is currently unavailable. Please use IndexTTS.
+      azure-ai-foundry:
+        description: Azure AI Foundry
+        title: Azure AI Foundry
+        resource-name: Resource Name
+        resource-name-description: Prefix used in https://<prefix>.services.ai.azure.com
+        model-id: Model ID
+        model-id-description: Model ID on Azure AI Foundry
+        api-version: API Version
+        api-version-description: API version for snapshot of the models
+      minimax:
+        description: minimaxi.com
+        title: MiniMax
+      minimax-global:
+        description: minimax.io
+        title: MiniMax Global
+      minimax-speech:
+        description: minimax.io
+        title: MiniMax Speech
+      mimo:
+        description: api.xiaomimimo.com
+        title: Xiaomi MiMo
+        style-prompt-placeholder: Describe the tone, pacing, emotion, and delivery style...
+        voice-sample-label: Voice sample (data URI)
+        voice-sample-description: Paste the base64 voice sample as data:{MIME_TYPE};base64,$BASE64_AUDIO. MiMo supports mp3 and wav samples up to 10 MB.
+      player2-speech:
+        description: player2.game
+        title: Player2
+        download-hint: 'Please download and run the Player2 App:'
+        discord-hint: 'After downloading, if you still are having trouble, please reach out to us on Discord:'
+      mistral:
+        description: mistral.ai
+        title: Mistral
+      moonshot:
+        description: moonshot.ai
+        title: Moonshot AI
+      modelscope:
+        description: modelscope.cn
+        title: ModelScope
+      novita:
+        description: novita.ai
+        title: Novita
+      ollama:
+        description: ollama.ai
+        title: Ollama
+      openai:
+        description: openai.com
+        title: OpenAI
+      azure-openai:
+        description: Azure OpenAI API
+        title: Azure OpenAI
+      openai-compatible:
+        description: OpenAI Compatible
+        title: OpenAI Compatible
+      nvidia:
+        description: build.nvidia.com
+        title: NVIDIA NIM
+      n1n:
+        description: n1n.ai - High-performance AI API provider.
+        title: n1n
+      openrouter:
+        description: openrouter.ai
+        title: OpenRouter
+      openrouter-audio-speech:
+        description: openrouter.ai
+        title: OpenRouter
+      perplexity:
+        description: perplexity.ai
+        title: Perplexity
+      player2:
+        description: player2.game
+        title: Player2
+      together:
+        description: together.ai
+        title: Together.ai
+      google-generative-ai:
+        description: gemini.google.com
+        title: Google Gemini
+      groq:
+        description: groq.com
+        title: Groq
+      featherless:
+        description: featherless.ai
+        title: Featherless AI
+      lm-studio:
+        description: lmstudio.ai
+        title: LM Studio
+      vllm:
+        description: vllm.ai
+        title: vLLM
+      volcengine:
+        description: volcengine.com
+        fields:
+          field:
+            appId:
+              description: App ID of the project where you can obtain in Console
+              label: App ID
+        title: Volcano Engine
+      volcengine-coding-plan:
+        description: Volcengine Coding Plan
+        title: Volcengine Coding Plan
+      byteplus:
+        description: byteplus.com
+        title: BytePlus
+      byteplus-coding-plan:
+        description: BytePlus Coding Plan
+        title: BytePlus Coding Plan
+      xai:
+        description: x.ai
+        title: xAI
+      zai:
+        description: z.ai
+        title: Z.ai
+      302-ai:
+        description: 302.AI
+        title: 302.AI
+      comet-api:
+        description: CometAPI.com
+        title: Comet API
+      cerebras:
+        description: cerebras.ai
+        title: Cerebras
+      aliyun-nls:
+        description: Aliyun NLS
+        title: Aliyun NLS
+        access-key-id: Access Key ID
+        access-key-secret: Access Key Secret
+        app-key: App Key
+        app-key-placeholder: Enter AppKey
+        region: Region
+      browser-web-speech-api:
+        description: Browser-native STT (requires Chrome/Edge/Safari)
+        title: Web Speech API
+        recognition-language: Recognition Language
+        recognition-language-description: Select the language for speech recognition
+        continuous-recognition: Continuous Recognition
+        continuous-recognition-description: Keep listening continuously instead of stopping after each phrase
+        show-interim-results: Show Interim Results
+        show-interim-results-description: Display partial recognition results in real-time as you speak
+        test-title: Speech-to-Text Test
+        test-description: Test Web Speech API transcription with your selected audio device. This test will always use Web Speech API regardless of your default hearing provider.
+        not-available: Web Speech API is not available in this browser
+        audio-input-description: Select the audio input device for testing
+      transcriptions:
+        playground:
+          title: Transcription Playground
+      aihubmix:
+        title: AIHubMix
+        description: https://aihubmix.com (10% off)
+    title: Providers
+  connection:
+    description: Configure WebSocket server connection
+    title: Connection
+    websocket-url:
+      description: Full address of the WebSocket server (e.g., ws://localhost:6121/ws)
+      label: WebSocket Server Address
+      placeholder: ws://localhost:6121/ws
+    server-hostname:
+      label: Expose On Network
+      description: Choose whether the Kitsune AI gateway only listens on this device or can be reached from your local network.
+      advanced-label: Bind Hostname
+      advanced-description: Use a specific hostname or IP address when you need manual network binding.
+      options:
+        this-device: This device
+        all: All
+        advanced: Advanced
+    server-auth-token:
+      label: Auth Token
+      description: Security token required by remote clients that connect to this gateway. When left empty, Kitsune AI generates a new token automatically.
+      placeholder: Auto-generate
+    qr:
+      title: Connect from Stage Pocket
+      description: Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+      refresh: Refresh
+      image-alt: Kitsune AI server channel connection QR code
+      candidates: Candidate addresses
+      token-hint: The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+      errors:
+        title: QR code unavailable
+        unavailable: Failed to prepare the connection QR code.
+    qr-scan:
+      title: Quick Connect
+      description: Scan the QR code from Tamagotchi to quick connect
+      instructions: Point the camera at the Kitsune AI connection QR code.
+      action: Scan
+      success:
+        title: Connected address saved
+        description: 'URL been used: {url}'
+      errors:
+        title: QR scan failed
+        failed: Failed to scan or connect with the QR code.
+  sidecar:
+    title: Local Services
+    description: Manage local subprocess services (ComfyUI image generation, GPT-SoVITS speech synthesis) start, stop, and status.
+  environment:
+    title: Environment Adaptation
+    description: Manage IDE connectors, Agent API adapters, health checks, and runtime policies.
+    connectors:
+      title: IDE Connectors
+      description: Connected IDE extensions (VSCode / Trae / IDEA). Install the extension on the IDE side; disconnect here to stop receiving tasks from a peer.
+      empty: No IDE connectors connected. Install the Kitsune extension in your IDE to begin.
+      fields:
+        name: Name
+        type: Type
+        status: Status
+        last-context: Last context
+      status:
+        connected: Connected
+        disconnected: Disconnected
+      actions:
+        disconnect: Disconnect
+        reconnect: Reconnect
+        disable: Disable
+        enable: Enable
+    agent-api:
+      title: Agent API Adapters
+      description: Push tasks directly to open APIs (Cloud Code / OpenCode / Trae Builder). API keys are encrypted on disk and masked in the UI.
+      empty: No Agent API adapters configured.
+      fields:
+        name: Name
+        provider: Provider
+        status: Status
+        api-key: API Key
+        base-url: Base URL
+      status:
+        enabled: Enabled
+        disabled: Disabled
+        has-key: Set
+        no-key: Not set
+      actions:
+        edit: Edit
+        save: Save
+        cancel: Cancel
+    doctor:
+      title: Health Check
+      description: Run a full diagnostic across config, connectivity, sidecar, permissions, ports, TLS, and resources.
+      actions:
+        run: Run diagnostics
+        fix: Auto-fix
+        running: Running...
+        fixing: Fixing...
+      levels:
+        PASS: Pass
+        WARN: Warning
+        FAIL: Fail
+        INFO: Info
+      fix-levels:
+        FIXED: Fixed
+        MANUAL: Manual
+      suggestion-label: Suggestion
+    log-level:
+      title: Log Level
+      description: Adjust the global log verbosity at runtime.
+      label: Level
+      levels:
+        DEBUG: DEBUG
+        INFO: INFO
+        WARN: WARN
+        ERROR: ERROR
+      applied: Log level applied.
+    whitelist:
+      title: Permission Whitelist
+      description: Auto-approve rules added after first confirming a fix action. Removing a key re-prompts the next time.
+      empty: No whitelist entries.
+      fields:
+        key: Key
+        source: Source
+        created-at: Created
+      actions:
+        remove: Remove
+        clear: Clear all
+        clearing: Clearing...
+      cleared: Whitelist cleared.
+      removed: Entry removed.
+
+    executor:
+      title: Autonomous Executor
+      description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
+      input-placeholder: e.g. "Optimize performance bottlenecks in src/auth.ts"
+      actions:
+        execute: Execute
+        stop: Stop
+        generate-only: Generate plan only
+      status:
+        idle: Idle
+        generating: Generating plan...
+        running: Running ({current}/{total})
+        aborted: Aborted (critical task failed)
+        completed: Completed
+      plan-status:
+        pending: Pending
+        completed: Completed
+        aborted: Aborted
+      table:
+        task: Task
+        type: Type
+        title: Description
+        status: Status
+        duration: Duration
+      no-plan: No plan. Enter a requirement above and click "Execute".
+      task-error-fmt: '%{idx} — %{error}'
+      permission-confirm:
+        title: Permission Required
+        source: Source
+        type: Action Type
+        add-to-whitelist: Auto-allow similar actions (add to whitelist)
+        reject: Reject
+        approve: Approve
+  system:
+    color-scheme:
+      description: Change the color scheme of the stage.
+      title: Color Scheme
+    developer:
+      description: Some developer options.
+      title: Developers
+    general:
+      description: Dark theme, languages, etc.
+      title: General
+    description: Customize your stage!
+    sections:
+      section:
+        custom-color:
+          fields:
+            field:
+              primary-color:
+                label: Primary color
+                rgb-on:
+                  title: I Want It Dynamic!
+          title: Color Scheme
+        developer:
+          title: Developer
+          sections:
+            section:
+              performance-visualizer:
+                title: Performance Visualizer
+                description: Toggle FPS/long task/memory overlay
+              markdown-stress:
+                title: Markdown Stress
+                description: Stress markdown parsing and rendering with heavy chat payloads
+              use-magic-keys:
+                title: useMagicKeys Tool
+                description: Test shortcuts
+              audio-record:
+                title: Audio Record
+                description: Test Audio related composables
+              background-gradient-blending:
+                title: Background Theme color blending
+                description: Test blending & theme
+              background-removal:
+                title: Background removal (WebGPU required)
+                description: Utility for background removal
+              chat:
+                title: Chat
+                description: Chat
+              gesture-circle:
+                title: Gesture Circle (Desktop only)
+                description: Test gesture recognition
+              image:
+                title: Image
+                description: Image
+              polaroid:
+                title: Polaroid
+                description: Utility for taking shots of models
+              context-flow:
+                description: Inspect incoming context updates and outgoing chat stream events
+              websocket-inspector:
+                title: WebSocket Inspector
+                description: Inspect raw WebSocket traffic
+              vibrant:
+                title: Color extract
+                description: Test color extraction
+              providers-transcription-realtime-aliyun-nls:
+                title: Aliyun Real-time Transcriber
+                description: Stream microphone audio to Aliyun NLS and inspect live transcripts
+              performance-playground:
+                title: Performance Playground
+                description: VRM expressions + TTS lip sync playground
+        theme-presets:
+          presets:
+            default:
+              colors:
+                color-1: Kitsune AI Green
+              description: The default greenish theme color, brought by Kitsune AI to you!
+              title: Default Color
+            morandi:
+              colors:
+                color-1: Taupe
+                color-2: Beige
+                color-3: Ash Grey
+                color-4: Light Taupe
+                color-5: Ivory
+                color-6: Olive Grey
+                color-7: Sand
+                color-8: Warm Grey
+              description: Soft, muted tones inspired by Giorgio Morandi's paintings
+              title: Morandi Colors
+            monet:
+              colors:
+                color-1: Sky Blue
+                color-2: Mist
+                color-3: Sand
+                color-4: Moss Green
+                color-5: Water Lily
+                color-6: Wheat
+                color-7: Slate Blue
+                color-8: Sage
+              description: Impressionist palette inspired by Claude Monet's works
+              title: Monet Colors
+            japanese:
+              colors:
+                color-1: Tan
+                color-2: Warm Taupe
+                color-3: Umber
+                color-4: Coffee
+                color-5: Bronze
+                color-6: Gold
+                color-7: Mustard
+                color-8: Amber
+              description: Traditional Japanese color palette
+              title: Japanese Colors
+            nordic:
+              colors:
+                color-1: Nordic Blue
+                color-2: Ice
+                color-3: Fjord
+                color-4: Steel
+                color-5: Glacier
+                color-6: Slate
+                color-7: Cloud
+                color-8: Stone
+              description: Scandinavian minimalist color scheme
+              title: Nordic Colors
+            chinese:
+              colors:
+                color-1: Rosy Dawn
+                color-2: Chinese Red
+                color-3: Smoky Brown
+                color-4: Bamboo Green
+                color-5: Dark Purple
+                color-6: Golden Yellow
+                color-7: Azure Blue
+                color-8: Ochre
+              description: Traditional Chinese colors, derived from ancient textiles, porcelain and paintings
+              title: Chinese Traditional Colors
+          title: Color Scheme Presets
+    title: System
+  page:
+    developers:
+      open-devtools:
+        title: Open Developer Tools
+        button: Open
+  credits:
+    buy: Buy
+  scene:
+    title: Scenes
+    description: Customize the virtual environment for your characters.
+    beta_label: Scenes System
+    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    background_image:
+      title: Active Character Background
+      no_background: No background active for this character. Upload a square or landscape image for best results.
+      upload: Upload to Gallery
+      change: Change Background
+      clear: Clear Default
+    gallery:
+      title: Scene Gallery
+      empty: No images in gallery yet. Upload one above!
+      set_as_global: Set as Character Default
+      delete: Delete from Gallery
+      global_badge: Character Default
+      active_badge: Current Scene
+      delete_confirm: Are you sure you want to delete this background?
+      gallery: Gallery
+      pinned-background: Pinned Background
+      pinned-background-description: Select the image to show when this character is active.
+      no-images: No images in the journal yet.
+    tip:
+      label: Tip!
+      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+sections:
+  section:
+    general:
+      title: General
+theme:
+  title: Theme
+  description: >
+    Switch the base theme of Kitsune AI, Light mode or Dark mode.
+title: Settings
+voices: Voice
+vrm:
+  change-model:
+    from-file: Load from File
+    from-file-select: Select
+    from-url: Load from URL
+    from-url-confirm: Load
+    from-url-placeholder: Enter VRM model URL
+    title: Change Model
+  title: VRM Settings
+  scale-and-position:
+    model-info-title: Model Size Information
+    model-info-x: Width (X)
+    model-info-y: Height (Y)
+    model-info-z: Depth (Z)
+    tips: >
+      Edit the initial position the VRM model.
+
+      Coordinate axes are visualised.
+    tips-title: Tips
+    scale: Scale
+    x: X Offset
+    y: Y Offset
+    z: Z Offset
+    fov: FOV (degree)
+    rotation-y: Rotation (Y-axis)
+    camera-distance: Camera distance
+    eye-tracking-mode:
+      title: Looking at
+      options:
+        option:
+          camera: Camera
+          mouse: Mouse
+          disabled: Disabled
+    model-position: Model Position
+    directional-light-rotation-x: Directional Light Rotation - X
+    directional-light-rotation-y: Directional Light Rotation - Y
+    directional-light-color: Directional Light Color
+    directional-light-intensity: Directional Light Intensity
+    ambient-light-intensity: Ambient Light Intensity
+    ambient-light-color: Ambient Light Color
+    environment: Environment
+    hemisphere: Hemisphere
+    skybox: SkyBox
+    hemisphere-light-intensity: Hemisphere Light Intensity
+    hemisphere-sky-color: Hemisphere Sky Color
+    hemisphere-ground-color: Hemisphere Ground Color
+  switch-to-vrm:
+    title: Switch to Live2D Avatar?
+    change-to-vrm: Click here to switch to the Live2D avatar setting
+  theme-color-from-model:
+    button-extract:
+      title: Extract
+  skybox:
+    skybox-intensity: SkyBox Intensity
+    skybox-specular-mix: Specular Mix
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    y: Y
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
+websocket-secure-enabled:
+  title: Enable Secure WebSocket (WSS)
+  description: Enable WSS (WebSocket Secure) to allow HTTPS connections for mobile (pocket) in development mode. This will automatically generate a self-signed certificate.
+wip:
+  title: Work in Progress
+  description: This feature is currently under development and not yet publicly available. Check back in future updates for this functionality.
+godot:
+  stage-experimental: Godot Stage (Experimental)
+  view-title: Godot View
+  camera-x: Camera X
+  camera-y: Camera Y
+  camera-z: Camera Z
+  camera-yaw: Camera Yaw
+  camera-pitch: Camera Pitch
+  camera-fov: Camera FOV

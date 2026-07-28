@@ -1,0 +1,77 @@
+{
+  "publisher": "kitsune",
+  "name": "vscode-kitsune-trae",
+  "displayName": "Kitsune AI Trae adapter",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight adapter that connects Trae IDE (VSCode-based) into Kitsune AI",
+  "repository": {
+    "type": "git",
+    "url": "",
+    "directory": "integrations/vscode/vscode-kitsune-trae"
+  },
+  "categories": [
+    "Other"
+  ],
+  "preview": true,
+  "main": "./dist/extension.cjs",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "kitsune-trae.enable",
+        "title": "Kitsune AI: Enable"
+      },
+      {
+        "command": "kitsune-trae.disable",
+        "title": "Kitsune AI: Disable"
+      },
+      {
+        "command": "kitsune-trae.status",
+        "title": "Kitsune AI: Show Status"
+      }
+    ],
+    "configuration": {
+      "title": "Kitsune AI",
+      "properties": {
+        "kitsune-trae.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the Kitsune AI extension"
+        },
+        "kitsune-trae.contextLines": {
+          "type": "number",
+          "default": 5,
+          "description": "Number of context lines to send (before and after current line)"
+        },
+        "kitsune-trae.sendInterval": {
+          "type": "number",
+          "default": 3000,
+          "description": "Interval in milliseconds to send updates (0 for real-time)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "dev": "tsdown --watch",
+    "build": "tsdown ./src/extension.ts --format cjs --platform node --external vscode --sourcemap --clean --out-dir dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@guiiai/logg": "catalog:",
+    "@kitsune/server-sdk": "workspace:*",
+    "@kitsune/server-shared": "workspace:*",
+    "@moeru/std": "catalog:",
+    "@types/vscode": "catalog:",
+    "es-toolkit": "catalog:",
+    "injeca": "catalog:",
+    "nanoid": "catalog:",
+    "tsdown": "catalog:"
+  }
+}

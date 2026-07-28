@@ -1,0 +1,15 @@
+{
+  "name": "@kitsune/ccc",
+  "type": "module",
+  "private": true,
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix ."
+  },
+  "dependencies": {
+    "meta-png": "catalog:"
+  }
+}

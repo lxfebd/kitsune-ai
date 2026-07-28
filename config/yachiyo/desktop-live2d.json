@@ -1,0 +1,51 @@
+{
+  // Window overrides. Delete any field here to fall back to shared defaults.
+  "window": {
+    "width": 280,
+    "height": 400,
+    "minWidth": 180,
+    "minHeight": 280,
+    "compactWidth": 240,
+    "compactHeight": 400
+  },
+  // Interaction overrides. dragZone defines the draggable hotspot as ratios of the avatar window.
+  "interaction": {
+    "dragZone": {
+      "widthRatio": 0.333,
+      "heightRatio": 0.333
+    }
+  },
+  "voice": {
+    "path": "electron_native",
+    "transport": "realtime",
+    "outputDelayMs": 9,
+    "fallbackOnRealtimeError": true,
+    "realtime": {
+      "prebufferMs": 160,
+      "idleTimeoutMs": 8000
+    }
+  },
+  // Sidecar 配置：控制 Python FastAPI 服务的自动启动
+  "sidecar": {
+    "autoStart": true,        // 应用启动时自动启动 sidecar
+    "autoStartVoxcpm": true,  // 是否自动启动 VoxCPM2（需要 GPU）
+    "modelPath": "G:/agentpet/aivoice/VoxCPM2",  // VoxCPM2 模型路径
+    "port": 5000              // sidecar 端口
+  },
+  // LLM 动作标签执行策略：限流与错误兜底
+  "policy": {
+    "minActionIntervalMs": 200,
+    "typeMinIntervalMs": {
+      "expression": 200,
+      "emote": 250,
+      "gesture": 300,
+      "react": 300,
+      "motion": 400,
+      "param": 100,
+      "param_batch": 100
+    },
+    "fallbackExpression": "smile",
+    "fallbackMotionGroup": "Idle",
+    "fallbackMotionIndex": 0
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@kitsune/skills-system",
+  "version": "1.0.0",
+  "description": "[DEPRECATED] 技能系统 - SKILL.md 加载和匹配。无入口文件，无引用方，待清理。",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

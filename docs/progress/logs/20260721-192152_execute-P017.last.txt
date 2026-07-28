@@ -1,0 +1,8 @@
+`overseer/index.ts` 中有几个 `any` 类型需要修复：
+已修复类型安全问题：
+
+1. **第 202-220 行**：`createSimpleBus` 使用泛型 `T = unknown` 替代 `any`
+2. **第 359 行**：`writePlanMemory` 的 `plan` 参数从 `any` 改为 `{ requirement?: string, tasks?: unknown[] }`
+3. **第 383 行**：`generatePersonaFeedback` 的 `task` 参数从 `any` 改为 `Task`（已导入）
+
+**P017 已完成** — `any` 类型断言已移除，类型系统完整性已提升。

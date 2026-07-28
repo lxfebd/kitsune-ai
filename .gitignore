@@ -1,0 +1,66 @@
+node_modules
+dist
+out
+.turbo
+
+# 构建日志
+*.log
+*.err
+
+# 调试/临时文件
+nul
+"nul ; Write-Host ok"
+nul*
+*.csv
+dev_perf*
+electron_fix*
+install*.log
+install*.err
+rmdir.log
+问题.txt
+
+# 一次性调试脚本（不提交到仓库）
+chk40.ps1
+chkpath.ps1
+fix_env.ps1
+fix_links.ps1
+fixpath.ps1
+fixpath2.ps1
+restart_dev.ps1
+rundv.ps1
+rundv2.ps1
+rundv3.ps1
+testmirror.ps1
+fixelectron.bat
+rundev.bat
+runinstall.bat
+nodecheck.cjs
+nodecheck.js
+patchidx.cjs
+
+# pnpm force install 临时文件
+.pnpm_force_install.*
+.pnpm_ignore.*
+
+# 自定义运行时目录
+.autoplan-runtime
+.codebuddy
+.mimocode
+.opencode
+.trae
+.zed
+
+# 内部/配置目录（最终决定提交）
+# .agents/  -> 提交（技能定义）
+# .ai-memory/ -> 提交（会话记忆模板）
+# .github/ -> 提交（CI/CD）
+# config/ -> 提交（配置模板）
+
+# 其他工作目录（不需提交）
+kimik3/
+
+# 外部克隆的仓库
+open/
+
+# 二进制模型和资源（太大，应该用 LFS 或外部下载）
+resources/

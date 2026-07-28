@@ -1,0 +1,20 @@
+import type { MaybeComputedElementRef } from '@vueuse/core';
+export declare function useElementScroll(element: MaybeComputedElementRef, scrollTarget: MaybeComputedElementRef<HTMLElement | null | undefined>): {
+    scrollOffset: import("vue").ShallowRef<number, number>;
+    viewportTop: import("vue").ComputedRef<number>;
+    viewportBottom: import("vue").ComputedRef<number>;
+    viewportHeight: import("vue").ComputedRef<number>;
+    elementTop: import("vue").ShallowRef<number>;
+    elementHeight: import("vue").ShallowRef<number>;
+    elementTopInScrollContent: import("vue").ComputedRef<number>;
+    visibleStart: import("vue").ComputedRef<number>;
+    visibleEnd: import("vue").ComputedRef<number>;
+    innerTop: import("vue").ComputedRef<number>;
+    innerBottom: import("vue").ComputedRef<number>;
+    innerHeight: import("vue").ComputedRef<number>;
+    hasMeasuredElement: import("vue").ComputedRef<boolean>;
+    isVisible: import("vue").ComputedRef<boolean>;
+    scrollTarget: import("vue").ShallowRef<HTMLElement | null, HTMLElement | null>;
+    updateElementBounds: () => void;
+    updateScrollViewportBounds: () => void;
+};

@@ -1,0 +1,684 @@
+common:
+  save: 保存
+title: 设置
+nav:
+  system: 系统
+  models: 模型
+  speech: 语音
+  hearing: 听觉
+  scene: 场景
+  modules: 模块
+  data: 数据
+  environment: 环境适配
+  sidecar: 本地服务
+allow-visible-on-all-workspaces:
+  title: 跨桌面可见性
+  description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
+spotlight:
+  errors:
+    unknown: 未知错误
+    prefix: 出错啦：{message}
+    shortcutRegistrationFailed: 出错啦：快捷键注册失败
+pages:
+  modules:
+    persona:
+      title: 角色人格
+      description: 定义 AI 的性格和说话风格
+      mode-title: 人格模式
+      mode-description: 选择对话的 AI 性格模式
+      modes:
+        rational:
+          label: 理性
+          description: 简洁、结构化、技术性
+        idol:
+          label: 偶像
+          description: 温暖、富有表现力、鼓舞人心
+        hybrid:
+          label: 混合
+          description: 理性(60)与感性(40)的平衡
+        strict:
+          label: 严格
+          description: 最小化情绪，高精度
+      profile:
+        title: 个人资料
+        profile-name: 档案名称
+        address-user-as: 称呼用户为
+      emotion-mapper:
+        title: 情感映射器
+        description: 情感映射器自动将 AI 工具调用和响应映射到 Live2D/Spine 表情。无需手动配置。
+      character-system:
+        title: 角色系统
+        description: 管理具有独特人格、声音和模型的 AI 角色。可通过 SOUL.md 和 IDENTITY.md 文件配置角色。
+    mcp-server:
+      description: 连接与管理 MCP 服务器和工具
+      title: MCP 服务器
+      error-title: 错误
+      success-title: 成功
+    memory-long-term:
+      tabs:
+        overview: 概览
+        profile: 用户画像
+        entries: 条目
+        rules: 提取规则
+        settings: 设置
+      overview:
+        total_entries: 条目总数
+        total_size: 占用空间
+        last_cleanup: 上次清理
+        next_cleanup: 下次清理
+        cleanup: 立即清理过期条目
+        cleanup_result: 已清理 {removed} 条
+        clear_all: 清空所有长期记忆
+        export: 导出
+        import: 导入
+      profile:
+        unnamed: 未命名用户
+        edit: 编辑
+        preferences: 偏好
+        updated_at: 更新于
+        name_label: 名称
+        name_placeholder: 输入用户名称
+        save: 保存
+        cancel: 取消
+        pref_key_placeholder: 偏好键
+        pref_value_placeholder: 偏好值
+      entries:
+        search_placeholder: 搜索内容
+        filter_type: 类型
+        filters:
+          all: 全部
+          fact: 事实
+          preference: 偏好
+          event: 事件
+          context: 上下文
+        loading: 加载中...
+        empty: 暂无长期记忆条目
+        delete: 删除
+        detail: 详情
+      rules:
+        title: 提取规则
+        add: 添加规则
+        loading: 加载中...
+        empty: 暂无规则
+        categories:
+          preference: 偏好
+          fact: 事实
+          event: 事件
+          emotion: 情绪
+          other: 其他
+        priority: 优先级 {value}
+        edit: 编辑
+        delete: 删除
+        test_title: 规则测试
+        test_placeholder: 输入测试文本
+        test_button: 测试
+        no_match: 没有匹配的规则
+        add_title: 新增规则
+        edit_title: 编辑规则
+        form:
+          name: 名称
+          pattern: 正则表达式
+          category: 分类
+          priority: 优先级
+          cancel: 取消
+          save: 保存
+      settings:
+        basic_title: 基本设置
+        retention_days: 保留天数
+        expiration_days: 过期天数
+        max_entries: 最大条目数
+        auto_cleanup: 自动清理
+        auto_cleanup_desc: 超过保留期限的条目会被自动清理
+        retrieval_title: 召回设置
+        retrieval_top_k: 召回条数
+        extract_title: 提取设置
+        auto_extract: 自动提取
+        auto_extract_desc: 自动从对话中提取关键信息
+        storage_title: 存储设置
+        provider: 存储提供方
+        providers:
+          local: 本地
+          mem0: mem0
+        api_key: API 密钥
+        save: 保存设置
+    memory-short-term:
+      tabs:
+        overview: 概览
+        entries: 条目
+        settings: 设置
+      overview:
+        total_entries: 条目总数
+        total_size: 占用空间
+        last_cleanup: 上次清理
+        next_cleanup: 下次清理
+        cleanup: 立即清理过期条目
+        cleanup_result: 已清理 {removed} 条
+        clear_all: 清空所有短期记忆
+        export: 导出
+        import: 导入
+      entries:
+        search_placeholder: 搜索内容
+        filter_type: 类型
+        filters:
+          all: 全部
+          fact: 事实
+          preference: 偏好
+          event: 事件
+          context: 上下文
+        loading: 加载中...
+        empty: 暂无短期记忆条目
+        delete: 删除
+        detail: 详情
+        add: 添加
+        add_title: 新增条目
+        content: 内容
+        type: 类型
+        cancel: 取消
+        save: 保存
+      settings:
+        basic_title: 基本设置
+        retention_days: 保留天数
+        max_entries: 最大条目数
+        auto_cleanup: 自动清理
+        auto_cleanup_desc: 超过保留期限的条目会被自动清理
+        retrieval_title: 召回设置
+        retrieval_top_k: 上下文条数
+        save: 保存设置
+  environment:
+    title: 环境适配中心
+    description: 管理 IDE 连接器、Agent API、系统诊断和执行器
+    connectors:
+      title: IDE 连接器
+      description: 已连接的 IDE 和代码编辑器
+      empty: 暂无连接器
+      fields:
+        last-context: 最后上下文
+      status:
+        connected: 已连接
+        disconnected: 已断开
+      actions:
+        enable: 启用
+        disconnect: 断开连接
+    agent-api:
+      title: Agent API
+      description: 配置 AI 代理的 API 密钥
+      empty: 暂无 Agent
+      fields:
+        name: 名称
+        base-url: 基础 URL
+        api-key: API 密钥
+      status:
+        enabled: 已启用
+        disabled: 已禁用
+        no-key: 未设置密钥
+      actions:
+        edit: 编辑
+        save: 保存
+        cancel: 取消
+    doctor:
+      title: 系统诊断
+      description: 一键检测系统环境和配置问题
+      levels:
+        PASS: 通过
+        WARN: 警告
+        FAIL: 失败
+        INFO: 信息
+      suggestion-label: 建议
+      actions:
+        run: 运行诊断
+        running: 诊断中...
+        fix: 自动修复
+        fixing: 修复中...
+      fix-levels:
+        FIXED: 已修复
+        MANUAL: 需手动处理
+    log-level:
+      title: 日志级别
+      description: 调整运行时日志详细度
+      label: 日志级别
+      applied: 日志级别已更新
+    whitelist:
+      title: 权限白名单
+      description: 已授权的自动执行权限
+      mock-notice: 后端未就绪，当前显示模拟数据
+      empty: 暂无白名单条目
+      fields:
+        source: 来源
+        created-at: 创建时间
+      actions:
+        clear: 清空
+        remove: 移除
+        removed: 已移除
+        cleared: 已清空
+    executor:
+      title: 自主执行
+      description: 输入需求，自动生成计划并执行
+      input-placeholder: 输入执行需求...
+      no-plan: 暂无计划
+      status:
+        idle: 空闲
+        generating: 生成中...
+        running: 执行中 ({current}/{total})
+        aborted: 已中止
+        completed: 已完成
+      actions:
+        execute: 执行
+        generate-only: 仅生成计划
+        stop: 停止
+      table:
+        type: 类型
+        title: 标题
+        status: 状态
+        duration: 耗时
+      plan-status:
+        pending: 待执行
+        completed: 已完成
+        aborted: 已中止
+      task-error-fmt: "任务 #{idx} 失败: {error}"
+      permission-confirm:
+        title: 权限确认
+        source: 来源
+        type: 类型
+        add-to-whitelist: 加入白名单（自动执行同类操作）
+        reject: 拒绝
+        approve: 允许
+  system:
+    sections:
+      section:
+        window-shortcuts:
+          title: 键盘快捷键
+    window-shortcuts:
+      description: 修改窗口快捷方式
+      title: 窗口快捷方式
+      empty: 未设置
+      spotlight:
+        title: Spotlight 快捷键
+        description: 点击快捷键后按下新的快捷键，按 Esc 取消。
+      actions:
+        recording: 请按键
+        reset: 重置
+      errors:
+        load: 无法加载快捷键
+        conflict: 该快捷键已被占用
+        failed: 快捷键更新失败
+        requiresModifier: 请至少使用 Cmd、Ctrl、Alt 或 Super 中的一个修饰键。
+      toggle-move:
+        label: 切换移动状态
+      toggle-resize:
+        label: 调整大小
+      toggle-ignore-mouse-event:
+        label: 忽略鼠标事件
+      press-keys: 请按下按键...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: 窗口鼠标位置
+            description: 测试 Electron 窗口鼠标位置
+devtools:
+  title: 开发者选项
+  pages:
+    context-flow:
+      title: 上下文流
+      description: 检查传入的上下文更新和传出的聊天流事件
+      filters: 筛选器
+      direction: 方向
+      all: 全部
+      incoming: 传入
+      outgoing: 传出
+      visibility: 可见性
+      show-incoming: 显示传入
+      show-outgoing: 显示传出
+      channels: 频道
+      server: 服务器
+      broadcast: 广播
+      chat: 聊天
+      devtools: 开发者工具
+      max-entries: 最大条目数
+      max-entries-description: 50-1000（默认 200）
+      clear: 清除
+      replace: 替换
+      append: 追加
+      send: 发送
+      strategy: 策略
+      payload: 负载
+      payload-description: 作为 ContextUpdate.text 发送的原始文本负载。允许 JSON。
+      send-context-update: 发送上文更新
+      attention: 关注
+      tick-interval: 心跳间隔 (ms)
+      tick-interval-description: 关注循环唤醒的频率。
+      task-notify-window: 任务通知窗口 (ms)
+      task-notify-window-description: 提前提醒任务的时间范围。
+      requeue-delay: 重新排队延迟 (ms)
+      requeue-delay-description: 重试调度时添加的延迟。
+      max-attempts: 最大尝试次数
+      max-attempts-description: 重试 spark:notify 的次数。
+      simulate-incoming: 模拟传入
+      spark-notify-description: spark:notify 的原始 JSON 负载。必需字段：headline、destinations[]。id/eventId 如果缺失会自动填充。
+      send-spark-notify: 发送 spark:notify
+      runtime-coordination: 运行时协调
+      websocket-connected: 已连接
+      websocket-disconnected: 已断开
+      unsent-buffer: 未发送缓冲区
+      queued-sends: 排队发送
+      active-session: 活跃会话
+      broadcast-activity: 广播活动
+      posted: 已发布
+      received: 已接收
+      pending-queue-snapshot: 待处理队列快照
+      no-queued-sends: 无排队发送。
+      active-context-state: 活跃上下文状态
+      no-retained-contexts: 没有保留的上下文匹配当前筛选器。
+      next-prompt-projection: 下次提示投射
+      prompt-readiness: 提示就绪度
+      current-derived-prompt-block: 当前派生提示块
+      last-actual-compose: 上次实际合成
+      no-retained-ready: 目前没有保留的上下文可供注入。
+      no-compose-snapshot: 尚未记录合成快照，且没有保留的上下文可供注入。
+      retained-context-ready: 保留的上下文已就绪，但此运行时尚未开始实际合成。
+      last-compose-no-context: 上次合成没有注入的上下文块。
+      details: 详情
+      context-lifecycle: 上下文生命周期
+      lifecycle-record-count: 条生命周期记录。
+      no-lifecycle-record: 没有生命周期记录匹配当前筛选器。
+      raw-event-stream: 原始事件流
+      search-placeholder: 搜索类型、来源、文本...
+      no-data: 暂无数据。触发聊天、发送上下文更新或启用广播捕获。
+      manual: 手动
+      empty: (空)
+    lag-visualizer:
+      title: 延迟可视化
+      description: 可视化渲染延迟和丢帧情况
+    performance-visualizer:
+      title: 性能可视化
+      description: 切换 FPS/长任务/内存叠加
+      tracing-enabled: Stage Three 运行时追踪已启用
+      tracing-disabled: Stage Three 运行时追踪已禁用
+      stop-tracing: 停止追踪
+      start-tracing: 开始追踪
+      window-lifecycle: 窗口生命周期
+      three-render: Three 渲染
+      vrm-update-frame: VRM 更新帧
+      fade-on-hover-hit-test: 悬停淡入命中测试
+      vrm-lifecycle: VRM 生命周期
+      renderer-resource-snapshots: 渲染器 / 资源快照
+      after-load: 加载后
+      before-dispose: 释放前
+      after-dispose: 释放后
+    markdown-stress:
+      title: Markdown 压力测试
+      description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+      run-state: 运行状态
+      run-state-description: 捕获以记录最近的事件；导出上次运行以进行离线审查。
+      last-run: 上次运行
+      preview: 预览
+      generate-payload-preview: 生成负载预览
+      replay: 回放
+      replay-to-provider: 回放到服务来源
+      abort-run: 中止运行
+      abort-now: 立即中止
+      unschedule: 取消调度
+      cancel-replay: 取消回放
+      capture: 捕获
+      start-capture: 开始捕获
+      stop-capture: 停止捕获
+      export: 导出
+      export-last-run: 导出上次运行
+      mode-live: 模式：实时
+      mode-mock: 模式：模拟
+      switch-to-mock: 切换到模拟流
+      switch-to-live: 切换到实时来源
+      schedule-delay: 调度延迟 (ms)
+      run: 运行
+      capturing: 捕获
+      yes: 是
+      no: 否
+      state-running: 运行中
+      state-scheduled: 已调度
+      state-idle: 空闲
+      live-traces: 实时追踪
+      payload-preview: 负载预览
+      latest-payload: 最新负载
+      generate-payload-hint: 生成负载以查看预览。
+      export-last-run-description: 将上次运行导出为 CSV 以与团队共享。
+    io-tracer:
+      title: IO 追踪器
+      description: 追踪输入输出操作的性能
+      record: 录制
+      stop: 停止
+      clear: 清除
+      fit: 适配
+      subsystems: 子系统：
+      export-otlp: 导出 OTLP
+      turn: 轮次
+      turns: 轮次
+      span: 区间
+      spans: 区间
+      no-trace-data: 无追踪数据
+      start-recording-hint: 开始录制并触发语音对话
+      click-span-to-inspect: 点击区间进行检查
+      timing: 计时
+      duration: 持续时间
+      status: 状态
+      in-progress: 进行中
+      start: 开始
+      end: 结束
+      text: 文本
+      copy-text: 复制文本
+      events: 事件
+      copy-value: 复制值
+      related-spans: 轮次中的相关区间
+      identity: 标识
+      trace: 追踪
+      parent: 父级
+      segment: 段
+      total: 总计
+    displays:
+      title: 显示器
+      description: 可视化连接的显示器和光标位置
+    widgets-calling:
+      title: 组件调用
+      description: 在覆盖窗口中生成组件以验证组件调用集成。
+      description-hint: 提供现有 ID 来修改组件，或留空以生成新组件。
+      widget-id: 组件 ID
+      widget-id-description: 可选。生成后自动填充。
+      widget-id-placeholder: 留空则自动生成
+      component-name: 组件名称
+      component-name-description: 匹配在 widgets overlay 中注册的组件。
+      size-preset: 尺寸预设
+      size-preset-description: 选择预设或自定义尺寸。
+      size-preset-placeholder: 选择尺寸
+      custom-columns: 自定义列数
+      custom-columns-description: 预设为"自定义"时使用。
+      custom-rows: 自定义行数
+      custom-rows-description: 预设为"自定义"时使用。
+      ttl: 存活时间（秒）
+      ttl-description: 0 表示保持组件存活直到手动关闭。
+      component-props: 组件属性 (JSON)
+      component-props-description: 提供组件属性的有效 JSON。
+      weather-preset: 天气预设
+      map-preset: 地图预设
+      extension-ui-preset: 扩展 UI 预设
+      spawn-replace: 生成 / 替换
+      update-props: 更新属性
+      remove-widget: 移除组件
+      clear-all: 清除全部
+    relative-mouse:
+      title: 相对鼠标位置
+      description: 获取相对于窗口的鼠标位置
+      window: 窗口
+      center: 中心
+      cursor-hint: 绿色圆点显示当前窗口相对的光标位置
+    aliyun-nls:
+      title: 阿里云实时语音识别
+      description: 提供 Access Key、Secret 和 App Key 来测试阿里云 NLS 的麦克风音频流式传输。
+      access-key-id: Access Key ID
+      access-key-id-description: 具有 SpeechTranscriber 权限的 RAM AccessKey ID。
+      access-key-secret: Access Key Secret
+      access-key-secret-description: 请妥善保管此密钥；它不会离开此页面。
+      app-key: App Key
+      app-key-description: 用于绑定转录会话的 NLS 项目 AppKey。
+      region: 地域
+      region-description: 与颁发 token 时使用的地域匹配。
+      start-recording: 开始录音
+      stop-recording: 停止录音
+      abort-transcription: 中止转录
+      transcripts: 转录文本
+      waiting-for-server: 等待服务器...
+      waiting-for-final: 等待最终结果...
+      partial: 部分结果
+      logs: 日志
+    beat-sync:
+      title: 节拍同步可视化
+      description: 绘制V-motion目标、轨迹和标量Y/Z随时间变化
+      beat-sync-driver: 节拍同步驱动器
+      hit-beat: 敲击节拍
+      hit-v-sequence: 敲击 V 序列
+      auto-style-by-bpm: 按 BPM 自动样式
+      auto-style-description: 根据检测到的节拍切换样式
+      style: 样式
+      style-description: 选择头部动作在节拍之间的塑形方式
+      current-targets: 当前目标
+      live-targets-description: 输入到弹簧求解器的实时目标
+      base-x: 基础 X
+      base-x-description: 基线前后倾斜
+      base-y: 基础 Y
+      base-y-description: 基线左右倾斜
+      base-z: 基础 Z
+      base-z-description: 基线滚动
+      scale: 缩放 (px/deg)
+      scale-description: 轨迹和标记缩放
+      trail-fade: 轨迹淡出
+      trail-fade-description: XY 轨迹的叠加透明度
+      controller: 控制器
+      controller-description: 节拍目标每帧更新；此处的弹簧镜像了运行时 Live2D 钩子
+      spring-model: 弹簧模型
+      spring-model-description: 半隐式欧拉弹簧匹配 Live2D 钩子（刚度 120，阻尼 16）。目标由节拍控制器驱动。
+      reset-settings: 重置设置
+      signals-debug: 信号与调试
+    websocket-inspector:
+      title: WebSocket检查器
+      description: 检查原始WebSocket流量
+      incoming: 传入
+      outgoing: 传出
+      heartbeats: 心跳
+      filter-placeholder: 筛选负载...
+      clear: 清除
+      payload: 负载
+      no-messages: 未找到消息。
+    plugin-host:
+      title: 插件宿主调试
+      description: 检查发现/启用/加载的插件并控制加载/卸载生命周期
+      discovered: 已发现
+      enabled-label: 已启用
+      loaded: 已加载
+      capabilities: 能力
+      kits: 套件
+      filter-placeholder: 筛选已发现的插件...
+      refresh: 刷新
+      load-enabled: 加载已启用
+      load-by-id-placeholder: 通过精确 ID 加载已发现的扩展...
+      load-plugin: 加载插件
+      discovered-plugins: 已发现的插件
+      no-discovered: 未发现插件清单。
+      enabled-plugins: 已启用的插件
+      enabled-count: "{count} 个插件在注册表中已启用。"
+      loaded-plugins: 已加载的插件
+      loaded-count: "{count} 个插件当前在宿主会话中已加载。"
+      kits-title: 套件
+      no-kits: 未注册套件。
+      capabilities-title: 能力
+      no-capabilities: 未公告能力。
+      unavailable: 插件宿主调试在此运行时不可用。
+      unavailable-description: 从 Stage Tamagotchi 渲染器打开此页面以使用 Electron 插件宿主控制。
+      last-error: 最近错误
+      load: 加载
+      unload: 卸载
+    updater:
+      title: 更新器
+      description: 检查更新器状态、显式源覆盖和安装操作
+      check-for-updates: 检查更新
+      download-update: 下载更新
+      restart-to-install: 重启安装
+      downloading: 正在下载更新
+      diagnostics: 更新器诊断信息
+    image:
+      upload-image: 上传图片
+    screen-capture:
+      title: 屏幕录制
+      description: 将屏幕或窗口捕获为视频和/或音频流
+      capturing: 正在录制
+      applications: 应用程序
+      displays: 显示器
+      devices: 设备
+      refetch: 刷新
+      loading: 加载中...
+      refetching: 刷新中...
+      share-screen: 共享屏幕
+      share-device: 共享设备
+      share-window: 共享窗口
+      stop: 停止
+      no-sources: 未找到此类别的源。
+      try-switching: 尝试切换选项卡或刷新源。
+      loading-sources: 正在加载源...
+    vision:
+      title: 视觉捕获
+      description: 捕获屏幕帧并检查输出负载
+      capturing: 正在录制
+      capture-interval: 捕获间隔
+      capture-interval-description: 视觉循环抓取帧的频率。
+      input-downscale: 输入缩放
+      input-downscale-description: 在发送到视觉模型之前缩小每个捕获的帧。100% 保持现有的 1280×720 捕获上限。
+      vision-workload: 视觉工作负载
+      vision-workload-description: 选择模型如何解释屏幕。
+      start-ticker: 开始录制
+      stop-ticker: 停止录制
+      publish-to-character: 发布到角色
+      publish-to-character-description: 将解释结果作为上下文更新发送。
+      telemetry: 视觉遥测
+      inference-latency: 推理延迟
+      context-updates: 上下文更新
+      capture-rate: 捕获速率
+      snapshot: 快照
+      last-interpretation: 最近一次解读
+      idle: 空闲
+    global-shortcut:
+      title: 全局快捷键
+      description: 注册/注销全局快捷键并监视触发事件
+      id: 标识符
+      id-description: 稳定的句柄，例如 toggle-main-window
+      accelerator: 快捷键
+      accelerator-description: 例如 Mod+Shift+K, Cmd+Shift+1, Ctrl+Alt+F12
+      description-label: 描述
+      description-desc: 显示在设置界面中
+      receive-key-ups: 接收按键释放
+      receive-key-ups-description: 通过 uiohook 驱动路由绑定，使"按下"和"释放"都能触发。macOS 需要辅助功能权限；原生 Wayland 返回"不支持"。
+      register: 注册
+      refresh-list: 刷新列表
+      unregister-all: 全部注销
+      active-bindings: 已激活的绑定
+      unregister: 注销
+      trigger-log: 触发日志
+      clear-log: 清除日志
+      no-bindings: 尚未注册绑定。
+      no-triggers: 尚无触发记录。注册快捷键并按下组合键。
+      receiving-key-ups: 接收按键释放
+    permission-whitelist:
+      title: 修正白名单
+      description: 已加入白名单的「来源 + 断言类型」组合会自动执行修正，不再弹窗确认。删除条目后该组合将重新要求确认。
+      refresh: 刷新
+      clear-all: 全部清空
+      remove: 移除
+      entries: 条
+      created-at: 创建时间
+      empty: 尚无白名单条目。首次修正将弹出确认窗口。
+screen-capture:
+  permissions-prompt:
+    title: 屏幕捕获
+    description: 要捕获屏幕或窗口，需要屏幕和系统音频录制权限。
+    open-preferences: 打开系统偏好设置
+    dismiss: 取消
+    instructions:
+      step-1: 打开「系统首选项」，从侧边栏选择「隐私与安全」。
+      step-2: 在「屏幕和系统音频录制」和「系统音频录制」部分中，开启 Kitsune AI 的开关。
+      step-2-note: 如果没有列出 Kitsune AI，请通过单击「+」按钮和从应用程序文件夹中选择 Kitsune AI 来手动添加。

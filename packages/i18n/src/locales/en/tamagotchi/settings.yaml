@@ -1,0 +1,683 @@
+common:
+  save: Save
+title: Settings
+nav:
+  system: System
+  models: Models
+  speech: Speech
+  hearing: Hearing
+  scene: Scene
+  modules: Modules
+  data: Data
+  environment: Environment
+  sidecar: Local Service
+allow-visible-on-all-workspaces:
+  title: Cross-Space Visibility
+  description: Allow the window to be visible on all workspaces, macOS only.
+spotlight:
+  errors:
+    unknown: Unknown error
+    prefix: 'Something went wrong: {message}'
+    shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
+pages:
+  modules:
+    persona:
+      title: Persona
+      description: Define AI personality and speaking style
+      mode-title: Persona Mode
+      mode-description: Select the AI personality mode for conversations
+      modes:
+        rational:
+          label: Rational
+          description: Concise, structured, technical
+        idol:
+          label: Idol
+          description: Warm, expressive, encouraging
+        hybrid:
+          label: Hybrid
+          description: Balanced rational(60) poetic(40)
+        strict:
+          label: Strict
+          description: Minimal emotion, high precision
+      profile:
+        title: Profile
+        profile-name: Profile Name
+        address-user-as: Address User As
+      emotion-mapper:
+        title: Emotion Mapper
+        description: The emotion mapper automatically maps AI tool calls and responses to Live2D/Spine expressions. No manual configuration needed.
+      character-system:
+        title: Character System
+        description: Manage AI characters with unique personas, voices, and models. Characters can be configured via SOUL.md and IDENTITY.md files.
+    mcp-server:
+      description: Connect and manage MCP server and tools
+      title: MCP Server
+      error-title: Error
+      success-title: Success
+    memory-long-term:
+      tabs:
+        overview: Overview
+        profile: Profile
+        entries: Entries
+        rules: Extract Rules
+        settings: Settings
+      overview:
+        total_entries: Total Entries
+        total_size: Storage Used
+        last_cleanup: Last Cleanup
+        next_cleanup: Next Cleanup
+        cleanup: Clean Up Expired Entries
+        cleanup_result: "{removed} removed"
+        clear_all: Clear All Long-Term Memory
+        export: Export
+        import: Import
+      profile:
+        unnamed: Unnamed User
+        edit: Edit
+        preferences: Preferences
+        updated_at: Updated at
+        name_label: Name
+        name_placeholder: Enter user name
+        save: Save
+        cancel: Cancel
+        pref_key_placeholder: Preference key
+        pref_value_placeholder: Preference value
+      entries:
+        search_placeholder: Search content
+        filter_type: Type
+        filters:
+          all: All
+          fact: Fact
+          preference: Preference
+          event: Event
+          context: Context
+        loading: Loading...
+        empty: No long-term memory entries
+        delete: Delete
+        detail: Detail
+      rules:
+        title: Extract Rules
+        add: Add Rule
+        loading: Loading...
+        empty: No rules
+        categories:
+          preference: Preference
+          fact: Fact
+          event: Event
+          emotion: Emotion
+          other: Other
+        priority: "Priority {value}"
+        edit: Edit
+        delete: Delete
+        test_title: Rule Test
+        test_placeholder: Enter test text
+        test_button: Test
+        no_match: No matching rules
+        add_title: New Rule
+        edit_title: Edit Rule
+        form:
+          name: Name
+          pattern: Regular Expression
+          category: Category
+          priority: Priority
+          cancel: Cancel
+          save: Save
+      settings:
+        basic_title: Basic Settings
+        retention_days: Retention Days
+        expiration_days: Expiration Days
+        max_entries: Max Entries
+        auto_cleanup: Auto Cleanup
+        auto_cleanup_desc: Entries exceeding the retention period will be automatically cleaned up
+        retrieval_title: Retrieval Settings
+        retrieval_top_k: Retrieval Count
+        extract_title: Extraction Settings
+        auto_extract: Auto Extract
+        auto_extract_desc: Automatically extract key information from conversations
+        storage_title: Storage Settings
+        provider: Storage Provider
+        providers:
+          local: Local
+          mem0: mem0
+        api_key: API Key
+        save: Save Settings
+    memory-short-term:
+      tabs:
+        overview: Overview
+        entries: Entries
+        settings: Settings
+      overview:
+        total_entries: Total Entries
+        total_size: Storage Used
+        last_cleanup: Last Cleanup
+        next_cleanup: Next Cleanup
+        cleanup: Clean Up Expired Entries
+        cleanup_result: "{removed} removed"
+        clear_all: Clear All Short-Term Memory
+        export: Export
+        import: Import
+      entries:
+        search_placeholder: Search content
+        filter_type: Type
+        filters:
+          all: All
+          fact: Fact
+          preference: Preference
+          event: Event
+          context: Context
+        loading: Loading...
+        empty: No short-term memory entries
+        delete: Delete
+        detail: Detail
+        add: Add
+        add_title: New Entry
+        content: Content
+        type: Type
+        cancel: Cancel
+        save: Save
+      settings:
+        basic_title: Basic Settings
+        retention_days: Retention Days
+        max_entries: Max Entries
+        auto_cleanup: Auto Cleanup
+        auto_cleanup_desc: Entries exceeding the retention period will be automatically cleaned up
+        retrieval_title: Retrieval Settings
+        retrieval_top_k: Context Count
+        save: Save Settings
+  environment:
+    title: Environment Center
+    description: Manage IDE connectors, Agent API, diagnostics, and executor
+    connectors:
+      title: IDE Connectors
+      description: Connected IDEs and code editors
+      empty: No connectors
+      fields:
+        last-context: Last Context
+      status:
+        connected: Connected
+        disconnected: Disconnected
+      actions:
+        enable: Enable
+        disconnect: Disconnect
+    agent-api:
+      title: Agent API
+      description: Configure AI agent API keys
+      empty: No agents
+      fields:
+        name: Name
+        base-url: Base URL
+        api-key: API Key
+      status:
+        enabled: Enabled
+        disabled: Disabled
+        no-key: No key set
+      actions:
+        edit: Edit
+        save: Save
+        cancel: Cancel
+    doctor:
+      title: System Diagnostics
+      description: One-click system environment and configuration check
+      levels:
+        PASS: Pass
+        WARN: Warn
+        FAIL: Fail
+        INFO: Info
+      suggestion-label: Suggestion
+      actions:
+        run: Run Diagnostics
+        running: Running...
+        fix: Auto Fix
+        fixing: Fixing...
+      fix-levels:
+        FIXED: Fixed
+        MANUAL: Manual Required
+    log-level:
+      title: Log Level
+      description: Adjust runtime log verbosity
+      label: Log Level
+      applied: Log level updated
+    whitelist:
+      title: Permission Whitelist
+      description: Authorized auto-execution permissions
+      mock-notice: Backend not ready, showing mock data
+      empty: No whitelist entries
+      fields:
+        source: Source
+        created-at: Created At
+      actions:
+        clear: Clear All
+        remove: Remove
+        removed: Removed
+        cleared: Cleared
+    executor:
+      title: Autonomous Executor
+      description: Enter a requirement to auto-generate and execute a plan
+      input-placeholder: Enter requirement...
+      no-plan: No plan yet
+      status:
+        idle: Idle
+        generating: Generating...
+        running: Running ({current}/{total})
+        aborted: Aborted
+        completed: Completed
+      actions:
+        execute: Execute
+        generate-only: Generate Only
+        stop: Stop
+      table:
+        type: Type
+        title: Title
+        status: Status
+        duration: Duration
+      plan-status:
+        pending: Pending
+        completed: Completed
+        aborted: Aborted
+      task-error-fmt: "Task #{idx} failed: {error}"
+      permission-confirm:
+        title: Permission Confirm
+        source: Source
+        type: Type
+        add-to-whitelist: Add to whitelist (auto-execute similar)
+        reject: Reject
+        approve: Approve
+  system:
+    sections:
+      section:
+        window-shortcuts:
+          title: Keyboard Shortcuts
+    window-shortcuts:
+      description: Modify the window shortcuts.
+      title: Window Shortcuts
+      empty: Not set
+      spotlight:
+        title: Spotlight shortcut
+        description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
+      actions:
+        recording: Press keys
+        reset: Reset
+      errors:
+        load: Failed to load shortcut
+        conflict: Shortcut already in use.
+        failed: Failed to update shortcut
+        requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
+      toggle-move:
+        label: Toggle Move
+      toggle-resize:
+        label: Toggle Resize
+      toggle-ignore-mouse-event:
+        label: Toggle Ignore Mouse Event
+      press-keys: Press Keys...
+    developer:
+      sections:
+        section:
+          use-window-mouse:
+            title: Window Mouse Position
+            description: Test the Electron window cursor position
+devtools:
+  title: Developer
+  pages:
+    displays:
+      title: Displays
+      description: Visualize connected displays and cursor positions
+    widgets-calling:
+      title: Widget Calling
+      description: Spawn widgets in the overlay window to validate component-calling integrations.
+      description-hint: Provide an existing id to mutate a widget or leave blank to spawn a new one.
+      widget-id: Widget ID
+      widget-id-description: Optional. Fills automatically after spawning.
+      widget-id-placeholder: Auto-generated if empty
+      component-name: Component Name
+      component-name-description: Matches a component registered in the widgets overlay.
+      size-preset: Size Preset
+      size-preset-description: Choose a preset or opt into custom spans.
+      size-preset-placeholder: Select size
+      custom-columns: Custom Columns
+      custom-columns-description: Used when preset is Custom.
+      custom-rows: Custom Rows
+      custom-rows-description: Used when preset is Custom.
+      ttl: TTL (seconds)
+      ttl-description: 0 keeps the widget alive until closed manually.
+      component-props: Component Props (JSON)
+      component-props-description: Provide valid JSON for the widget props.
+      weather-preset: Weather Preset
+      map-preset: Map Preset
+      extension-ui-preset: Extension UI Preset
+      spawn-replace: Spawn / Replace
+      update-props: Update Props
+      remove-widget: Remove Widget
+      clear-all: Clear All
+    context-flow:
+      title: Context Flow
+      description: Inspect incoming context updates and outgoing chat flow events
+      filters: Filters
+      direction: Direction
+      all: All
+      incoming: Incoming
+      outgoing: Outgoing
+      visibility: Visibility
+      show-incoming: Show incoming
+      show-outgoing: Show outgoing
+      channels: Channels
+      server: Server
+      broadcast: Broadcast
+      chat: Chat
+      devtools: Devtools
+      max-entries: Max entries
+      max-entries-description: 50-1000 (default 200)
+      clear: Clear
+      replace: Replace
+      append: Append
+      send: Send
+      strategy: Strategy
+      payload: Payload
+      payload-description: Raw text payload sent as ContextUpdate.text. JSON is allowed.
+      send-context-update: Send context update
+      attention: Attention
+      tick-interval: Tick interval (ms)
+      tick-interval-description: How often the attention loop wakes up.
+      task-notify-window: Task notify window (ms)
+      task-notify-window-description: How far ahead tasks should be reminded.
+      requeue-delay: Requeue delay (ms)
+      requeue-delay-description: Delay added when retries are scheduled.
+      max-attempts: Max attempts
+      max-attempts-description: How many times to retry a spark:notify.
+      simulate-incoming: Simulate incoming
+      spark-notify-description: "Raw JSON payload for spark:notify. Required: headline, destinations[]. id/eventId will be auto-filled if missing."
+      send-spark-notify: Send spark:notify
+      runtime-coordination: Runtime Coordination
+      websocket-connected: connected
+      websocket-disconnected: disconnected
+      unsent-buffer: Unsent Buffer
+      queued-sends: Queued Sends
+      active-session: Active Session
+      broadcast-activity: Broadcast Activity
+      posted: Posted
+      received: Received
+      pending-queue-snapshot: Pending Queue Snapshot
+      no-queued-sends: No queued sends.
+      active-context-state: Active Context State
+      no-retained-contexts: No retained contexts match the current filter.
+      next-prompt-projection: Next Prompt Projection
+      prompt-readiness: Prompt Readiness
+      current-derived-prompt-block: Current Derived Prompt Block
+      last-actual-compose: Last Actual Compose
+      no-retained-ready: No retained contexts are ready to inject right now.
+      no-compose-snapshot: No compose snapshot recorded yet, and there is no retained context ready to inject.
+      retained-context-ready: Retained context is ready, but no real compose has started in this runtime yet.
+      last-compose-no-context: The last compose had no injected context block.
+      details: Details
+      context-lifecycle: Context Lifecycle
+      lifecycle-record-count: lifecycle record(s).
+      no-lifecycle-record: No lifecycle record matches the current filter.
+      raw-event-stream: Raw Event Stream
+      search-placeholder: Search type, source, text...
+      no-data: No data yet. Trigger a chat, send a context update, or enable broadcast capture.
+      manual: manual
+      empty: (empty)
+    relative-mouse:
+      title: Relative Mouse Position
+      description: Get mouse position relative to the window
+      window: Window
+      center: Center
+      cursor-hint: Green dot shows current window-relative cursor position
+    aliyun-nls:
+      title: Aliyun NLS Realtime Transcription
+      description: Provide your Access Key, Secret, and App Key to test Aliyun NLS streaming with microphone audio.
+      access-key-id: Access Key ID
+      access-key-id-description: RAM AccessKey ID with SpeechTranscriber permissions.
+      access-key-secret: Access Key Secret
+      access-key-secret-description: Keep this secret safe; it never leaves this page.
+      app-key: App Key
+      app-key-description: NLS project AppKey to bind the transcription session.
+      region: Region
+      region-description: Match the region used when issuing the token.
+      start-recording: Start Recording
+      stop-recording: Stop Recording
+      abort-transcription: Abort Transcription
+      transcripts: Transcripts
+      waiting-for-server: Waiting for server...
+      waiting-for-final: Waiting for final result...
+      partial: Partial
+      logs: Logs
+    beat-sync:
+      title: Beat Sync Visualization
+      description: Plot V-motion targets, trajectories, and scalar Y/Z over time
+      beat-sync-driver: Beat sync driver
+      hit-beat: Hit beat
+      hit-v-sequence: Hit V sequence
+      auto-style-by-bpm: Auto style by BPM
+      auto-style-description: Switch styles based on detected tempo
+      style: Style
+      style-description: Choose how head motion is sculpted between beats
+      current-targets: Current targets
+      live-targets-description: Live targets fed into the spring solver
+      base-x: Base X
+      base-x-description: Baseline tilt forward/back
+      base-y: Base Y
+      base-y-description: Baseline tilt left/right
+      base-z: Base Z
+      base-z-description: Baseline roll
+      scale: Scale (px/deg)
+      scale-description: Trail & marker scale
+      trail-fade: Trail fade
+      trail-fade-description: Overlay alpha for XY trace
+      controller: Controller
+      controller-description: Beat targets update each frame; the spring here mirrors the runtime Live2D hook
+      spring-model: Spring model
+      spring-model-description: Semi-implicit Euler spring matches Live2D hook (stiffness 120, damping 16). Targets driven by beat controller.
+      reset-settings: Reset settings
+      signals-debug: Signals & debug
+    websocket-inspector:
+      title: WebSocket Inspector
+      description: Inspect raw WebSocket traffic
+      incoming: Incoming
+      outgoing: Outgoing
+      heartbeats: Heartbeats
+      filter-placeholder: Filter payload...
+      clear: Clear
+      payload: Payload
+      no-messages: No messages found.
+    lag-visualizer:
+      title: Lag Visualizer
+    performance-visualizer:
+      title: Performance Visualizer
+      description: Toggle FPS/long task/memory overlay
+      tracing-enabled: Stage Three Runtime tracing enabled
+      tracing-disabled: Stage Three Runtime tracing disabled
+      stop-tracing: Stop tracing
+      start-tracing: Start tracing
+      window-lifecycle: Window lifecycle
+      three-render: Three render
+      vrm-update-frame: VRM update frame
+      fade-on-hover-hit-test: Fade-on-hover hit test
+      vrm-lifecycle: VRM lifecycle
+      renderer-resource-snapshots: Renderer / resource snapshots
+      after-load: AFTER LOAD
+      before-dispose: BEFORE DISPOSE
+      after-dispose: AFTER DISPOSE
+    markdown-stress:
+      title: Markdown Stress
+      description: Stress markdown parsing and rendering with heavy chat payloads
+      run-state: Run state
+      run-state-description: Capture to record recent events; export last run for offline review.
+      last-run: Last run
+      preview: Preview
+      generate-payload-preview: Generate payload preview
+      replay: Replay
+      replay-to-provider: Replay to provider
+      abort-run: Abort run
+      abort-now: Abort now
+      unschedule: Unschedule
+      cancel-replay: Cancel replay
+      capture: Capture
+      start-capture: Start capture
+      stop-capture: Stop capture
+      export: Export
+      export-last-run: Export last run
+      mode-live: "Mode: Live"
+      mode-mock: "Mode: Mock"
+      switch-to-mock: Switch to mock stream
+      switch-to-live: Switch to live provider
+      schedule-delay: "Schedule delay (ms)"
+      run: Run
+      capturing: Capturing
+      yes: "yes"
+      no: "no"
+      state-running: running
+      state-scheduled: scheduled
+      state-idle: idle
+      live-traces: Live traces
+      payload-preview: Payload preview
+      latest-payload: Latest payload
+      generate-payload-hint: Generate a payload to see the preview.
+      export-last-run-description: Export the last run to CSV to share with the team.
+    io-tracer:
+      title: IO Tracer
+      record: Record
+      stop: Stop
+      clear: Clear
+      fit: Fit
+      subsystems: "Subsystems:"
+      export-otlp: Export OTLP
+      turn: turn
+      turns: turns
+      span: span
+      spans: spans
+      no-trace-data: No trace data
+      start-recording-hint: Start recording and trigger a voice conversation
+      click-span-to-inspect: Click a span to inspect
+      timing: Timing
+      duration: Duration
+      status: Status
+      in-progress: In progress
+      start: Start
+      end: End
+      text: Text
+      copy-text: Copy text
+      events: Events
+      copy-value: Copy value
+      related-spans: Related spans in turn
+      identity: Identity
+      trace: Trace
+      parent: Parent
+      segment: Segment
+      total: Total
+    plugin-host:
+      title: Plugin Host Debug
+      description: Inspect and manage loaded local plugins and capabilities
+      discovered: Discovered
+      enabled-label: Enabled
+      loaded: Loaded
+      capabilities: Capabilities
+      kits: Kits
+      filter-placeholder: Filter discovered plugins...
+      refresh: Refresh
+      load-enabled: Load Enabled
+      load-by-id-placeholder: Load discovered extension by exact id...
+      load-plugin: Load Plugin
+      discovered-plugins: Discovered Plugins
+      no-discovered: No discovered plugin manifests found.
+      enabled-plugins: Enabled Plugins
+      enabled-count: "{count} plugin(s) enabled in registry."
+      loaded-plugins: Loaded Plugins
+      loaded-count: "{count} plugin(s) currently loaded in host sessions."
+      kits-title: Kits
+      no-kits: No kits registered.
+      capabilities-title: Capabilities
+      no-capabilities: No capabilities announced.
+      unavailable: Plugin host debug is unavailable in this runtime.
+      unavailable-description: Open this page from Stage Tamagotchi renderer to use Electron plugin host controls.
+      last-error: Last Error
+      load: Load
+      unload: Unload
+    updater:
+      title: Updater
+      description: Check updater status, explicit source overrides and install operations
+      check-for-updates: Check for updates
+      download-update: Download update
+      restart-to-install: Restart to install
+      downloading: Downloading update
+      diagnostics: Updater diagnostics
+    image:
+      upload-image: Upload Image
+    screen-capture:
+      title: Screen Recording
+      description: Capture screen or window as video and/or audio stream
+      capturing: Capturing
+      applications: Applications
+      displays: Displays
+      devices: Devices
+      refetch: Refetch
+      loading: Loading...
+      refetching: Refetching...
+      share-screen: Share Screen
+      share-device: Share Device
+      share-window: Share Window
+      stop: Stop
+      no-sources: No sources found for this category.
+      try-switching: Try switching tabs or refetching the sources.
+      loading-sources: Loading sources...
+    vision:
+      title: Vision Capture
+      description: Capture screen frames and inspect output payloads
+      capturing: Capturing
+      capture-interval: Capture interval
+      capture-interval-description: How frequently the vision loop grabs a frame.
+      input-downscale: Input downscale
+      input-downscale-description: Shrink each captured frame before sending it to the vision model. 100% keeps the existing 1280×720 capture cap.
+      vision-workload: Vision workload
+      vision-workload-description: Select how the model should interpret the screen.
+      start-ticker: Start ticker
+      stop-ticker: Stop ticker
+      publish-to-character: Publish to character
+      publish-to-character-description: Send interpreted results as context updates.
+      telemetry: Vision telemetry
+      inference-latency: Inference latency
+      context-updates: Context updates
+      capture-rate: Capture rate
+      snapshot: Snapshot
+      last-interpretation: Last interpretation
+      idle: Idle
+    global-shortcut:
+      title: Global Shortcuts
+      description: Register/unregister global shortcuts and monitor trigger events
+      id: ID
+      id-description: Stable handle, e.g. toggle-main-window
+      accelerator: Accelerator
+      accelerator-description: e.g. Mod+Shift+K, Cmd+Shift+1, Ctrl+Alt+F12
+      description-label: Description
+      description-desc: Surfaced in settings UI
+      receive-key-ups: Receive key-ups
+      receive-key-ups-description: Routes the binding through the uiohook driver so both 'down' and 'up' fire. macOS needs Accessibility; native Wayland returns 'unsupported'.
+      register: Register
+      refresh-list: Refresh List
+      unregister-all: Unregister All
+      active-bindings: Active bindings
+      unregister: Unregister
+      trigger-log: Trigger log
+      clear-log: Clear log
+      no-bindings: No bindings registered yet.
+      no-triggers: No triggers yet. Register a shortcut and press the combo.
+      receiving-key-ups: Receive key-ups
+    permission-whitelist:
+      title: Correction Whitelist
+      description: Whitelisted source + assertion combos auto-execute corrections without prompting. Remove an entry to require confirmation again.
+      refresh: Refresh
+      clear-all: Clear All
+      remove: Remove
+      entries: entries
+      created-at: Created
+      empty: No whitelist entries yet. Corrections will prompt for confirmation.
+
+screen-capture:
+  permissions-prompt:
+    title: Screen Capture
+    description: To capture screens or windows, screen and system audio recording permissions are required.
+    open-preferences: Open System Preferences
+    dismiss: Dismiss
+    instructions:
+      step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
+      step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for Kitsune AI.
+      step-2-note: If Kitsune AI is not listed, please add it manually by clicking the "+" button and selecting Kitsune AI from the Applications folder.

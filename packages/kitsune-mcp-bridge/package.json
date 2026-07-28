@@ -1,0 +1,18 @@
+{
+  "name": "@kitsune/mcp-bridge",
+  "version": "1.0.0",
+  "description": "[DEPRECATED] MCP 协议桥接 - 连接 MCP Server。无引用方，待清理。",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "import": "./src/index.js"
+    }
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

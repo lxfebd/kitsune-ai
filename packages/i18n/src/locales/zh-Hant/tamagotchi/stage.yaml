@@ -1,0 +1,123 @@
+brand:
+  name: Kitsune
+operations:
+  load-models: 載入推理模型
+  load-models-status:
+    loading: 載入中
+    ready: 已就緒
+docs:
+  theme:
+    navbar:
+      appearance:
+        title: 外貌
+'controls-island':
+  'fade-on-hover':
+    enable: 懸停時隱藏
+    disable: 總是顯示
+  'open-settings': 開啟設定
+  'open-chat': 打開聊天
+  'refresh': 重新整理
+  'open-hearing-controls': 開啟聽力控制
+  'drag-to-move-window': 長按以移動視窗
+  'switch-to-light-mode': 切換至亮色模式
+  'switch-to-dark-mode': 切換至深色模式
+  'pin-on-top': 置頂
+  'unpin-from-top': 取消置頂
+  'switch-profile': Switch Profile
+  'close': 關閉
+  'expand': 展開
+  'collapse': 摺疊
+widgets:
+  close: Close widget
+  empty:
+    title: No widget active
+    description: Widgets will appear here when a tool or plugin spawns one.
+  loading: Loading widget…
+  waiting: Waiting for widget data for "{id}"…
+notice:
+  'fade-on-hover':
+    title: 懸停淡出
+    intro: 當游標靠近時自動讓角色變淡，減少干擾同時保持可見。
+    opacity: 開啟後，當游標靠近時， {targets} 的不透明度會降到 {value}。
+    toggle: 要關閉時，將游標移到 {controls} 區域，再次點擊 {icon}。
+    controls-label: 控制島
+    icon-label: 隱藏圖示
+    value: '0'
+    targets: 角色與介面
+    confirm: 知道了
+    dont-show-again: 不再提示
+    preparing: 準備中…
+    read-more: 閱讀更多
+    preview-title: 這是什麼？
+about:
+  subtitle: Desktop ver.
+  current-version: Current Version
+  highlight: Kitsune AI
+  common:
+    cancel: Cancel
+  links:
+    title: Links
+    home: Home
+    documentation: Documentations
+    github: GitHub
+  update:
+    lane:
+      label: Update lane
+      description: Choose channel release to follow
+      placeholder: Choose update lane
+    channels:
+      auto: Auto
+      stable: Stable
+      alpha: Alpha
+      beta: Beta
+      nightly: Nightly
+      canary: Canary
+    status:
+      downloading: Downloading update...
+      error-prefix: Error
+      latest: Up to date (v{version}).
+      downloaded:
+        windows: Update ready to install silently (v{version}).
+        restart: Update ready to install on restart (v{version}).
+    actions:
+      download: Download Update
+      download-short: Download
+      confirm-download: Confirm Download
+      check-for-updates: Check for updates
+      checking: Checking...
+      latest-version: Latest version
+      disabled-dev: Updates disabled in Dev
+      retry-check: Retry Check
+      restart-silent: Restart to update silently
+      restart-install: Restart to install update
+      confirm-restart: Confirm Restart
+    dialog:
+      title: Update Available
+      description: A new version (v{version}) is available.
+      no-release-notes-markdown: _No release notes provided._
+    windows-admin-warning: Kitsune AI 安裝在受保護的 Windows 資料夾中。更新安裝可能需要 UAC 系統管理員權限。
+    downgrade-warning: 所選頻道提供比目前版本更舊的建置。安裝此更新將降級 Kitsune AI。
+    downgrade-downloaded-warning: 已從所選頻道下載降級包。重啟將安裝更舊的版本。
+
+spotlight:
+  placeholder: 問問 Kitsune AI…
+
+interactive-area:
+  save: 儲存
+settings:
+  window-close: 關閉
+  window-minimize: 最小化
+  window-maximize: 最大化
+  back: 返回
+title-bar:
+  close: 關閉
+  minimize: 最小化
+  maximize: 最大化
+caption:
+  drag-to-move: 拖曳以移動
+chat:
+  title: 聊天
+devtools:
+  global-shortcut:
+    id-placeholder: my-shortcut
+    accelerator-placeholder: Mod+Shift+K

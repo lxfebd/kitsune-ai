@@ -1,0 +1,9 @@
+`godot-stage/index.ts` 中有几个空 catch 块需要修复：
+已修复空 catch 块：
+
+1. **第 439-441 行**：`stopSocketRuntime` 中的 `.catch` 现在记录错误日志
+2. **第 832-834 行**：`stop` 中的 `exitPromise.catch` 现在记录错误日志
+3. **第 271-273 行**：`resolveGodotProjectPath` 中的 catch 块添加了更清晰的注释
+4. **第 307-310 行**：`resolveExportedGodotBinary` 中的 catch 块添加了说明注释
+
+**P013 已完成** — 空 catch 块已修复，Godot 通信错误处理已添加。

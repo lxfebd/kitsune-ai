@@ -1,0 +1,71 @@
+version: 1
+servers:
+  - name: shell
+    command: npx
+    args:
+      - -y
+      - "@kevinwatt/shell-mcp"
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: puppeteer
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-puppeteer"
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: filesystem
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-filesystem"
+      - "G:/agentpet/yachiyo-airi"
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: bing-search
+    command: npx
+    args:
+      - -y
+      - bing-cn-mcp
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: github
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-github"
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: ""
+    enabled: true
+    transport: stdio
+  - name: sqlite
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-sqlite"
+      - --db-path
+      # TODO: 待实现数据迁移逻辑（旧 airi.db → kitsune.db）
+      - "G:/agentpet/yachiyo-airi/data/kitsune.db"
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: memory
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-memory"
+    env: {}
+    enabled: true
+    transport: stdio
+  - name: fetch
+    command: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-fetch"
+    env: {}
+    enabled: true
+    transport: stdio

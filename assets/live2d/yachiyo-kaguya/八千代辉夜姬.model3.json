@@ -1,0 +1,169 @@
+{
+	"Version": 3,
+	"FileReferences": {
+		"Moc": "八千代辉夜姬.moc3",
+		"Textures": [
+			"八千代辉夜姬.8192/texture_00.png",
+			"八千代辉夜姬.8192/texture_01.png"
+		],
+		"Physics": "八千代辉夜姬.physics3.json",
+		"DisplayInfo": "八千代辉夜姬.cdi3.json",
+		"Expressions": [
+			{
+				"Name": "tear_drop",
+				"File": "泪珠.exp3.json"
+			},
+			{
+				"Name": "narrow_eyes",
+				"File": "眯眯眼.exp3.json"
+			},
+			{
+				"Name": "tears",
+				"File": "眼泪.exp3.json"
+			},
+			{
+				"Name": "smile",
+				"File": "笑咪咪.exp3.json"
+			},
+			{
+				"Name": "happy",
+				"File": "happy.exp3.json"
+			},
+			{
+				"Name": "thinking",
+				"File": "thinking.exp3.json"
+			},
+			{
+				"Name": "alert",
+				"File": "alert.exp3.json"
+			},
+			{
+				"Name": "surprise",
+				"File": "surprise.exp3.json"
+			},
+			{
+				"Name": "drowsy",
+				"File": "drowsy.exp3.json"
+			},
+			{
+				"Name": "sleepy",
+				"File": "sleepy.exp3.json"
+			}
+		],
+		"Motions": {
+			"Idle": [
+				{
+					"File": "motions/yachiyo_idle.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 0.5
+				}
+			],
+			"Greet": [
+				{
+					"File": "motions/yachiyo_greet.motion3.json",
+					"FadeInTime": 0.4,
+					"FadeOutTime": 0.4
+				}
+			],
+			"ReactError": [
+				{
+					"File": "motions/yachiyo_react_error.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.3
+				}
+			],
+			"TapBody": [
+				{
+					"File": "motions/yachiyo_react_error.motion3.json",
+					"FadeInTime": 0.2,
+					"FadeOutTime": 0.3
+				}
+			],
+			"FlickHead": [
+				{
+					"File": "motions/yachiyo_greet.motion3.json",
+					"FadeInTime": 0.2,
+					"FadeOutTime": 0.3
+				}
+			],
+			"Shake": [
+				{
+					"File": "motions/yachiyo_react_error.motion3.json",
+					"FadeInTime": 0.15,
+					"FadeOutTime": 0.3
+				}
+			],
+			"PinchIn": [
+				{
+					"File": "motions/yachiyo_react_error.motion3.json",
+					"FadeInTime": 0.15,
+					"FadeOutTime": 0.25
+				}
+			],
+			"PinchOut": [
+				{
+					"File": "motions/yachiyo_greet.motion3.json",
+					"FadeInTime": 0.2,
+					"FadeOutTime": 0.3
+				}
+			],
+			"ReactSuccess": [
+				{
+					"File": "motions/yachiyo_greet.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.3
+				}
+			],
+			"head_shake": [
+				{
+					"File": "motions/yachiyo_shake.motion3.json",
+					"FadeInTime": 0.2,
+					"FadeOutTime": 0.3
+				}
+			],
+			"jump": [
+				{
+					"File": "motions/yachiyo_jump.motion3.json",
+					"FadeInTime": 0.2,
+					"FadeOutTime": 0.3
+				}
+			],
+			"shock": [
+				{
+					"File": "motions/yachiyo_shock.motion3.json",
+					"FadeInTime": 0.15,
+					"FadeOutTime": 0.3
+				}
+			],
+			"yawn": [
+				{
+					"File": "motions/yachiyo_yawn.motion3.json",
+					"FadeInTime": 0.3,
+					"FadeOutTime": 0.5
+				}
+			],
+			"sleep": [
+				{
+					"File": "motions/yachiyo_sleep.motion3.json",
+					"FadeInTime": 0.5,
+					"FadeOutTime": 1.0
+				}
+			]
+		}
+	},
+	"Groups": [
+		{
+			"Target": "Parameter",
+			"Name": "EyeBlink",
+			"Ids": [
+				"ParamEyeLOpen",
+				"ParamEyeROpen"
+			]
+		},
+		{
+			"Target": "Parameter",
+			"Name": "LipSync",
+			"Ids": []
+		}
+	]
+}

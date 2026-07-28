@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 2,
+  "modelId": "yachiyo-kaguya",
+  "displayName": "八千代辉夜姬",
+  "version": "1.0.0",
+  "modelPath": "八千代辉夜姬.model3.json",
+
+  "capabilities": {
+    "headControl": true,
+    "bodyControl": true,
+    "eyeBlink": true,
+    "eyeSmile": true,
+    "gazeControl": true,
+    "mouthOpen": true,
+    "mouthSmile": true,
+    "browControl": true,
+    "blush": true,
+    "tear": true,
+    "sweat": false,
+    "breath": true
+  },
+
+  "parameterMap": {
+    "headX": {
+      "target": "ParamAngleX",
+      "scale": 30,
+      "min": -30,
+      "max": 30
+    },
+    "headY": {
+      "target": "ParamAngleY",
+      "scale": 30,
+      "min": -30,
+      "max": 30
+    },
+    "headZ": {
+      "target": "ParamAngleZ",
+      "scale": 30,
+      "min": -30,
+      "max": 30
+    },
+    "eyeOpen": {
+      "targets": ["ParamEyeLOpen", "ParamEyeROpen"],
+      "mode": "set",
+      "scale": 1
+    },
+    "eyeBlinkL": {
+      "target": "ParamEyeLOpen",
+      "mode": "subtract",
+      "scale": 1
+    },
+    "eyeBlinkR": {
+      "target": "ParamEyeROpen",
+      "mode": "subtract",
+      "scale": 1
+    },
+    "eyeSmile": {
+      "targets": ["ParamEyeLSmile", "ParamEyeRSmile"],
+      "scale": 1,
+      "min": 0,
+      "max": 1
+    },
+    "gazeX": {
+      "target": "ParamEyeBallX",
+      "scale": 1
+    },
+    "gazeY": {
+      "target": "ParamEyeBallY",
+      "scale": 1
+    },
+    "mouthOpen": {
+      "target": "ParamMouthOpenY",
+      "scale": 1
+    },
+    "mouthSmile": {
+      "target": "ParamMouthForm",
+      "scale": 1,
+      "min": 0,
+      "max": 1
+    },
+    "browInnerUp": {
+      "targets": ["ParamBrowLY", "ParamBrowRY"],
+      "scale": 0.5
+    },
+    "blush": {
+      "target": "ParamCheek",
+      "scale": 1,
+      "min": 0,
+      "max": 1
+    },
+    "breath": {
+      "target": "ParamBreath",
+      "scale": 1
+    },
+    "bodyX": {
+      "target": "ParamBodyAngleX",
+      "scale": 10
+    },
+    "bodyY": {
+      "target": "ParamBodyAngleY",
+      "scale": 10
+    },
+    "bodyZ": {
+      "target": "ParamBodyAngleZ",
+      "scale": 10
+    }
+  },
+
+  "idleConfig": {
+    "headX": [-3, 3],
+    "headY": [-2, 2],
+    "headZ": [-2, 2],
+    "gazeX": [-0.3, 0.3],
+    "gazeY": [-0.2, 0.2],
+    "bodyX": [-1.5, 1.5],
+    "bodyY": [-1, 1],
+    "bodyZ": [-1, 1],
+    "breath": [0.3, 0.8],
+    "mouthSmile": [0, 0.08],
+    "eyeBlinkL": [0, 0],
+    "eyeBlinkR": [0, 0]
+  },
+
+  "neutralParams": {
+    "ParamEyeLOpen": 1,
+    "ParamEyeROpen": 1,
+    "ParamEyeLSmile": 0,
+    "ParamEyeRSmile": 0,
+    "ParamEyeBallX": 0,
+    "ParamEyeBallY": 0,
+    "ParamAngleX": 0,
+    "ParamAngleY": 0,
+    "ParamAngleZ": 0,
+    "ParamBrowLY": 0,
+    "ParamBrowRY": 0,
+    "ParamMouthForm": 0,
+    "ParamMouthOpenY": 0,
+    "ParamCheek": 0,
+    "ParamBreath": 0,
+    "ParamBodyAngleX": 0,
+    "ParamBodyAngleY": 0,
+    "ParamBodyAngleZ": 0
+  },
+
+  "parameterSmoothing": {
+    "headX": 8,
+    "headY": 8,
+    "headZ": 8,
+    "bodyX": 6,
+    "bodyY": 6,
+    "bodyZ": 6,
+    "gazeX": 11,
+    "gazeY": 11,
+    "eyeOpen": 26,
+    "eyeBlinkL": 26,
+    "eyeBlinkR": 26,
+    "eyeSmile": 12,
+    "mouthOpen": 24,
+    "mouthSmile": 12,
+    "browInnerUp": 12,
+    "blush": 4,
+    "breath": 5
+  },
+
+  "expressionMap": {
+    "smile": { "expression": "smile" },
+    "tears": { "expression": "tears" },
+    "tear_drop": { "expression": "tear_drop" },
+    "narrow_eyes": { "expression": "narrow_eyes" },
+    "happy": { "expression": "happy" },
+    "thinking": { "expression": "thinking" },
+    "alert": { "expression": "alert" },
+    "surprise": { "expression": "surprise" },
+    "drowsy": { "expression": "drowsy" },
+    "sleepy": { "expression": "sleepy" }
+  },
+
+  "motionMap": {
+    "greet": { "group": "Greet", "index": 0, "priority": "normal" },
+    "think": { "group": "Idle", "index": 0, "priority": "idle" },
+    "greet_fast": { "group": "Greet", "index": 0, "priority": "normal" },
+    "think_focus": { "group": "Idle", "index": 0, "priority": "idle" },
+    "apologize": { "group": "ReactError", "index": 0, "priority": "force" },
+    "panic": { "group": "ReactError", "index": 0, "priority": "force" },
+    "calm_down": { "group": "Idle", "index": 0, "priority": "idle" },
+    "nod": { "group": "FlickHead", "index": 0, "priority": "normal" },
+    "shake": { "group": "Shake", "index": 0, "priority": "normal" },
+    "happy_jump": { "group": "ReactSuccess", "index": 0, "priority": "normal" },
+    "surprised": { "group": "PinchIn", "index": 0, "priority": "normal" },
+    "wave": { "group": "Greet", "index": 0, "priority": "normal" },
+    "tap_reaction": { "group": "TapBody", "index": 0, "priority": "normal" },
+    "head_shake": { "group": "Shake", "index": 0, "priority": "normal" },
+    "jump": { "group": "ReactSuccess", "index": 0, "priority": "force" },
+    "shock": { "group": "PinchIn", "index": 0, "priority": "force" },
+    "yawn": { "group": "Idle", "index": 0, "priority": "idle" },
+    "sleep": { "group": "Idle", "index": 0, "priority": "idle" }
+  },
+
+  "nativeAnimations": {
+    "expressions": [
+      { "name": "tear_drop", "file": "泪珠.exp3.json" },
+      { "name": "narrow_eyes", "file": "眯眯眼.exp3.json" },
+      { "name": "tears", "file": "眼泪.exp3.json" },
+      { "name": "smile", "file": "笑咪咪.exp3.json" },
+      { "name": "happy", "file": "happy.exp3.json" },
+      { "name": "thinking", "file": "thinking.exp3.json" },
+      { "name": "alert", "file": "alert.exp3.json" },
+      { "name": "surprise", "file": "surprise.exp3.json" },
+      { "name": "drowsy", "file": "drowsy.exp3.json" },
+      { "name": "sleepy", "file": "sleepy.exp3.json" }
+    ],
+    "motions": [
+      { "group": "Idle", "index": 0, "file": "motions/yachiyo_idle.motion3.json" },
+      { "group": "Greet", "index": 0, "file": "motions/yachiyo_greet.motion3.json" },
+      { "group": "ReactError", "index": 0, "file": "motions/yachiyo_react_error.motion3.json" },
+      { "group": "TapBody", "index": 0, "file": "motions/yachiyo_react_error.motion3.json" },
+      { "group": "FlickHead", "index": 0, "file": "motions/yachiyo_greet.motion3.json" },
+      { "group": "Shake", "index": 0, "file": "motions/yachiyo_react_error.motion3.json" },
+      { "group": "PinchIn", "index": 0, "file": "motions/yachiyo_react_error.motion3.json" },
+      { "group": "PinchOut", "index": 0, "file": "motions/yachiyo_greet.motion3.json" },
+      { "group": "ReactSuccess", "index": 0, "file": "motions/yachiyo_greet.motion3.json" },
+      { "group": "head_shake", "index": 0, "file": "motions/yachiyo_shake.motion3.json" },
+      { "group": "jump", "index": 0, "file": "motions/yachiyo_jump.motion3.json" },
+      { "group": "shock", "index": 0, "file": "motions/yachiyo_shock.motion3.json" },
+      { "group": "yawn", "index": 0, "file": "motions/yachiyo_yawn.motion3.json" },
+      { "group": "sleep", "index": 0, "file": "motions/yachiyo_sleep.motion3.json" }
+    ]
+  }
+}

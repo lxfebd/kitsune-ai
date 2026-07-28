@@ -1,0 +1,43 @@
+{
+  "name": "@kitsune/pipelines-audio",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "Audio pipeline orchestration for Kitsune (capture, VAD, encode, stream)",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "directory": "packages/pipelines-audio"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
+    "clustr": "catalog:"
+  },
+  "devDependencies": {}
+}

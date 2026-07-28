@@ -1,0 +1,82 @@
+{
+  "publisher": "proj-kitsune",
+  "name": "vscode-kitsune-ai",
+  "displayName": "Kitsune AI VSCode adapter",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "Adapter that connects VSCode into Kitsune AI",
+  "repository": {
+    "type": "git",
+    "url": "",
+    "directory": "integrations/vscode/vscode-kitsune"
+  },
+  "categories": [
+    "Other"
+  ],
+  "preview": true,
+  "main": "./dist/extension.cjs",
+  "icon": "res/logo.jpg",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "kitsune-vscode.enable",
+        "title": "Kitsune AI: Enable"
+      },
+      {
+        "command": "kitsune-vscode.disable",
+        "title": "Kitsune AI: Disable"
+      },
+      {
+        "command": "kitsune-vscode.status",
+        "title": "Kitsune AI: Show Status"
+      }
+    ],
+    "configuration": {
+      "title": "Kitsune AI",
+      "properties": {
+        "kitsune-vscode.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the Kitsune AI extension"
+        },
+        "kitsune-vscode.contextLines": {
+          "type": "number",
+          "default": 5,
+          "description": "Number of context lines to send (before and after current line)"
+        },
+        "kitsune-vscode.sendInterval": {
+          "type": "number",
+          "default": 3000,
+          "description": "Interval in milliseconds to send updates (0 for real-time)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "prepare": "pnpm run update",
+    "update": "tsx ./scripts/vscode-ext-gen.ts",
+    "dev": "tsdown --watch",
+    "build": "tsdown",
+    "publish": "tsx ./scripts/publish.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@guiiai/logg": "catalog:",
+    "@moeru/std": "catalog:",
+    "@kitsune/server-sdk": "workspace:*",
+    "@kitsune/server-shared": "workspace:*",
+    "@types/vscode": "catalog:",
+    "es-toolkit": "catalog:",
+    "injeca": "catalog:",
+    "nanoid": "catalog:",
+    "tinyexec": "catalog:",
+    "vscode-ext-gen": "catalog:"
+  }
+}

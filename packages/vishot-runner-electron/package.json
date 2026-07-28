@@ -1,0 +1,24 @@
+{
+  "name": "@kitsune/vishot-runner-electron",
+  "type": "module",
+  "version": "0.10.2",
+  "private": true,
+  "description": "Playwright-driven Electron capture runner for stage-tamagotchi",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "capture": "tsx src/cli/capture.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@moeru/std": "catalog:",
+    "@napi-rs/image": "catalog:",
+    "meow": "catalog:",
+    "playwright": "catalog:"
+  }
+}

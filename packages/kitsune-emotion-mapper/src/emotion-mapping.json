@@ -1,0 +1,296 @@
+{
+  "version": 2,
+  "meta": {
+    "name": "AgentPet 情绪映射配置表",
+    "description": "系统事件到 Live2D 表情/动作/气泡的兜底映射。LLM 语义驱动的动画应通过 [live2d:<type>:<name>] 标签输出，不再在本配置中维护。",
+    "lastUpdated": "2026-06-17",
+    "eventNaming": "camelCase (v2 逐步迁移中)",
+    "policy": {
+      "scope": "仅保留非 LLM 系统事件兜底",
+      "llmDriven": "对话情绪、回复动作由 LLM 通过 [live2d:...] 标签实时控制，收敛到 live2dBridge.ts / actionParser.js 管线",
+      "configDriven": [
+        "代码审查结果 (overseer.review_completed)",
+        "规则命中 (overseer.rule_hit)",
+        "监工告警 (overseer.alert / supervisor.reaction)",
+        "Git 操作结果 (git.push_completed)",
+        "文件冲突 (watcher.conflict_detected)",
+        "AI 工具状态 (hooks.state_updated)",
+        "语音合成状态 (voice.synthesis.*)",
+        "用户空闲提醒 (user.idle_timeout)",
+        "自动路由/自主循环事件 (auto_router.action / autonomous_loop.action)",
+        "主动通知 (proactive.notification)"
+      ],
+      "removed": [
+        "message.complete 已移除：回复完成时的情绪应通过 LLM 标签表达，避免配置与语义双层驱动冲突"
+      ]
+    }
+  },
+  "globalSettings": {
+    "defaultExpressionDuration": 2.5,
+    "defaultBubbleDuration": 5500,
+    "idleTimeoutMs": 300000,
+    "idleTimeoutEvent": "user.idleTimeout"
+  },
+  "eventAliases": {
+    "overseer.review_completed": "overseer.reviewCompleted",
+    "overseer.feedback_to_desktop": "overseer.feedbackToDesktop",
+    "overseer.rule_hit": "overseer.ruleHit",
+    "watcher.conflict_detected": "watcher.conflictDetected",
+    "watcher.code_changed": "watcher.codeChanged",
+    "hooks.state_updated": "hooks.stateUpdated",
+    "user.idle_timeout": "user.idleTimeout",
+    "git.push_completed": "git.pushCompleted",
+    "build.status_changed": "build.statusChanged",
+    "supervisor.reaction": "supervisor.reaction",
+    "auto_router.action": "autoRouter.action",
+    "proactive.notification": "proactive.notification",
+    "autonomous_loop.action": "autonomousLoop.action",
+    "overseer.alert": "overseer.alert"
+  },
+  "eventMappings": [
+    {
+      "id": "review_high_risk",
+      "event": "overseer.review_completed",
+      "conditions": { "risk_level": "high" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "tears", "duration": 3.5 },
+      "motion": { "group": "ReactError", "index": 0 },
+      "bubble": { "template": "⚠️ 发现风险！代码中存在潜在的严重问题", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "review_medium_risk",
+      "event": "overseer.review_completed",
+      "conditions": { "risk_level": "medium" },
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "thinking", "duration": 2.8 },
+      "motion": { "group": "Idle", "index": 0 },
+      "bubble": { "template": "💡 建议：发现一些可改进的代码细节", "tone": "warning", "duration": 5000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "review_success",
+      "event": "overseer.review_completed",
+      "conditions": { "risk_level": "low" },
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "happy", "duration": 2.2 },
+      "motion": { "group": "ReactSuccess", "index": 0 },
+      "bubble": { "template": "✅ 审查通过！这次的代码变更看起来不错哦~", "tone": "success", "duration": 4000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "review_error",
+      "event": "overseer.review_completed",
+      "conditions": { "status": "failed", "severity": "critical" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "tears", "duration": 2.5 },
+      "motion": { "group": "Shake", "index": 0 },
+      "bubble": { "template": "糟糕... 代码有问题，需要修复一下", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "rule_hit_critical",
+      "event": "overseer.rule_hit",
+      "conditions": { "severity": "critical" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "alert", "duration": 2 },
+      "motion": { "group": "head_shake", "index": 0 },
+      "bubble": { "template": "⚠️ 严重问题！${rule_name} 不符合规范", "tone": "error", "duration": 7000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "rule_hit_warning",
+      "event": "overseer.rule_hit",
+      "conditions": { "severity": "warning" },
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "thinking", "duration": 2 },
+      "bubble": { "template": "💡 这里有个地方可以优化：${rule_name}", "tone": "warning", "duration": 5000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "git_push_success",
+      "event": "git.push_completed",
+      "conditions": { "result": "success" },
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "happy", "duration": 2.5 },
+      "motion": { "group": "jump", "index": 0 },
+      "bubble": { "template": "🎉 Push 成功！代码已同步", "tone": "success", "duration": 4000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "git_push_failed",
+      "event": "git.push_completed",
+      "conditions": { "result": "failed" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "surprise", "duration": 2 },
+      "bubble": { "template": "😢 Push 失败了，可能是网络或权限问题", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "git_conflict",
+      "event": "watcher.conflict_detected",
+      "conditions": {},
+      "priority": "high",
+      "expression": { "type": "emote", "name": "surprise", "duration": 3 },
+      "motion": { "group": "shock", "index": 0 },
+      "bubble": { "template": "😨 检测到文件冲突！需要手动解决", "tone": "error", "duration": 8000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "ai_tool_error",
+      "event": "hooks.state_updated",
+      "conditions": { "state": "error" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "tears", "duration": 2.5 },
+      "bubble": { "template": "😢 AI 工具出错了... 我需要休息一下", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "ai_thinking",
+      "event": "hooks.state_updated",
+      "conditions": { "state": "thinking" },
+      "priority": "low",
+      "expression": { "type": "emote", "name": "thinking", "duration": 1.5 },
+      "bubble": null,
+      "queuePolicy": "append"
+    },
+    {
+      "id": "idle_reminder",
+      "event": "user.idle_timeout",
+      "conditions": { "idleDurationMs": 300000 },
+      "priority": "low",
+      "expression": { "type": "emote", "name": "drowsy", "duration": 3 },
+      "motion": { "group": "yawn", "index": 0 },
+      "bubble": { "template": "😴 主人好久没理我了... 要不要聊聊？", "tone": "info", "duration": 6000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "long_idle_sleep",
+      "event": "user.idle_timeout",
+      "conditions": { "idleDurationMs": 600000 },
+      "priority": "low",
+      "expression": { "type": "emote", "name": "sleepy", "duration": 5 },
+      "motion": { "group": "sleep", "index": 0 },
+      "bubble": { "template": "💤 Zzz... 我先睡会儿", "tone": "info", "duration": 8000 },
+      "queuePolicy": "replace"
+    },
+    {
+      "id": "voice_speaking",
+      "event": "voice.synthesis.started",
+      "conditions": {},
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "happy_soft", "duration": 1.5 },
+      "motion": null,
+      "bubble": null,
+      "queuePolicy": "append"
+    },
+    {
+      "id": "voice_completed",
+      "event": "voice.synthesis.completed",
+      "conditions": {},
+      "priority": "low",
+      "expression": { "type": "emote", "name": "happy", "duration": 2.0 },
+      "motion": null,
+      "bubble": null,
+      "queuePolicy": "append"
+    },
+    {
+      "id": "voice_error",
+      "event": "voice.synthesis.failed",
+      "conditions": {},
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "sad", "duration": 2.5 },
+      "bubble": { "template": "😢 语音合成失败了...", "tone": "error", "duration": 4000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "supervisor_reaction",
+      "event": "supervisor.reaction",
+      "conditions": { "activity": "error" },
+      "priority": "high",
+      "expression": { "type": "emote", "name": "tears", "duration": 2.5 },
+      "motion": { "group": "ReactError", "index": 0 },
+      "bubble": { "template": "😱 ${source} 出错了！${message}", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "supervisor_reaction_completed",
+      "event": "supervisor.reaction",
+      "conditions": { "activity": "completed" },
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "happy", "duration": 2.2 },
+      "motion": { "group": "ReactSuccess", "index": 0 },
+      "bubble": { "template": "✅ ${source} 任务完成", "tone": "success", "duration": 4000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "overseer_alert",
+      "event": "overseer.alert",
+      "conditions": {},
+      "priority": "high",
+      "expression": { "type": "emote", "name": "alert", "duration": 2.5 },
+      "motion": { "group": "head_shake", "index": 0 },
+      "bubble": { "template": "⚠️ ${message || '监工发现异常'}", "tone": "error", "duration": 6000 },
+      "queuePolicy": "interrupt"
+    },
+    {
+      "id": "proactive_notification",
+      "event": "proactive.notification",
+      "conditions": {},
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "thinking", "duration": 2 },
+      "bubble": { "template": "💡 ${title || message || '新通知'}", "tone": "info", "duration": 5000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "auto_router_action",
+      "event": "auto_router.action",
+      "conditions": {},
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "happy_soft", "duration": 2 },
+      "bubble": { "template": "🤖 自动处理: ${rule?.action || '操作'}", "tone": "info", "duration": 4000 },
+      "queuePolicy": "append"
+    },
+    {
+      "id": "autonomous_loop_action",
+      "event": "autonomous_loop.action",
+      "conditions": {},
+      "priority": "normal",
+      "expression": { "type": "emote", "name": "thinking", "duration": 2.5 },
+      "bubble": { "template": "🧠 AI 分析: ${decision || '处理中'}", "tone": "info", "duration": 5000 },
+      "queuePolicy": "append"
+    }
+  ],
+  "emotePresets": {
+    "happy": { "expression": "happy", "params": [{ "name": "Param Smile", "value": 1.0 }] },
+    "happy_soft": { "expression": "happy", "params": [{ "name": "Param Smile", "value": 0.5 }] },
+    "sad": { "expression": "tears", "params": [{ "name": "Param Sad", "value": 1.0 }] },
+    "surprise": { "expression": "surprise", "params": [{ "name": "Param Surprise", "value": 1.0 }] },
+    "thinking": { "expression": "thinking", "params": [{ "name": "Param Thinking", "value": 0.8 }] },
+    "alert": { "expression": "alert", "params": [] },
+    "drowsy": { "expression": "drowsy", "params": [{ "name": "Param EyeOpen", "value": 0.3 }] },
+    "sleepy": { "expression": "sleepy", "params": [{ "name": "Param EyeOpen", "value": 0 }] }
+  },
+  "bubbleStyles": {
+    "success": {
+      "bgGradient": "linear-gradient(145deg, rgba(42,100,68,0.88) 0%, rgba(55,120,82,0.85) 40%, rgba(38,95,65,0.88) 100%)",
+      "borderColor": "rgba(100,200,140,0.3)",
+      "textColor": "rgba(220,250,230,0.95)"
+    },
+    "warning": {
+      "bgGradient": "linear-gradient(145deg, rgba(100,80,42,0.88) 0%, rgba(120,95,55,0.85) 40%, rgba(90,70,35,0.88) 100%)",
+      "borderColor": "rgba(220,180,100,0.3)",
+      "textColor": "rgba(250,240,200,0.95)"
+    },
+    "error": {
+      "bgGradient": "linear-gradient(145deg, rgba(100,42,42,0.88) 0%, rgba(120,50,50,0.85) 40%, rgba(90,35,35,0.88) 100%)",
+      "borderColor": "rgba(220,100,100,0.3)",
+      "textColor": "rgba(255,220,220,0.95)"
+    },
+    "info": {
+      "bgGradient": "linear-gradient(145deg, rgba(42,32,68,0.88) 0%, rgba(55,42,82,0.85) 40%, rgba(38,35,65,0.88) 100%)",
+      "borderColor": "rgba(160,140,210,0.22)",
+      "textColor": "rgba(240,238,248,0.95)"
+    }
+  }
+}

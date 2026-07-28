@@ -1,0 +1,7 @@
+`global-shortcut-uiohook.ts` 中有几个 `as unknown as` 类型断言需要修复：
+已修复类型安全问题：
+
+1. **第 33-83 行**：将分散的 `as unknown as Record<string, number>` 类型断言集中到 `getUiohookKeyCode` 辅助函数中，减少了重复的类型断言
+2. 辅助函数添加了 `undefined` 返回值检查，避免访问不存在的按键时产生 `NaN`
+
+**P022 已完成** — 按键映射类型已修复，类型安全性已提升。

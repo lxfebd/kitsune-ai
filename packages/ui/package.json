@@ -1,0 +1,39 @@
+{
+  "name": "@kitsune/ui",
+  "type": "module",
+  "version": "0.10.2",
+  "description": "A collection of UI components that used by Project Kitsune",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "directory": "packages/ui"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./main.css": "./src/main.css",
+    "./components/animations": "./src/components/animations/index.ts",
+    "./components/form": "./src/components/form/index.ts",
+    "./components/layouts": "./src/components/layouts/index.ts",
+    "./*": "./*"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@vueuse/core": "catalog:",
+    "floating-vue": "catalog:",
+    "reka-ui": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@vue-macros/volar": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "@kitsune/plugin-protocol",
+  "type": "module",
+  "version": "0.10.2",
+  "description": "Plugin protocol event definitions and shared websocket types for Project Kitsune",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "directory": "packages/plugin-protocol"
+  },
+  "exports": {
+    "./types": {
+      "types": "./dist/types/index.d.mts",
+      "default": "./dist/types/index.mjs"
+    }
+  },
+  "main": "./dist/types/index.mjs",
+  "types": "./dist/types/index.d.mts",
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@xsai/shared-chat": "catalog:"
+  }
+}

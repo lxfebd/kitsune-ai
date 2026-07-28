@@ -1,0 +1,4 @@
+auth:
+  login: Login
+  logout: Logout
+  signup: Sign up

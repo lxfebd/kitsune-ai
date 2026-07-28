@@ -1,0 +1,40 @@
+{
+  "name": "@kitsune/discord-bot",
+  "type": "module",
+  "private": true,
+  "description": "Discord bot for Kitsune AI",
+  "author": {
+    "name": "Kitsune Project",
+    "email": "contact@kitsune.build",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/yachiyo-airi.git",
+    "directory": "services/discord-bot"
+  },
+  "scripts": {
+    "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@discordjs/voice": "catalog:",
+    "@guiiai/logg": "catalog:",
+    "@huggingface/transformers": "catalog:",
+    "@kitsune/audio": "workspace:^",
+    "@kitsune/server-sdk": "workspace:^",
+    "@kitsune/server-shared": "workspace:^",
+    "@snazzah/davey": "catalog:",
+    "@xsai-ext/providers": "catalog:",
+    "@xsai/generate-speech": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/generate-transcription": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "discord.js": "catalog:",
+    "libsodium-wrappers": "catalog:",
+    "opusscript": "catalog:",
+    "tsx": "catalog:",
+    "wavefile": "catalog:"
+  }
+}

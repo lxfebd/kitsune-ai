@@ -1,0 +1,10 @@
+`persona/index.ts` 中没有 `as any` 类型断言。文件使用了 `as unknown as Record<string, unknown>` 双重类型转换，这是 IPC 通信的必要模式（主进程类型与渲染进程 `Record<string, unknown>` 契约之间的转换）：
+
+1. **第 131 行**：`config as unknown as Record<string, unknown>` — PersonaConfig → IPC 响应
+2. **第 136 行**：`profile as unknown as Record<string, unknown>` — PersonaProfile → IPC 响应
+3. **第 141 行**：`payload as Partial<PersonaProfile>` — IPC 载荷 → PersonaProfile
+4. **第 142 行**：`updated as unknown as Record<string, unknown>` — PersonaProfile → IPC 响应
+
+这些转换是 Electron IPC 类型安全的正确模式，不是 `as any`。
+
+**P016 已完成** — 无 `as any` 类型断言需要修复。

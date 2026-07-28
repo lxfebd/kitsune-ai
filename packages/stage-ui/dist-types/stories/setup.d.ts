@@ -1,0 +1,17 @@
+import '@unocss/reset/tailwind.css';
+import 'uno.css';
+import './styles/main.css';
+import '@kitsune/font-cjkfonts-allseto/index.css';
+import '@kitsune/font-xiaolai/index.css';
+import '@fontsource-variable/dm-sans/index.css';
+import '@fontsource-variable/jura/index.css';
+import '@fontsource-variable/quicksand/index.css';
+import '@fontsource-variable/urbanist/index.css';
+import '@fontsource-variable/comfortaa/index.css';
+import '@fontsource/dm-mono/index.css';
+import '@fontsource/dm-serif-display/index.css';
+import '@fontsource/gugi/index.css';
+import '@fontsource/kiwi-maru/index.css';
+import '@fontsource/m-plus-rounded-1c/index.css';
+import '@fontsource-variable/nunito/index.css';
+export declare const setupVue3: import("@histoire/plugin-vue").Vue3StorySetupHandler;

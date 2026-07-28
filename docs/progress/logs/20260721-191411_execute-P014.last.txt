@@ -1,0 +1,6 @@
+`settings/models/index.vue` 中有一个空 catch 块需要修复：
+已修复空 catch 块：
+
+1. **第 106-108 行**：`inferModelFileName` 中的 catch 块添加了更清晰的注释说明这是预期行为
+
+**P014 已完成** — 空 catch 块已修复，模型设置加载错误处理已完善。

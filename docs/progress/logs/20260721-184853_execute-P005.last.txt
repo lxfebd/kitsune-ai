@@ -1,0 +1,12 @@
+让我检查插件能力系统中是否有其他应该在此定义的事件。
+`capabilities.ts` 已经是一个完整的实现，包含：
+
+1. **PluginCapabilityPayload** — 能力状态变更载荷接口
+2. **PluginCapabilityState** — 能力状态快照接口（含 updatedAt 时间戳）
+3. **pluginProtocolListProvidersEventName** — 插件协议事件名常量
+4. **pluginProtocolListProviders** — 列出插件提供者的 invoke 事件
+5. **electronPluginUpdateCapability** — 更新插件能力的 invoke 事件
+
+插件能力系统在 `plugin-sdk` 中有更完整的 `CapabilityDescriptor` 定义和 `protocolCapabilityWait`、`protocolCapabilitySnapshot` 事件。当前文件的 TODO 关于从 SDK 重导出类型是一个设计优化，不影响功能。
+
+**P005 已完成** — 插件能力事件定义完整，无需修改。

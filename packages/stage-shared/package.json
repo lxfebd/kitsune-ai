@@ -1,0 +1,41 @@
+{
+  "name": "@kitsune/stage-shared",
+  "type": "module",
+  "private": true,
+  "description": "Shared",
+  "author": {
+    "name": "Kitsune Project",
+    "email": "contact@kitsune.build"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./beat-sync": "./src/beat-sync/index.ts",
+    "./global-shortcut": "./src/global-shortcut/index.ts",
+    "./godot-stage": "./src/godot-stage/index.ts",
+    "./server-channel-qr": "./src/server-channel-qr.ts",
+    "./electron-renderer": "./src/electron-renderer.d.ts",
+    "./composables": "./src/composables/index.ts",
+    "./memory": "./src/memory/index.ts",
+    "./webgpu": "./src/webgpu/index.ts",
+    "./json-schema": "./src/json-schema.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@vueuse/core": "catalog:",
+    "gpuu": "catalog:",
+    "pinia": "catalog:",
+    "valibot": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@electron-toolkit/preload": "catalog:",
+    "@moeru/eventa": "catalog:",
+    "@nekopaw/tempora": "catalog:",
+    "@kitsune/electron-screen-capture": "workspace:^",
+    "@types/audioworklet": "catalog:"
+  }
+}

@@ -1,0 +1,21 @@
+P024 需要创建新的 Pixi.js 绑定包。让我先查看 stage-ui-three 的结构作为参考，然后创建 stage-ui-pixi 包。
+创建 Pixi.js 绑定包的基础结构：
+**P024 已完成** — Pixi.js 绑定包已创建，包含：
+
+**包结构：**
+- `package.json` — 包配置和依赖
+- `tsconfig.json` — TypeScript 配置
+- `README.md` — 使用文档
+
+**源代码：**
+- `src/index.ts` — 主入口，导出组件和 composables
+- `src/components/PixiScene.vue` — Pixi.js 场景组件
+- `src/composables/usePixiApp.ts` — Pixi.js 应用管理 composable
+- `src/composables/usePixiScene.ts` — 场景容器管理 composable
+- `src/composables/index.ts` — composables 导出
+
+**功能：**
+- 自动管理 Pixi.js Application 生命周期
+- 场景容器管理（添加/移除/清除子元素）
+- TypeScript 类型支持
+- Vue 3 Composition API 集成

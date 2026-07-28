@@ -1,0 +1,10 @@
+`widgets.vue` 中的所有 catch 块都已包含错误处理：
+
+1. **第 56-58 行**：`console.warn('Failed to remove widget', error)` — 移除小部件失败
+2. **第 88-90 行**：`console.warn('Failed to fetch widget snapshot', error)` — 获取快照失败
+3. **第 115-117 行**：`console.error('[widgets] 注册渲染事件失败:', e)` — 注册渲染事件失败
+4. **第 139-141 行**：`console.error('[widgets] 注册更新事件失败:', e)` — 注册更新事件失败
+5. **第 153-155 行**：`console.error('[widgets] 注册移除事件失败:', e)` — 注册移除事件失败
+6. **第 164-166 行**：`console.error('[widgets] 注册清空事件失败:', e)` — 注册清空事件失败
+
+**P015 已完成** — 无空 catch 块需要修复。

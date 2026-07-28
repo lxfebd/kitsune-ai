@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+
+# IntelliJ Platform sandbox
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Gradle wrapper binaries（开发环境本地生成，不入库）
+gradle/wrapper/gradle-wrapper.jar
+
+# OS
+.DS_Store
+Thumbs.db
+
+# JDK
+*.hprof

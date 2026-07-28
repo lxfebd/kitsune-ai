@@ -1,0 +1,20 @@
+I understand the task. P001 requires running ESLint static analysis and collecting violation reports. Since the task's verification point explicitly says "执行 `pnpm lint` 收集所有 ESLint 警告和错误", I'll run the lint command to collect violations.
+ESLint ran and found 1043 warnings and 0 errors. Let me read the full output to categorize violations properly.
+Let me read the rest of the output to get the complete statistics.
+I have collected sufficient ESLint violation data. Let me create the violation report file.
+任务 P001 已完成。
+
+**执行结果**:
+- 运行了 `pnpm lint` 命令收集 ESLint 违规
+- 扫描了 2964 个文件，应用了 93 条规则
+- 发现 **1043 个 Warning，0 个 Error**
+
+**违规分布**:
+- `no-irregular-whitespace`: ~600+ 处（BOM 字符问题）
+- `no-unused-vars`: ~100+ 处（未使用的变量/导入）
+- `unicorn/no-new-array`: ~200+ 处（主要在构建产物中）
+- `no-unused-expressions`: ~50+ 处
+- `no-cond-assign`: ~20+ 处
+- 其他规则: ~50+ 处
+
+**报告已生成**: `docs/progress/eslint-violation-report.md`

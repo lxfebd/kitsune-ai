@@ -1,0 +1,8 @@
+`replicate.ts` 中有几个 `any` 类型需要修复：
+已修复类型安全问题：
+
+1. **第 43 行**：`initialize` 的 `config` 参数从 `any` 改为 `Record<string, unknown>`
+2. **第 70 行**：`inputOptions` 类型从 `Record<string, any>` 改为 `Record<string, unknown>`
+3. **第 184-185 行**：`catch` 块的 `error` 从 `any` 改为 `unknown`，并使用 `instanceof Error` 类型守卫
+
+**P019 已完成** — 所有 `as any` 类型断言已移除，类型安全性已提升。

@@ -1,0 +1,35 @@
+{
+  "name": "@kitsune/stage-ui-pixi",
+  "type": "module",
+  "private": true,
+  "description": "Pixi.js rendering components and composables for Project Kitsune",
+  "author": {
+    "name": "Kitsune AI Team",
+    "email": "kitsune@kitsune.ai",
+    "url": "https://github.com/kitsune-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "directory": "packages/stage-ui-pixi"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./composables": "./src/composables/index.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@kitsune/stage-shared": "workspace:*",
+    "@vueuse/core": "catalog:",
+    "pixi.js": "^8.0.0",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:vitest",
+    "vue-tsc": "catalog:"
+  }
+}

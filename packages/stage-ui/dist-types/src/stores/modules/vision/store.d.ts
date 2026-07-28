@@ -1,0 +1,46 @@
+export declare const useVisionStore: import("pinia").StoreDefinition<"vision", Pick<{
+    activeProvider: import("@vueuse/shared").ManualResetRefReturn<string>;
+    activeModel: import("@vueuse/shared").ManualResetRefReturn<string>;
+    customModelName: import("@vueuse/shared").ManualResetRefReturn<string>;
+    ollamaThinkingEnabled: import("@vueuse/shared").ManualResetRefReturn<boolean>;
+    modelSearchQuery: import("@vueuse/shared").ManualResetRefReturn<string>;
+    supportsModelListing: import("vue").ComputedRef<boolean>;
+    providerModels: import("vue").ComputedRef<import("../..").ModelInfo[]>;
+    isLoadingActiveProviderModels: import("vue").ComputedRef<boolean>;
+    activeProviderModelError: import("vue").ComputedRef<string | null>;
+    configured: import("vue").ComputedRef<boolean>;
+    resetModelSelection: () => void;
+    loadModelsForProvider: (provider: string) => Promise<void>;
+    getModelsForProvider: (provider: string) => Promise<import("../..").ModelInfo[]>;
+    resetState: () => void;
+}, "activeProvider" | "activeModel" | "customModelName" | "modelSearchQuery" | "ollamaThinkingEnabled">, Pick<{
+    activeProvider: import("@vueuse/shared").ManualResetRefReturn<string>;
+    activeModel: import("@vueuse/shared").ManualResetRefReturn<string>;
+    customModelName: import("@vueuse/shared").ManualResetRefReturn<string>;
+    ollamaThinkingEnabled: import("@vueuse/shared").ManualResetRefReturn<boolean>;
+    modelSearchQuery: import("@vueuse/shared").ManualResetRefReturn<string>;
+    supportsModelListing: import("vue").ComputedRef<boolean>;
+    providerModels: import("vue").ComputedRef<import("../..").ModelInfo[]>;
+    isLoadingActiveProviderModels: import("vue").ComputedRef<boolean>;
+    activeProviderModelError: import("vue").ComputedRef<string | null>;
+    configured: import("vue").ComputedRef<boolean>;
+    resetModelSelection: () => void;
+    loadModelsForProvider: (provider: string) => Promise<void>;
+    getModelsForProvider: (provider: string) => Promise<import("../..").ModelInfo[]>;
+    resetState: () => void;
+}, "configured" | "supportsModelListing" | "providerModels" | "isLoadingActiveProviderModels" | "activeProviderModelError">, Pick<{
+    activeProvider: import("@vueuse/shared").ManualResetRefReturn<string>;
+    activeModel: import("@vueuse/shared").ManualResetRefReturn<string>;
+    customModelName: import("@vueuse/shared").ManualResetRefReturn<string>;
+    ollamaThinkingEnabled: import("@vueuse/shared").ManualResetRefReturn<boolean>;
+    modelSearchQuery: import("@vueuse/shared").ManualResetRefReturn<string>;
+    supportsModelListing: import("vue").ComputedRef<boolean>;
+    providerModels: import("vue").ComputedRef<import("../..").ModelInfo[]>;
+    isLoadingActiveProviderModels: import("vue").ComputedRef<boolean>;
+    activeProviderModelError: import("vue").ComputedRef<string | null>;
+    configured: import("vue").ComputedRef<boolean>;
+    resetModelSelection: () => void;
+    loadModelsForProvider: (provider: string) => Promise<void>;
+    getModelsForProvider: (provider: string) => Promise<import("../..").ModelInfo[]>;
+    resetState: () => void;
+}, "resetState" | "getModelsForProvider" | "resetModelSelection" | "loadModelsForProvider">>;

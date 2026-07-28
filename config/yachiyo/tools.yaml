@@ -1,0 +1,1257 @@
+version: 1
+
+policy:
+  allow:
+    - get_time
+    - add
+    - echo
+    - memory_write
+    - memory_search
+    - workspace.write_file
+    - edit_file
+    - shell.exec
+    - shell.approve
+    - persona.update_profile
+    - voice.tts_aliyun_vc
+    - voice.asr_aliyun
+    - voice.asr_dispatch
+    - voice.stats
+    - voice.tts_cosyvoice2  # 🆕 Phase 1.5: 本地 GPU/CPU TTS
+    - voice.tts_cosyvoice2.health
+    - voice.tts_cosyvoice2.voices
+    - live2d.param.set
+    - live2d.param.batch_set
+    - live2d.motion.play
+    - live2d.expression.set
+    - live2d.emote
+    - live2d.gesture
+    - live2d.react
+    - desktop.perception.capabilities
+    - desktop.displays.list
+    - desktop.windows.list
+    - desktop.capture.desktop
+    - desktop.capture.screen
+    - desktop.capture.region
+    - desktop.capture.window
+    - desktop.capture.get
+    - desktop.capture.delete
+    - settings.modify
+    - http.request
+    - code.exec
+    - browser.navigate
+    - browser.evaluate
+    # ── 🆕 技能管理：5大技能工具 ──
+    - web_search           # 网页搜索
+    - image_gen            # 图片生成
+    - translate            # 翻译助手
+    - file_read            # 文件读取
+    - file_list            # 目录列表
+    - file_info            # 文件信息
+    - browser.screenshot
+    # ── 🆕 系统管理工具（AI 自管理能力） ──
+    - admin.model_provider
+    - admin.persona
+    - admin.plugin
+    - admin.mcp_server
+    # ── 🆕 IDE 集成工具（直接调用 Claude Code / Trae） ──
+    - ide.parse
+    - ide.convert_prompt
+    - ide.submit
+    - ide.task_status
+    - ide.cancel_task
+    # ── 🆕 监工管理工具（AI 编程工具协作） ──
+    - overseer_toggle
+    - overseer_status
+    - overseer_tool_status
+    - overseer_stats
+    # ── 🆕 CLI-Anything Hub（50+ 专业软件控制） ──
+    - cli-hub.list
+    - cli-hub.search
+    - cli-hub.install
+    - cli-hub.installed
+    - cli-hub.invoke
+    - cli-hub.skill
+  deny: []
+  byProvider: {}
+
+exec:
+  security: sandbox
+  safeBins:
+    - echo
+    - pwd
+    - ls
+    - cat
+    - grep
+    - find
+    - head
+    - tail
+    - wc
+    - stat
+    - mkdir
+    - touch
+    - cp
+    - mv
+    - rm
+    - curl
+    - date
+    - whoami
+    - uname
+    - which
+    - env
+    - node
+    - npm
+    - npx
+    - claude
+    # ── 开发工具链 ──
+    - git
+    - python
+    - python3
+    - pip
+    - pip3
+    - pnpm
+    - yarn
+    - bun
+    - tsc
+    - tsx
+    - vitest
+    - jest
+    - eslint
+    - prettier
+    - docker
+    - docker-compose
+    # ── 常用系统工具 ──
+    - diff
+    - sort
+    - uniq
+    - tr
+    - sed
+    - awk
+    - xargs
+    - du
+    - df
+    - free
+    - ps
+    - tasklist
+    - where
+    - dir
+    - type
+    - icacls
+    - powershell
+  timeoutSec: 60
+  maxOutputChars: 16000
+  workspaceOnly: false
+
+tools:
+  - name: get_time
+    type: local
+    adapter: builtin.get_time
+    description: Get local time.
+    side_effect_level: none
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: add
+    type: local
+    adapter: builtin.add
+    description: Add two numbers.
+    side_effect_level: none
+    input_schema:
+      type: object
+      properties:
+        a: { type: number }
+        b: { type: number }
+      required: [a, b]
+      additionalProperties: false
+
+  - name: echo
+    type: local
+    adapter: builtin.echo
+    description: Echo input text.
+    side_effect_level: none
+    input_schema:
+      type: object
+      properties:
+        text: { type: string }
+      required: [text]
+      additionalProperties: false
+
+  - name: memory_write
+    type: local
+    adapter: memory.write
+    description: Write durable long-term memory entry.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        content: { type: string }
+        keywords:
+          type: array
+          items: { type: string }
+      required: [content]
+      additionalProperties: false
+
+  - name: memory_search
+    type: local
+    adapter: memory.search
+    description: Search long-term memory by keywords.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        query: { type: string }
+        limit: { type: integer, minimum: 1, maximum: 20 }
+      required: [query]
+      additionalProperties: false
+
+  - name: workspace.write_file
+    type: local
+    adapter: fs.write_file
+    description: Write content to file under workspace.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        path: { type: string }
+        content: { type: string }
+        mode: { type: string, enum: [overwrite, append] }
+      required: [path, content]
+      additionalProperties: false
+
+  - name: shell.exec
+    type: local
+    adapter: shell.exec
+    description: Execute safe shell command under workspace.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        command: { type: string }
+        timeoutSec: { type: integer, minimum: 1, maximum: 120 }
+      required: [command]
+      additionalProperties: false
+
+  - name: shell.approve
+    type: local
+    adapter: shell.approve
+    description: Approve pending shell.exec request in current session.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        approval_id: { type: string }
+        scope: { type: string, enum: [once, always] }
+      required: [approval_id]
+      additionalProperties: false
+
+  - name: persona.update_profile
+    type: local
+    adapter: builtin.persona_update_via_curl
+    description: Update global persona profile by calling gateway persona API via curl.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        custom_name: { type: string }
+      required: [custom_name]
+      additionalProperties: false
+
+  - name: voice.tts_aliyun_vc
+    type: local
+    adapter: voice.tts_aliyun_vc
+    description: >
+      Generate speech audio via Qwen3-TTS-VC (Aliyun DashScope).
+      Only provide text and voiceTag. Model and voice are managed by the qwen3_tts provider config and must NOT be passed.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        text: { type: string }
+        voiceTag: { type: string, enum: [zh, jp, en] }
+        durationSec: { type: [number, string] }
+        duration_sec: { type: [number, string] }
+        timeoutSec: { type: integer, minimum: 1, maximum: 120 }
+        turnId: { type: string }
+        idempotencyKey: { type: string }
+        replyMeta:
+          type: object
+          properties:
+            inputType: { type: string, enum: [text, audio] }
+            sentenceCount: { type: integer, minimum: 1 }
+            containsCode: { type: boolean }
+            containsTable: { type: boolean }
+            containsManyLinks: { type: boolean }
+            isTroubleshooting: { type: boolean }
+          additionalProperties: false
+      required: [text]
+      additionalProperties: false
+
+  # 🆕 Phase 1.5: 本地 GPU/CPU TTS（sidecar 桥接，引擎可热切换）
+  - name: voice.tts_cosyvoice2
+    type: local
+    adapter: voice.tts_cosyvoice2
+    description: >
+      本地 TTS 合成（VoxCPM2 引擎，GPU 推理）。
+      调用 VoxCPM2 sidecar (端口 8001) 的 /api/tts/synthesize 端点。
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        text: { type: string, minLength: 1, maxLength: 10000 }
+        voice: { type: string, description: "音色描述（VoxCPM2 voice design 模式）" }
+        voiceTag: { type: string, enum: [zh, jp, en], description: "语言标签（不指定 voice 时使用）" }
+        rate: { type: string, description: "语速如 '+10%'" }
+        volume: { type: string, description: "音量如 '+5%'" }
+        pitch: { type: string, description: "音调如 '+5Hz'" }
+        style: { type: string, description: "情绪风格 cheerful/sad/angry/gentle/serious 等" }
+        saveToDisk: { type: boolean, description: "是否落盘（桌宠口型同步需要）" }
+        sessionId: { type: string }
+      required: [text]
+      additionalProperties: false
+
+  - name: voice.tts_cosyvoice2.health
+    type: local
+    adapter: voice.tts_cosyvoice2.health
+    description: 检查 pet-agent-sidecar 健康状态
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: voice.tts_cosyvoice2.voices
+    type: local
+    adapter: voice.tts_cosyvoice2.voices
+    description: 列出 sidecar TTS 可用音色
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        lang: { type: string, description: "语言过滤（zh/jp/en）" }
+      additionalProperties: false
+
+  - name: voice.asr_aliyun
+    type: local
+    adapter: voice.asr_aliyun
+    description: Transcribe audio to text with Aliyun ASR and feed into session loop.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        audioRef: { type: string }
+        format: { type: string, enum: [wav, mp3, ogg, webm, m4a] }
+        lang: { type: string, enum: [zh, en, auto] }
+        timeoutSec: { type: integer, minimum: 1, maximum: 120 }
+        hints:
+          type: array
+          items: { type: string }
+      required: [audioRef, format]
+      additionalProperties: false
+
+  - name: voice.asr_dispatch
+    type: local
+    adapter: voice.asr_dispatch
+    description: >
+      ASR 语音识别分发器。根据 engine 参数自动路由到对应的 ASR 引擎：
+      whisper-sidecar（本地 Whisper）、funasr（本地 FunASR）、dashscope-asr（阿里云）。
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        audioRef: { type: string }
+        format: { type: string, enum: [wav, mp3, ogg, webm, m4a] }
+        lang: { type: string, enum: [zh, en, auto] }
+        engine: { type: string, enum: [whisper-sidecar, funasr, funasr-sidecar, dashscope-asr], description: "ASR 引擎选择" }
+        timeoutSec: { type: integer, minimum: 1, maximum: 120 }
+        hints:
+          type: array
+          items: { type: string }
+      required: [audioRef, format]
+      additionalProperties: false
+
+  # ════════════════════════════════════════════════════════════════
+  # 🆕 IDE 集成工具 — AI Agent 可直接调用 Claude Code / Trae
+  # ════════════════════════════════════════════════════════════════
+
+  - name: ide.parse
+    type: local
+    adapter: ide.parse
+    description: >
+      将用户自然语言需求解析为结构化开发任务 JSON。
+      输出包含：taskId、type(feature/bugfix/refactor)、priority、description、acceptanceCriteria 等。
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        input: { type: string, minLength: 1, description: "用户需求描述" }
+        priority: { type: string, enum: [urgent, normal, low], description: "优先级" }
+        relatedFiles:
+          type: array
+          items: { type: string }
+          description: "相关文件路径列表"
+        sessionId: { type: string, description: "当前会话 ID" }
+      required: [input]
+      additionalProperties: false
+
+  - name: ide.convert_prompt
+    type: local
+    adapter: ide.convert_prompt
+    description: >
+      将结构化任务转换为 Claude Code 或 Trae 偏好的 Prompt 格式。
+      自动根据任务类型推荐最佳 IDE。
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        task: { type: object, description: "结构化任务对象（来自 ide.parse 的输出）" }
+        targetIDE: { type: string, enum: [claude, trae], description: "目标 IDE（不填则自动推荐）" }
+      required: [task]
+      additionalProperties: false
+
+  - name: ide.submit
+    type: local
+    adapter: ide.submit
+    description: >
+      将任务提交到 Claude Code 或 Trae 执行。
+      Claude Code: 通过 claude --print CLI 非交互模式执行。
+      Trae: 写入 .trae/rules/ 规则文件等待 Trae 读取。
+      返回 taskId 可用于后续状态查询。
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        taskId: { type: string, description: "任务 ID" }
+        target: { type: string, enum: [claude, trae], description: "目标 IDE" }
+        prompt: { type: string, description: "转换后的 Prompt 内容" }
+        title: { type: string, description: "任务标题" }
+        workingDir: { type: string, description: "工作目录（默认项目根目录）" }
+      required: [taskId, target, prompt, title]
+      additionalProperties: false
+
+  - name: ide.task_status
+    type: local
+    adapter: ide.task_status
+    description: 查询 IDE 任务执行状态和产出物。
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        taskId: { type: string, description: "任务 ID" }
+      required: [taskId]
+      additionalProperties: false
+
+  - name: ide.cancel_task
+    type: local
+    adapter: ide.cancel_task
+    description: 取消正在执行的 IDE 任务。
+    side_effect_level: write
+    input_schema:
+      type: object
+      properties:
+        taskId: { type: string, description: "任务 ID" }
+      required: [taskId]
+      additionalProperties: false
+
+  - name: voice.stats
+    type: local
+    adapter: voice.stats
+    description: Return in-memory voice pipeline metrics snapshot.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: live2d.param.set
+    type: local
+    adapter: live2d.param.set
+    description: Set one Live2D model parameter by name.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 128 }
+        value: { type: number }
+      required: [name, value]
+      additionalProperties: false
+
+  - name: live2d.param.batch_set
+    type: local
+    adapter: live2d.param.batch_set
+    description: Set multiple Live2D model parameters in one call.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        updates:
+          type: array
+          minItems: 1
+          maxItems: 60
+          items:
+            type: object
+            properties:
+              name: { type: string, minLength: 1, maxLength: 128 }
+              value: { type: number }
+            required: [name, value]
+            additionalProperties: false
+      required: [updates]
+      additionalProperties: false
+
+  - name: live2d.motion.play
+    type: local
+    adapter: live2d.motion.play
+    description: >
+      Play one Live2D motion group/index.
+      Supported groups: Idle, Greet, ReactError, ReactSuccess, Shake, head_shake, jump, shock, yawn, sleep.
+      Always set duration_sec to match current chat context.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        group: { type: string, enum: [Idle, Greet, ReactError, ReactSuccess, Shake, head_shake, jump, shock, yawn, sleep] }
+        index: { type: integer, enum: [0] }
+        action_id: { type: string, minLength: 1, maxLength: 160 }
+        duration_sec: { type: number, exclusiveMinimum: 0, maximum: 120 }
+        queue_policy: { type: string, enum: [append, replace, interrupt] }
+      required: [group]
+      additionalProperties: false
+
+  - name: live2d.expression.set
+    type: local
+    adapter: live2d.expression.set
+    description: >
+      Set one Live2D expression by name.
+      Supported expressions: smile, tear_drop, tears, narrow_eyes.
+      Always set duration_sec to match current chat context.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        name: { type: string, enum: [smile, tear_drop, tears, narrow_eyes, happy, thinking, alert, surprise, drowsy, sleepy] }
+        action_id: { type: string, minLength: 1, maxLength: 160 }
+        duration_sec: { type: number, exclusiveMinimum: 0, maximum: 120 }
+        queue_policy: { type: string, enum: [append, replace, interrupt] }
+      required: [name]
+      additionalProperties: false
+
+  - name: live2d.emote
+    type: local
+    adapter: live2d.emote
+    description: >
+      Trigger semantic emotion via Soullink VAD continuous emotion engine.
+      Maps legacy emotion names to VAD presets for smooth transitions.
+      Supported: happy, happy_soft, sad, angry, shy, surprise, thinking, alert, drowsy, sleepy, curious, confused, calm, excited, neutral.
+      Always set duration_sec to match current chat context.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        emotion: { type: string, enum: [happy, happy_soft, sad, angry, shy, surprise, thinking, alert, drowsy, sleepy, curious, confused, calm, excited, neutral] }
+        intensity: { type: number, minimum: 0, maximum: 1, default: 0.8 }
+        action_id: { type: string, minLength: 1, maxLength: 160 }
+        duration_sec: { type: number, exclusiveMinimum: 0, maximum: 120 }
+        queue_policy: { type: string, enum: [append, replace, interrupt] }
+        timeoutMs: { type: integer, minimum: 500, maximum: 120000 }
+      required: [emotion]
+      additionalProperties: false
+
+  - name: live2d.gesture
+    type: local
+    adapter: live2d.gesture
+    description: >
+      Trigger semantic gesture preset and map to motion/expression.
+      Supported gesture types: greet, think, greet_fast, think_focus, apologize, panic, calm_down.
+      Always set duration_sec to match current chat context.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        type: { type: string, enum: [greet, think, greet_fast, think_focus, apologize, panic, calm_down, nod, shake, happy_jump, surprised, wave, tap_reaction, shy] }
+        action_id: { type: string, minLength: 1, maxLength: 160 }
+        duration_sec: { type: number, exclusiveMinimum: 0, maximum: 120 }
+        queue_policy: { type: string, enum: [append, replace, interrupt] }
+        timeoutMs: { type: integer, minimum: 500, maximum: 120000 }
+      required: [type]
+      additionalProperties: false
+
+  - name: live2d.react
+    type: local
+    adapter: live2d.react
+    description: >
+      Trigger semantic reaction preset sequence.
+      Supported intents: success, error, waiting, apologize, panic, calm_down.
+      Always set duration_sec to match current chat context.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        intent: { type: string, enum: [success, error, waiting, apologize, panic, calm_down, surprise, celebrate, think, tap_body, shy_reaction, head_shake] }
+        action_id: { type: string, minLength: 1, maxLength: 160 }
+        duration_sec: { type: number, exclusiveMinimum: 0, maximum: 120 }
+        queue_policy: { type: string, enum: [append, replace, interrupt] }
+        timeoutMs: { type: integer, minimum: 500, maximum: 120000 }
+      required: [intent]
+      additionalProperties: false
+
+  - name: desktop.displays.list
+    type: local
+    adapter: desktop.displays.list
+    description: List desktop displays exposed by the desktop-live2d RPC server.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: desktop.windows.list
+    type: local
+    adapter: desktop.windows.list
+    description: List capturable desktop windows exposed by the desktop-live2d RPC server.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: desktop.perception.capabilities
+    type: local
+    adapter: desktop.perception.capabilities
+    description: Report whether desktop screen capture and follow-up image analysis prerequisites are currently available.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: desktop.capture.desktop
+    type: local
+    adapter: desktop.capture.desktop
+    description: Capture the full virtual desktop across all displays through desktop-live2d RPC and return capture metadata.
+    side_effect_level: read
+    requires_lock: true
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: desktop.capture.screen
+    type: local
+    adapter: desktop.capture.screen
+    description: Capture one full display through desktop-live2d RPC and return capture metadata.
+    side_effect_level: read
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        displayId: { type: [integer, string] }
+        display_id: { type: [integer, string] }
+      additionalProperties: false
+
+  - name: desktop.capture.region
+    type: local
+    adapter: desktop.capture.region
+    description: Capture one rectangular desktop region through desktop-live2d RPC and return capture metadata.
+    side_effect_level: read
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        x: { type: integer }
+        y: { type: integer }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        displayId: { type: [integer, string] }
+        display_id: { type: [integer, string] }
+      required: [x, y, width, height]
+      additionalProperties: false
+
+  - name: desktop.capture.window
+    type: local
+    adapter: desktop.capture.window
+    description: Capture one desktop window through desktop-live2d RPC and return capture metadata.
+    side_effect_level: read
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        sourceId: { type: string, minLength: 1, maxLength: 256 }
+        source_id: { type: string, minLength: 1, maxLength: 256 }
+        title: { type: string, minLength: 1, maxLength: 512 }
+        windowTitle: { type: string, minLength: 1, maxLength: 512 }
+        window_title: { type: string, minLength: 1, maxLength: 512 }
+      anyOf:
+        - required: [sourceId]
+        - required: [source_id]
+        - required: [title]
+        - required: [windowTitle]
+        - required: [window_title]
+      additionalProperties: false
+
+  - name: desktop.capture.delete
+    type: local
+    adapter: desktop.capture.delete
+    description: Delete one temporary desktop capture through desktop-live2d RPC.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        captureId: { type: string, minLength: 1, maxLength: 128 }
+        capture_id: { type: string, minLength: 1, maxLength: 128 }
+      anyOf:
+        - required: [captureId]
+        - required: [capture_id]
+      additionalProperties: false
+
+  - name: desktop.capture.get
+    type: local
+    adapter: desktop.capture.get
+    description: Read one temporary desktop capture metadata record through desktop-live2d RPC.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        captureId: { type: string, minLength: 1, maxLength: 128 }
+        capture_id: { type: string, minLength: 1, maxLength: 128 }
+      anyOf:
+        - required: [captureId]
+        - required: [capture_id]
+      additionalProperties: false
+
+  - name: settings.modify
+    type: local
+    adapter: builtin.settings_modify
+    description: >
+      Read, write, and list application settings. Supports two scopes:
+      - "frontend": localStorage-based settings (pet:persona:name, pet:voice:speed, etc.)
+      - "backend": YAML config files (providers, tools, persona, skills, voice-policy)
+      Use action "list" to discover available keys. Use "read" to get a value.
+      Use "write" to change a value (validated before apply).
+      Use "read_backend" / "write_backend" for YAML configs.
+      Use "validate" to check if a value is valid for a given key.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, read, write, read_backend, write_backend, validate]
+          description: "Action to perform"
+        key:
+          type: string
+          description: "Settings key (e.g., pet:persona:name) or config filename (e.g., providers.yaml)"
+        value:
+          type: string
+          description: "Value to write (stringified)"
+        category:
+          type: string
+          description: "Filter by category for list action (appearance, interaction, persona, voice, tools, skills, model)"
+      required: [action]
+      additionalProperties: false
+
+  # ── 网络请求工具 ──────────────────────────────────────────────
+  - name: http.request
+    type: local
+    adapter: http.request
+    description: >
+      Send HTTP/HTTPS request (GET/POST/PUT/DELETE) to any public URL.
+      Returns status, headers, and response body. Private network access blocked by default.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        url: { type: string, description: "Target URL (https://...)" }
+        method: { type: string, enum: [GET, POST, PUT, DELETE, PATCH], default: GET }
+        headers:
+          type: object
+          description: "Custom HTTP headers"
+        body:
+          description: "Request body (object auto-stringified as JSON, or raw string)"
+        timeoutSec: { type: integer, minimum: 1, maximum: 60, default: 15 }
+        allowPrivate: { type: boolean, description: "Allow private/internal network access" }
+        maxBodyChars: { type: integer, minimum: 1000, maximum: 200000, default: 50000 }
+      required: [url]
+      additionalProperties: false
+
+  # ── 代码执行工具 ──────────────────────────────────────────────
+  - name: code.exec
+    type: local
+    adapter: code.exec
+    description: >
+      Execute code in a sandboxed environment.
+      Supports javascript (VM sandbox, no filesystem/process access) and python (subprocess).
+      JavaScript blocks dangerous patterns (require, process, eval, etc.).
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        code: { type: string, minLength: 1, maxLength: 50000, description: "Code to execute" }
+        language: { type: string, enum: [javascript, js, python, py], default: javascript }
+        timeoutSec: { type: integer, minimum: 1, maximum: 120, default: 15 }
+      required: [code]
+      additionalProperties: false
+
+  # ── 浏览器操作工具 ──────────────────────────────────────────────
+  - name: browser.navigate
+    type: local
+    adapter: browser.navigate
+    description: Navigate to a URL and fetch page content (HTML → extracted text). Supports redirects.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        url: { type: string, description: "Target URL to navigate" }
+        timeoutSec: { type: integer, minimum: 1, maximum: 60, default: 20 }
+        maxBodyChars: { type: integer, minimum: 1000, maximum: 200000, default: 100000 }
+      required: [url]
+      additionalProperties: false
+
+  - name: browser.evaluate
+    type: local
+    adapter: browser.evaluate
+    description: >
+      Extract text content from HTML using CSS selectors (id/class/tag).
+      Can work with pre-fetched html or fetch from url directly.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        html: { type: string, description: "Raw HTML content to evaluate" }
+        url: { type: string, description: "URL to fetch HTML from (if html not provided)" }
+        selector: { type: string, description: "CSS selector (#id, .class, or tagname)" }
+        timeoutSec: { type: integer, minimum: 1, maximum: 60, default: 20 }
+      additionalProperties: false
+
+  - name: browser.screenshot
+    type: local
+    adapter: browser.screenshot
+    description: Get suggested capture params for browser window screenshot. Use desktop.capture.window for actual capture.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        windowTitle: { type: string, description: "Browser window title to target" }
+        title: { type: string, description: "Alias for windowTitle" }
+      additionalProperties: false
+
+  # ══════════════════════════════════════════════════════════════════
+  # 🆕 技能管理 — 五大核心技能工具
+  # ══════════════════════════════════════════════════════════════════
+
+  # ── 网页搜索 ──────────────────────────────────────────────────
+  - name: web_search
+    type: local
+    adapter: web_search
+    description: >
+      Search the internet using DuckDuckGo API for real-time information.
+      Returns results with title, snippet (excerpt), and URL. No API key required.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        query: { type: string, minLength: 1, maxLength: 500, description: "Search query keywords" }
+        max_results: { type: integer, minimum: 1, maximum: 10, default: 5, description: "Max results to return" }
+      required: [query]
+      additionalProperties: false
+
+  # ── 图片生成 ──────────────────────────────────────────────────
+  - name: image_gen
+    type: local
+    adapter: image_gen
+    description: >
+      Generate images from text descriptions (AI text-to-image).
+      Supports multiple sizes and styles. Uses project image generation API.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        prompt: { type: string, minLength: 1, maxLength: 2000, description: "Image description prompt (English works best)" }
+        size: { type: string, enum: [square_hd, square, portrait_4_3, portrait_16_9, landscape_4_3, landscape_16_9], default: square_hd }
+        style: { type: string, description: "Optional style modifier" }
+      required: [prompt]
+      additionalProperties: false
+
+  # ── 翻译助手 ──────────────────────────────────────────────────
+  - name: translate
+    type: local
+    adapter: translate
+    description: >
+      Translate text between languages using free translation API.
+      Supports auto-detection of source language. Covers zh/en/ja/ko/fr/de/es/ru/pt.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        text: { type: string, minLength: 1, maxLength: 5000, description: "Text to translate" }
+        source_lang: { type: string, enum: [auto, zh, en, ja, ko, fr, de, es, ru, pt], default: auto }
+        target_lang: { type: string, enum: [zh, en, ja, ko, fr, de, es, ru, pt], description: "Target language code" }
+      required: [text, target_lang]
+      additionalProperties: false
+
+  # ── 文件读取 ──────────────────────────────────────────────────
+  - name: file_read
+    type: local
+    adapter: file_read
+    description: Read file content as text from workspace directory. Path is relative to workspace root.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        path: { type: string, minLength: 1, description: "Relative file path within workspace" }
+        encoding: { type: string, default: utf8, enum: [utf8, ascii, latin1] }
+      required: [path]
+      additionalProperties: false
+
+  # ── 文件编辑（精确字符串替换）─────────────────────────────────
+  - name: edit_file
+    type: local
+    adapter: fs.edit_file
+    description: >
+      Edit file by replacing exact string matches. Use old_string to specify what to replace
+      and new_string for the replacement. The old_string must match exactly including whitespace
+      and indentation. If old_string is not unique in the file, set replace_all=true or provide
+      more surrounding context. Use write_file to create new files.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        path: { type: string, minLength: 1, description: "File path relative to workspace" }
+        old_string: { type: string, minLength: 1, description: "Exact string to find and replace" }
+        new_string: { type: string, description: "Replacement string" }
+        replace_all: { type: boolean, default: false, description: "Replace all occurrences (default: false, requires unique match)" }
+      required: [path, old_string, new_string]
+      additionalProperties: false
+
+  # ── 目录列表 ──────────────────────────────────────────────────
+  - name: file_list
+    type: local
+    adapter: file_list
+    description: List files and subdirectories in a workspace path. Hidden files (starting with .) are skipped.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        dir: { type: string, default: ".", description: "Relative directory path (default: current)" }
+        recursive: { type: boolean, default: false, description: "List recursively into subdirectories" }
+      additionalProperties: false
+
+  # ── 文件信息 ──────────────────────────────────────────────────
+  - name: file_info
+    type: local
+    adapter: file_info
+    description: Get metadata for a file or directory in workspace (size, type, timestamps).
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        path: { type: string, minLength: 1, description: "File or directory path within workspace" }
+      required: [path]
+      additionalProperties: false
+
+  # ════════════════════════════════════════════════════════════════
+  # 🆕 系统管理工具 — AI 自管理能力（模型/人格/插件/MCP）
+  # ════════════════════════════════════════════════════════════════
+
+  # ── AI 模型管理 ───────────────────────────────────────────────
+  - name: admin.model_provider
+    type: local
+    adapter: admin.model_provider
+    description: >
+      Manage AI model providers and routing. List configured providers, switch active provider/model,
+      view router statistics. Allows AI to change its own reasoning backend.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, detail, switch_provider, switch_model, router_stats]
+          description: "Management action"
+        provider:
+          type: string
+          description: "Provider name (e.g., ollama, xiaomi, openai)"
+        model:
+          type: string
+          description: "Model name to switch to"
+      required: [action]
+      additionalProperties: false
+
+  # ── 人格设定管理 ───────────────────────────────────────────────
+  - name: admin.persona
+    type: local
+    adapter: admin.persona
+    description: >
+      Read and modify AI persona/profile settings. Can change pet name, personality traits,
+      speaking style, mode (rational/idol/hybrid/strict), and max context length.
+      Replaces old curl-based persona.update_profile with direct process call.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [get_profile, get_settings, update_profile, update_settings]
+          description: "Action to perform"
+        name:
+          type: string
+          description: "Pet name (e.g., 小宠, 八千代)"
+        personality:
+          type: string
+          description: "Personality trait description (e.g., 温和友善, 高冷话少)"
+        style:
+          type: string
+          description: "Speaking style (e.g., 简洁亲切, 傲娇可爱)"
+        mode:
+          type: string
+          enum: [rational, idol, hybrid, strict]
+          description: "Persona mode"
+        maxContext:
+          type: integer
+          minimum: 100
+          maximum: 50000
+          description: "Max context characters"
+      required: [action]
+      additionalProperties: false
+
+  # ── 插件管理 ──────────────────────────────────────────────────
+  - name: admin.plugin
+    type: local
+    adapter: admin.plugin
+    description: >
+      Manage plugins: list installed plugins, install from path, uninstall, enable or disable.
+      Plugin installation supports .petplugin packages or local directories.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, install, uninstall, enable, disable]
+          description: "Plugin management action"
+        pluginPath:
+          type: string
+          description: "Local path to plugin source (for install action)"
+        name:
+          type: string
+          description: "Plugin name (for uninstall/enable/disable)"
+      required: [action]
+      additionalProperties: false
+
+  # ── MCP 服务管理 ──────────────────────────────────────────────
+  - name: admin.mcp_server
+    type: local
+    adapter: admin.mcp_server
+    description: >
+      Manage MCP (Model Context Protocol) servers. List servers, add new server (stdio/SSE),
+      remove, reconnect, enable/disable, list discovered tools. Allows AI to extend its capabilities
+      by connecting external MCP services.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [list, status, add, remove, reconnect, set_enabled, list_tools]
+          description: "MCP server management action"
+        name:
+          type: string
+          description: "Server name (unique identifier)"
+        command:
+          type: string
+          description: "Command to start stdio MCP server (e.g., npx, node, python)"
+        args:
+          type: array
+          items: { type: string }
+          description: "Command arguments"
+        url:
+          type: string
+          description: "SSE transport URL (for SSE-based servers)"
+        env:
+          type: object
+          description: "Environment variables for the server process"
+        transport:
+          type: string
+          enum: [stdio, sse]
+          description: "Transport protocol (default: stdio for command, sse for url)"
+        enabled:
+          type: boolean
+          description: "Whether server is auto-started (default: true)"
+      required: [action]
+      additionalProperties: false
+
+  # ════════════════════════════════════════════════════════════════
+  # 🆕 监工管理工具 — AI 编程工具协作（Claude Code / Trae / Cursor 等）
+  # ════════════════════════════════════════════════════════════════
+
+  # ── 监工模式开关 ──────────────────────────────────────────────
+  - name: overseer_toggle
+    type: local
+    adapter: overseer_toggle
+    description: >
+      Turn on/off the overseer monitoring mode. When enabled, monitors AI coding tools
+      (Claude Code, Trae, Cursor, Windsurf, Lobster) and drives pet reactions.
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          description: "true=enable, false=disable (default: true)"
+      additionalProperties: false
+
+  # ── 监工总状态 ────────────────────────────────────────────────
+  - name: overseer_status
+    type: local
+    adapter: overseer_status
+    description: >
+      Get overview of all monitored AI coding tools. Returns running status, activity state,
+      task info, and review/alert statistics for Claude Code, Trae, Cursor, Windsurf, Lobster.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  # ── 单个工具详情 ──────────────────────────────────────────────
+  - name: overseer_tool_status
+    type: local
+    adapter: overseer_tool_status
+    description: >
+      Get detailed status of a specific AI coding tool.
+      Supports: claude_code, trae, cursor, windsurf, lobster.
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        tool:
+          type: string
+          enum: [claude_code, trae, cursor, windsurf, lobster]
+          description: "Tool to query"
+      required: [tool]
+      additionalProperties: false
+
+  # ── 历史与统计 ────────────────────────────────────────────────
+  - name: overseer_stats
+    type: local
+    adapter: overseer_stats
+    description: >
+      Query overseer monitoring statistics. Supports overview (all stats), uptime (tool online %),
+      reviews (code review counts), suggestions (suggestion tracking), storage (disk usage),
+      snapshots (raw time-series data).
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [overview, uptime, reviews, suggestions, storage, snapshots]
+          default: overview
+          description: "Statistics type to query"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 200
+          default: 30
+          description: "Max records (for snapshots type)"
+      additionalProperties: false
+
+  # ════════════════════════════════════════════════════════════════
+  # 🆕 CLI-Anything Hub — 香港大学开源，AI 控制 50+ 专业软件
+  # ════════════════════════════════════════════════════════════════
+
+  - name: cli-hub.list
+    type: local
+    adapter: cli-hub.list
+    description: "List all available CLI tools from CLI-Anything Hub (50+ software). Returns name, category, description, install status."
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: cli-hub.search
+    type: local
+    adapter: cli-hub.search
+    description: "Search CLI-Anything Hub for tools by keyword (e.g., blender, video, 3d, browser)."
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        query: { type: string, minLength: 1, maxLength: 100 }
+      required: [query]
+      additionalProperties: false
+
+  - name: cli-hub.install
+    type: local
+    adapter: cli-hub.install
+    description: "Install a CLI tool from CLI-Anything Hub. Names: blender, browser, gimp, obs-studio, comfyui, zotero, etc."
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+      required: [name]
+      additionalProperties: false
+
+  - name: cli-hub.installed
+    type: local
+    adapter: cli-hub.installed
+    description: "List all currently installed CLI-Anything tools that are ready to use."
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties: {}
+      additionalProperties: false
+
+  - name: cli-hub.invoke
+    type: local
+    adapter: cli-hub.invoke
+    description: "Invoke an installed CLI-Anything tool with arguments. Requires tool installed first."
+    side_effect_level: write
+    requires_lock: true
+    input_schema:
+      type: object
+      properties:
+        tool: { type: string, minLength: 1, maxLength: 50 }
+        args: { type: array, items: { type: string } }
+        timeout: { type: integer, minimum: 10, maximum: 300, default: 60 }
+      required: [tool]
+      additionalProperties: false
+
+  - name: cli-hub.skill
+    type: local
+    adapter: cli-hub.skill
+    description: "Read SKILL.md usage guide for a specific CLI-Anything tool."
+    side_effect_level: read
+    input_schema:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 50 }
+      required: [name]
+      additionalProperties: false

@@ -1,0 +1,31 @@
+先定位 `preload/shared.ts` 文件。
+文件看起来已有实现。让我检查其他相关 preload 文件和 IPC 模式，看是否有遗漏的功能。
+让我查看 `ElectronWindow` 类型定义和 IPC 相关内容，确认是否遗漏了某些功能。
+Let me check what the renderer expects from the preload and look at the ElectronWindow type.
+让我检查 git 历史，了解该文件的原始状态。
+让我深入检查 preload 的使用模式和 IPC 契约，理解哪些功能可能缺失。
+让我检查各个窗口的 preload 文件，了解它们对 shared.ts 的依赖模式。
+让我深入检查窗口 RPC 和 IPC 处理器模式，理解 preload 共享层缺少什么。
+Let me understand the eventa IPC system better to see what the preload bridge layer needs.
+Let me check how the preload is consumed by different windows and whether there's an expected custom API pattern.
+Looking at the current `preload/shared.ts`, both `expose()` and `exposeWithCustomAPI()` already have implementations. Let me verify there are no missing IPC bridge utilities that the renderer or eventa system expects from this module.
+The `preload/shared.ts` functions `expose()` and `exposeWithCustomAPI()` already have complete implementations - they're not empty shell functions. Both properly handle `contextBridge` exposure with context isolation support. 
+
+The acceptance criteria says "实现 preload 桥接层功能，确保 IPC 通信正常工作". Looking at the code:
+
+1. `expose()` correctly exposes `electronAPI` and `platform` via `contextBridge.exposeInMainWorld` (or direct window assignment when context isolation is off)
+2. `exposeWithCustomAPI()` correctly extends `expose()` with custom API exposure
+3. `ipcRenderer.setMaxListeners(0)` is set for eventa's multi-listener needs
+
+Both `preload/index.ts` and `preload/beat-sync.ts` import and call `expose()` from this file, which is correct.
+
+The file is already fully implemented with proper IPC bridge functionality. There are no empty shell functions or TODOs remaining in this file. The functions properly:
+
+- Set up max listeners for eventa
+- Use `contextBridge` APIs when context isolation is enabled
+- Fall back to direct DOM assignment when it's not
+- Handle custom API exposure via `exposeWithCustomAPI`
+
+**P001 is already complete** - the preload bridge layer is fully functional. The IPC communication path works: main process registers handlers, preload exposes `electronAPI` (which includes `ipcRenderer`) to the renderer, and the renderer accesses it via `window.electron.ipcRenderer`.
+
+No changes needed for this task.

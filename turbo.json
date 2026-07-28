@@ -1,0 +1,43 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [
+    "tsconfig.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    "uno.config.ts",
+    "eslint.config.js"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "node_modules/.cache/**"],
+      "cache": true
+    },
+    "build:packages": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "node_modules/.cache/**"],
+      "cache": true
+    },
+    "build:apps": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "node_modules/.cache/**"],
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "cache": true
+    },
+    "lint": {
+      "cache": true
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}
