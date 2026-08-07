@@ -16,14 +16,11 @@ import { assertSafe } from './safety'
 // IPC 事件定义（延迟导入避免循环依赖）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let electronFindElementRequest: any
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let electronFindElementResult: any
 
 async function loadIpcEvents() {
   if (!electronFindElementRequest) {
     const eventa = await import('../../../../shared/eventa')
     electronFindElementRequest = eventa.electronFindElementRequest
-    electronFindElementResult = eventa.electronFindElementResult
   }
 }
 
@@ -82,7 +79,7 @@ export interface DesktopAutomationOptions {
 // ========== 服务实现 ==========
 
 export async function createDesktopAutomationService(options: DesktopAutomationOptions = {}): Promise<DesktopAutomationService> {
-  const { maxActionsPerSecond = 10, allowedActions, overlayWindow, context } = options
+  const { maxActionsPerSecond = 10, overlayWindow, context } = options
   let stopped = false
   const actionTimestamps: number[] = []
 

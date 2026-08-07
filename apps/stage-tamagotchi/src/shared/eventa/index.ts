@@ -704,7 +704,9 @@ export const electronTtsCurrentEngine = defineInvokeEventa<TtsEngine>('eventa:in
 export { electronTtsListVoices, electronTtsImportVoicePack, electronTtsDeleteVoice } from '@kitsune/stage-shared'
 export const electronTtsStart = defineInvokeEventa<{ success: boolean, message: string }>('eventa:invoke:electron:tts:start')
 export const electronTtsStop = defineInvokeEventa<{ success: boolean, message: string }>('eventa:invoke:electron:tts:stop')
-export const electronTtsGetConfig = defineInvokeEventa<{ dataDir: string | null, port: number | undefined, device: string | undefined }>('eventa:invoke:electron:tts:get-config')
+// NOTE: the main-process handler returns `getGptSovitsConfig()`, whose data
+// directory field is named `dir` (not `dataDir`) — keep the contract aligned.
+export const electronTtsGetConfig = defineInvokeEventa<{ dir: string | null, port: number | undefined, device: string | undefined }>('eventa:invoke:electron:tts:get-config')
 export const electronTtsSetConfig = defineInvokeEventa<{ needsRestart: boolean }, { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half' }>('eventa:invoke:electron:tts:set-config')
 export const electronTtsInstallProgress = defineEventa<{ message: string }>('eventa:event:electron:tts:install-progress')
 
@@ -730,7 +732,7 @@ export interface AsrEngineInfo {
 /** ASR 转录 — 接收 Float32Array 音频，返回文本 + 情感 */
 export const electronAsrTranscribe = defineInvokeEventa<
   AsrTranscribeResult,
-  { audioSamples: number[], sampleRate: number }
+  { audioSamples: Float32Array, sampleRate: number }
 >('eventa:invoke:electron:asr:transcribe')
 
 /** ASR 切换引擎 */
@@ -829,6 +831,8 @@ export interface AgentConfig {
   baseUrl?: string
   /** 是否已配置密钥（不暴露密钥本身）。 */
   hasKey: boolean
+  /** 密钥明文（仅已配置时存在；安全场景可能不暴露）。 */
+  key?: string
   /** 是否启用任务推送。 */
   enabled: boolean
   /** 密钥是否以明文落盘（safeStorage 不可用时降级）。前端应据此向用户告警。 */
@@ -997,6 +1001,10 @@ export * from '@kitsune/electron-eventa/electron-updater'
 // Executor — 自主执行层 IPC 契约（Overseer 升级为执行者）
 // 类型定义在 executor/planGenerator.ts，此处仅做类型导入
 import type { Plan, TaskResult, ExecutorStatus, Task } from '../../main/services/kitsune/overseer/executor/planGenerator'
+
+// Re-exported so renderer components can consume the executor types through the shared
+// eventa barrel instead of reaching into main-process source paths.
+export type { ExecutorStatus, Plan, Task, TaskResult } from '../../main/services/kitsune/overseer/executor/planGenerator'
 
 export const electronExecutorGenerate = defineInvokeEventa<{ ok: boolean, plan?: Plan, error?: string }, { requirement: string, cwd: string }>(
   'eventa:invoke:electron:executor:generate',

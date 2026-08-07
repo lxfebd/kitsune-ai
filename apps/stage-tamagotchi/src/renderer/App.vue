@@ -203,7 +203,7 @@ function createFullStageRuntime() {
     }
   }, { deep: true, immediate: true })
 
-  context.value.on(electronGodotStageStatusChanged, (event) => {
+  context.value!.on(electronGodotStageStatusChanged, (event) => {
     if (!event.body) {
       return
     }
@@ -211,7 +211,7 @@ function createFullStageRuntime() {
     syncGodotStageRenderer(event.body)
   })
 
-  context.value.on(electronPluginToolsChanged, () => {
+  context.value!.on(electronPluginToolsChanged, () => {
     void refreshPluginRuntimeTools()
   })
 
@@ -255,7 +255,7 @@ function createFullStageRuntime() {
         }
       }
 
-      defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
+      defineInvokeHandler(context.value!, pluginProtocolListProviders, async () => listProvidersForPluginHost())
 
       if (shouldPublishPluginHostCapabilities()) {
         await reportPluginCapability({
@@ -288,7 +288,7 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 if (isSettingsWindowRoute) {
-  context.value.on(electronSettingsNavigate, (event) => {
+  context.value!.on(electronSettingsNavigate, (event) => {
     const targetRoute = event?.body?.route
     if (!targetRoute || route.fullPath === targetRoute) {
       return

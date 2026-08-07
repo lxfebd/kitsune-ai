@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { Button, Callout, FieldInput } from '@kitsune/ui'
 import { ref } from 'vue'

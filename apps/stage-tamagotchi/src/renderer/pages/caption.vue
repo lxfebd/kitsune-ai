@@ -28,7 +28,7 @@ const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({
 const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
 
 const context = useElectronEventaContext()
-const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
+const getAttached = defineInvoke(context.value!, captionGetIsFollowingWindow)
 
 const captionAnimatorByType = {
   'caption-speaker': createFadeAnimator({ duration: 180 }),
@@ -64,7 +64,7 @@ onMounted(async () => {
   }
 
   try {
-    context.value.on(captionIsFollowingWindowChanged, (event) => {
+    context.value!.on(captionIsFollowingWindowChanged, (event) => {
       attached.value = Boolean(event?.body)
     })
   }

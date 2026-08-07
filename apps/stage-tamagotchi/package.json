@@ -131,7 +131,9 @@
     "vue-sonner": "catalog:",
     "web-haptics": "catalog:",
     "xsschema": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "electron-updater": "catalog:",
+    "mkcert": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
@@ -179,12 +181,10 @@
     "drizzle-orm": "catalog:",
     "electron": "catalog:",
     "electron-builder": "catalog:",
-    "electron-updater": "catalog:",
     "electron-vite": "catalog:",
     "get-port-please": "catalog:",
     "h3": "catalog:",
     "less": "catalog:",
-    "mkcert": "catalog:",
     "std-env": "catalog:",
     "superjson": "catalog:",
     "unocss-preset-scrollbar": "catalog:",

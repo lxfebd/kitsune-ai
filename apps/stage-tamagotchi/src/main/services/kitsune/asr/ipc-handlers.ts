@@ -7,6 +7,8 @@
  * 在 main/index.ts 中调用 registerAsrIpcHandlers(context) 注册所有 handler。
  */
 
+import type { InvocableEventContext } from '@moeru/eventa'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -33,15 +35,15 @@ const log = useLogg('asr-ipc-handlers').useGlobalConfig()
  * registerAsrIpcHandlers(context)
  * ```
  */
-export function registerAsrIpcHandlers(context: { emit: (eventa: any, payload?: any) => void }): void {
+export function registerAsrIpcHandlers(context: InvocableEventContext<any, any>): void {
   // 注册内置引擎（SenseVoice / Paraformer / Whisper）
   registerBuiltinAsrEngines()
 
-  // 内存管线：renderer 发送 Float32Array (转为 number[])，main 直接识别
+  // 内存管线：renderer 发送 Float32Array，main 直接识别
   defineInvokeHandler(context, electronAsrTranscribe, async (input) => {
     try {
-      const samples = new Float32Array(input.audioSamples)
-      const result = await asrService.transcribe(samples, input.sampleRate)
+      // input.audioSamples 已由 IPC structured clone 还原为 Float32Array，直接复用
+      const result = await asrService.transcribe(input.audioSamples, input.sampleRate)
       return result
     }
     catch (error) {

@@ -63,6 +63,14 @@ export default defineConfig({
         // "koffi.load is not a function" / "wasmModule._SherpaOnnxGetVersionStr is not a function"。
         external: [
           'electron',
+          // electron-updater 重依赖树（node-forge/fs-extra/js-yaml/builder-util-runtime/semver 等）
+          // 约 1.3MB，原本被误并入 is-desktop-overlay-enabled 共享 chunk 并在主进程启动期加载。
+          // external 后运行期从 node_modules 加载（需为 dependencies，见 package.json）。
+          'electron-updater',
+          // mkcert 依赖 node-forge(~700KB)，被 channel-server 用于生成本地 CA 证书。
+          // 原误并入 is-desktop-overlay-enabled 共享 chunk 并在主进程启动期加载。
+          // external 后运行期从 node_modules 加载（需为 dependencies，见 package.json）。
+          'mkcert',
           'electron-click-drag-plugin',
           'uiohook-napi',
           'koffi',

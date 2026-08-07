@@ -112,6 +112,6 @@
     "pre-commit": "pnpm nano-staged"
   },
   "nano-staged": {
-    "*": "oxlint --fix"
+    "*": "node scripts/oxlint-staged.mjs --fix"
   }
 }

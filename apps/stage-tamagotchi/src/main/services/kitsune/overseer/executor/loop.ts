@@ -1,4 +1,4 @@
-import type { Plan, Task, TaskResult } from './planGenerator'
+import type { ExecutorStatus, Plan, Task, TaskResult } from './planGenerator'
 import { buildDagLevels } from './dag'
 import type { DagLevel } from './dag'
 import type { ExecutorEventPayload } from '../../../../../shared/eventa'
@@ -19,13 +19,12 @@ interface LoopDeps {
   }
   permission: {
     needsConfirm: (input: { source: string, assertion: { type: string } }) => boolean
-    confirmRun: (task: Task) => Promise<boolean>
     addToWhitelist: (source: string, assertionType: string) => void
     isHighRisk: (task: { prompt?: string, command?: string, assertionType?: string }) => boolean
   }
   checkAcceptance: (task: Task, result: TaskResult) => Promise<{ ok: boolean, error?: string }>
   emit: (event: ExecutorEventPayload['type'], payload: Omit<ExecutorEventPayload, 'type'>) => void
-  confirmRequest: (taskId: string) => Promise<{ approved: boolean, addToWhitelist: boolean }>
+  confirmRequest: (task: Task) => Promise<{ approved: boolean, addToWhitelist: boolean }>
   killRunningTask: () => void
   /** 任务完成回调 — 写入程序性记忆 */
   onTaskCompleted?: (task: Task, result: TaskResult) => Promise<void>
@@ -34,7 +33,7 @@ interface LoopDeps {
   /** 任务失败回调 — 人格化安抚话术 */
   onTaskFailed?: (task: Task, error: string | undefined, attempt: number) => Promise<string | undefined>
   /** 审计日志 */
-  auditLog?: { append: (entry: { timestamp: string, taskId: string, type: 'cli' | 'ide', source: string, result: 'success' | 'failure', error?: string, durationMs: number }) => Promise<void> }
+  auditLog?: { append: (entry: { timestamp: string, taskId: string, type: 'cli' | 'ide' | 'desktop', source: string, result: 'success' | 'failure', error?: string, durationMs: number }) => Promise<void> }
   /** 规划器 — 动态调整 + 子计划生成 */
   planner?: PlannerInstance
 }
@@ -47,6 +46,26 @@ interface AbortSignal {
   aborted: boolean
 }
 
+/** Audit "source" label for a task — provider for CLI, connector for IDE, fixed label for desktop. */
+function taskSource(task: Task): string {
+  if (task.type === 'cli')
+    return task.provider
+  if (task.type === 'ide')
+    return task.connectorId
+  return 'desktop'
+}
+
+/**
+ * Reads `plan.status` through a function call.
+ *
+ * `plan` is mutated concurrently (stop()/abort paths), so inline comparisons would keep
+ * TypeScript's stale control-flow narrowing from an earlier check in the same function.
+ */
+function isPlanAborted(plan: Plan): boolean {
+  const status: Plan['status'] = plan.status
+  return status === 'aborted'
+}
+
 export function createLoop(deps: LoopDeps) {
   const { runner, permission, checkAcceptance, emit, confirmRequest, killRunningTask, onTaskCompleted, onPlanCompleted, onTaskFailed, auditLog, planner } = deps
   const fileLogger = getFileLogger()
@@ -57,10 +76,10 @@ export function createLoop(deps: LoopDeps) {
   // 全局 abortSignal — stop() 可直接设置，所有 runLevel 感知
   let globalAbortSignal: AbortSignal | null = null
 
-  function getStatus() {
+  function getStatus(): ExecutorStatus {
     return {
-      currentPlan,
-      currentTaskId: null as string | null,
+      plan: currentPlan,
+      currentTaskId: null,
       currentTaskAttempt: 0,
       isRunning,
     }
@@ -107,7 +126,7 @@ export function createLoop(deps: LoopDeps) {
 
     emit('permission_request', { taskId: task.id, permKey: `${permInput.source}:${permInput.assertion.type}`, task, highRisk: isHighRisk })
 
-    const { approved, addToWhitelist } = await confirmRequest(task.id)
+    const { approved, addToWhitelist } = await confirmRequest(task)
     if (!approved)
       return { taskId: task.id, ok: false, error: '用户拒绝', durationMs: 0 }
 
@@ -121,7 +140,7 @@ export function createLoop(deps: LoopDeps) {
         timestamp: new Date().toISOString(),
         taskId: task.id,
         type: task.type,
-        source: task.type === 'cli' ? task.provider : task.connectorId,
+        source: taskSource(task),
         result: result.ok ? 'success' : 'failure',
         error: result.error,
         durationMs: result.durationMs ?? 0,
@@ -135,7 +154,9 @@ export function createLoop(deps: LoopDeps) {
   function buildPermInput(task: Task): { source: string, assertion: { type: string } } {
     if (task.type === 'cli')
       return { source: task.provider, assertion: { type: 'cli:run' } }
-    return { source: task.connectorId, assertion: { type: `ide:${task.action}` } }
+    if (task.type === 'ide')
+      return { source: task.connectorId, assertion: { type: `ide:${task.action}` } }
+    return { source: 'desktop', assertion: { type: `desktop:${task.action}` } }
   }
 
   // ——— 并行层级执行 ———
@@ -150,15 +171,14 @@ export function createLoop(deps: LoopDeps) {
     const pool = new Set<Promise<void>>()
 
     const processTask = async (task: Task): Promise<void> => {
-      if (abortSignal.aborted || plan.status === 'aborted')
+      if (abortSignal.aborted || isPlanAborted(plan))
         return
 
       // 局部变量 — 避免并行任务间竞态
-      let taskResult: TaskResult | null = null
       let taskError: string | undefined
 
       for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
-        if (abortSignal.aborted || plan.status === 'aborted' || stopRequested)
+        if (abortSignal.aborted || isPlanAborted(plan) || stopRequested)
           return
 
         emit('task_started', { taskId: task.id, attempt })
@@ -180,7 +200,6 @@ export function createLoop(deps: LoopDeps) {
           return
         }
 
-        taskResult = result
         taskError = result.error
         emit('task_failed', { taskId: task.id, attempt, error: result.error, result })
         fileLogger.debug('[loop] task_failed', { eventId: 'task_failed', node: task.id, action: task.type, result: result.error })
@@ -256,7 +275,7 @@ export function createLoop(deps: LoopDeps) {
 
     // 逐层执行
     for (const level of dagResult.levels) {
-      if (plan.status === 'aborted' || abortSignal.aborted || stopRequested)
+      if (isPlanAborted(plan) || abortSignal.aborted || stopRequested)
         break
       emit('dag_level_started', { planId: plan.id, levelIndex: level.index, taskCount: level.tasks.length })
       await runLevel(level, plan, abortSignal)

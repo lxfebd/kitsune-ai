@@ -15,7 +15,7 @@ const IDE_TIMEOUT_MS: Record<string, number> = {
 }
 
 interface TaskRunnerDeps {
-  taskPusher: { spawnCommand: (binary: string, args: string[], cwd: string, timeoutMs: number) => Promise<any>, getToolConfig: (tool: string) => any }
+  taskPusher: { spawnCommand: (binary: string, args: string[], cwd: string, timeoutMs: number) => Promise<any>, getToolConfig: (tool: string) => any, sanitizeInput: (raw: string, maxLength?: number) => string }
   connectors: { getStatus: (id: string) => ConnectorInfo | null, sendTask: (id: string, task: { type: string, payload?: Record<string, unknown> }) => { ok: boolean, error?: string } }
   context: { on: (event: any, handler: (payload: any) => void) => () => void }
   allowedRoots: string[]
@@ -45,8 +45,6 @@ export function isPathSafe(target: string, allowedRoots: string[]): boolean {
   return false
 }
 
-const DESKTOP_TIMEOUT_MS = 30_000
-
 export function createTaskRunner(deps: TaskRunnerDeps) {
   const { taskPusher, connectors, context, allowedRoots, desktopAutomation } = deps
   const fileLogger = getFileLogger()
@@ -66,7 +64,14 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
     }
 
     const template = cfg.templates.find((t: any) => t.key === 'prompt')
-    const args = [...(template?.args ?? []), task.prompt]
+    // 按模板 inputParam 拼参 — 修复前直接 [...args, prompt] 丢失 inputParam：
+    // claude 模板 inputParam='-p'，缺省时 claude 会把 prompt 当作文件名解析，自动修复必然失败。
+    const sanitized = taskPusher.sanitizeInput(task.prompt, template?.maxLen ?? 2000)
+    const args = [...(template?.args ?? [])]
+    if (template?.inputParam)
+      args.push(template.inputParam, sanitized)
+    else
+      args.push(sanitized)
     const timeoutMs = task.timeoutMs ?? cfg.timeoutMs
     const start = Date.now()
     const result = await taskPusher.spawnCommand(cfg.binary, args, task.cwd, timeoutMs)
@@ -157,15 +162,18 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
             return { taskId: task.id, ok: false, error: '缺少 from/to', durationMs: Date.now() - start }
           await desktopAutomation.drag(task.params.from, task.params.to)
           break
-        case 'findAndClick':
+        case 'findAndClick': {
           if (!task.params.elementDescription)
             return { taskId: task.id, ok: false, error: '缺少 elementDescription', durationMs: Date.now() - start }
-          const pos = await desktopAutomation.findElement(task.params.elementDescription)
+          const found = await desktopAutomation.findElement(task.params.elementDescription)
+          // findElement 返回 { found, elements[] }，坐标在首个匹配元素上
+          const pos = found.found ? found.elements[0] : undefined
           if (!pos)
             return { taskId: task.id, ok: false, error: '未找到匹配元素', durationMs: Date.now() - start }
           await desktopAutomation.moveTo(pos.x, pos.y)
           await desktopAutomation.click(task.params.button)
           break
+        }
         case 'screenshot': {
           const dataUrl = await desktopAutomation.screenshot()
           return { taskId: task.id, ok: true, output: dataUrl, durationMs: Date.now() - start }

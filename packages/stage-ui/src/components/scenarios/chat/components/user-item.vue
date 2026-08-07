@@ -9,7 +9,8 @@ import { ChatActionMenu } from '../components/action-menu'
 import { getChatHistoryItemCopyText } from '../utils'
 
 const props = withDefaults(defineProps<{
-  message: Extract<ChatMessage, { role: 'user' }>
+  // History entries carry the optional `createdAt` timestamp from ChatHistoryItem
+  message: Extract<ChatMessage, { role: 'user' }> & { createdAt?: number }
   label: string
   variant?: 'desktop' | 'mobile'
 }>(), {

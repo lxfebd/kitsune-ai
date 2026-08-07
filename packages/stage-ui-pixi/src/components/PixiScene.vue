@@ -24,7 +24,7 @@ const props = withDefaults(defineProps<PixiSceneProps>(), {
   autoDensity: true,
 })
 
-const emit = defineEmits<{
+defineEmits<{
   ready: [app: Application, stage: Container]
 }>()
 
@@ -41,12 +41,6 @@ const { app, stage, isReady } = usePixiApp({
 })
 
 const { scene, addChild, removeChild, clear } = usePixiScene({ stage, isReady })
-
-function onReady() {
-  if (app.value && stage.value) {
-    emit('ready', app.value, stage.value)
-  }
-}
 
 defineExpose({
   app,

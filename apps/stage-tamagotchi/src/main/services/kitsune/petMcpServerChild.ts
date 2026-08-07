@@ -44,7 +44,7 @@ const server = new Server(
 )
 
 // 派生 inputSchema：zod 单一真源 → JSON Schema（顶层 type:object，MCP 兼容）
-const inputSchema = zodToJsonSchema(petReactionContractSchema, { target: 'draft-7' }) as Record<string, unknown>
+const inputSchema = zodToJsonSchema(petReactionContractSchema as any, { target: 'draft-7' as any }) as Record<string, unknown>
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [

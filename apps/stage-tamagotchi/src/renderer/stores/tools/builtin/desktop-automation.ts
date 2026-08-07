@@ -40,6 +40,20 @@ function resolveMouseInvoker() {
   return invokeGetCursorScreenPoint
 }
 
+/**
+ * Shape of the `result` payload returned by the `findElement` desktop-automation action.
+ * The IPC contract types `result` as `unknown` because it is shared across every action,
+ * so callers narrow it per-action.
+ */
+interface FindElementInvokeResult {
+  found?: boolean
+  elements?: Array<{ label?: string, x: number, y: number, confidence?: number }>
+}
+
+function asFindElementResult(value: unknown): FindElementInvokeResult | undefined {
+  return value as FindElementInvokeResult | undefined
+}
+
 // ---------------------------------------------------------------------------
 // Zod schemas
 // ---------------------------------------------------------------------------
@@ -125,7 +139,7 @@ const analyzeScreenParams = z.object({
 const executeSequenceParams = z.object({
   steps: z.array(z.object({
     action: z.enum(['click', 'type', 'pressKey', 'findAndClick', 'typeInto', 'wait', 'scroll', 'screenshot', 'moveTo']).describe('操作类型'),
-    params: z.record(z.any()).describe('操作参数'),
+    params: z.record(z.string(), z.any()).describe('操作参数'),
   })).describe('要执行的操作步骤列表'),
   stopOnError: z.boolean().optional().describe('出错时是否停止执行，默认 true'),
 })
@@ -588,7 +602,7 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       description: '在屏幕指定位置滚动页面。支持上下左右四个方向。',
       parameters: normalizeNullableAnyOf(await toJsonSchema(scrollParams) as JsonSchema),
       execute: async (input) => {
-        const { direction, amount = 100, x, y } = input as { direction: string, amount?: number, x?: number, y?: number }
+        const { direction, amount = 100, x, y } = input as { direction: 'up' | 'down' | 'left' | 'right', amount?: number, x?: number, y?: number }
         const invoker = resolveDesktopInvoker()
         const result = await invoker({ action: 'scroll', params: { direction, amount, x, y } })
         if (!result.ok)
@@ -658,9 +672,10 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
               case 'findAndClick': {
                 // 视觉定位 + 点击
                 const findResult = await invoker({ action: 'findElement', params: { description: params.description } })
-                if (findResult.ok && findResult.result?.found && findResult.result?.elements?.length > 0) {
-                  const element = findResult.result.elements[0]
-                  await invoker({ action: 'moveTo', params: { x: element.x, y: element.y } })
+                const findData = asFindElementResult(findResult.result)
+                const foundElement = findData?.found ? findData.elements?.[0] : undefined
+                if (findResult.ok && foundElement) {
+                  await invoker({ action: 'moveTo', params: { x: foundElement.x, y: foundElement.y } })
                   result = await invoker({ action: 'click', params: { button: params.button ?? 'left' } })
                 } else {
                   throw new Error(`未找到元素: "${params.description}"`)
@@ -670,9 +685,10 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
               case 'typeInto': {
                 // 视觉定位输入框 + 输入
                 const findResult = await invoker({ action: 'findElement', params: { description: params.target } })
-                if (findResult.ok && findResult.result?.found && findResult.result?.elements?.length > 0) {
-                  const element = findResult.result.elements[0]
-                  await invoker({ action: 'moveTo', params: { x: element.x, y: element.y } })
+                const findData = asFindElementResult(findResult.result)
+                const targetElement = findData?.found ? findData.elements?.[0] : undefined
+                if (findResult.ok && targetElement) {
+                  await invoker({ action: 'moveTo', params: { x: targetElement.x, y: targetElement.y } })
                   await invoker({ action: 'click', params: { button: 'left' } })
                   if (params.clear) {
                     await invoker({ action: 'pressKey', params: { key: 'Ctrl+A' } })
@@ -690,7 +706,7 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
                 let found = false
                 while (Date.now() - startTime < timeout) {
                   const findResult = await invoker({ action: 'findElement', params: { description } })
-                  if (findResult.ok && findResult.result?.found) {
+                  if (findResult.ok && asFindElementResult(findResult.result)?.found) {
                     found = true
                     result = findResult.result
                     break

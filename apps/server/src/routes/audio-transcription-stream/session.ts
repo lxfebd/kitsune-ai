@@ -172,25 +172,54 @@ async function writeAudioToUpstream(audioStream: ReadableStream<Uint8Array>, ws:
  * - A `text/event-stream` response consumable by the existing `streamAliyunTranscription` executor.
  */
 export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResponseOptions): Response {
+  let ws: WebSocket | undefined
+  let closed = false
+  let controllerRef: ReadableStreamDefaultController<Uint8Array> | undefined
+
+  const teardown = (code: number, reason: string) => {
+    if (closed)
+      return
+    closed = true
+    try {
+      controllerRef?.close()
+    }
+    catch {}
+    try {
+      ws?.close(code, reason)
+    }
+    catch {}
+  }
+
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
+      controllerRef = controller
       const createToken = options.createToken ?? createAliyunNlsToken
       const token = await createToken(options.credentials)
       const sessionId = randomUUID().replaceAll('-', '')
       const upstreamURL = new URL(options.websocketBaseURL ?? nlsWebSocketEndpointFromRegion(options.credentials.region))
       upstreamURL.searchParams.set('token', token.token)
 
-      const ws = new WebSocket(upstreamURL)
+      ws = new WebSocket(upstreamURL)
 
       ws.on('open', () => {
-        ws.send(createClientEvent(options.credentials, 'StartTranscription', sessionId, merge(DEFAULT_SESSION_OPTIONS, options.sessionOptions)))
+        ws?.send(createClientEvent(options.credentials, 'StartTranscription', sessionId, merge(DEFAULT_SESSION_OPTIONS, options.sessionOptions)))
       })
 
       ws.on('message', (data) => {
-        const event = JSON.parse(data.toString()) as AliyunNlsServerEvent
+        // NOTICE:
+        // `data` may be `Buffer`/`ArrayBuffer`/`Blob` depending on the socket
+        // library. Parsing it defensively so a malformed upstream frame does not
+        // abort the whole stream.
+        let event: AliyunNlsServerEvent
+        try {
+          event = JSON.parse(data.toString()) as AliyunNlsServerEvent
+        }
+        catch {
+          return
+        }
         switch (event.header?.name) {
           case 'TranscriptionStarted':
-            void writeAudioToUpstream(options.audioStream, ws, options.credentials, sessionId)
+            void writeAudioToUpstream(options.audioStream, ws!, options.credentials, sessionId)
             break
           case 'SentenceEnd': {
             const text = event.payload?.result ? `${event.payload.result}\n` : ''
@@ -200,25 +229,26 @@ export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResp
             break
           }
           case 'TranscriptionCompleted':
-            controller.close()
-            ws.close(1000, 'completed')
+            teardown(1000, 'completed')
             break
         }
       })
 
       ws.on('error', (error) => {
+        closed = true
         controller.error(error)
       })
 
       ws.on('close', () => {
-        try {
-          controller.close()
-        }
-        catch {}
+        teardown(1000, 'closed')
       })
     },
     cancel() {
-      // The upstream websocket is closed by its own completion/error handlers.
+      // NOTICE:
+      // The client disconnected the SSE stream. Closing the upstream Aliyun WS
+      // here prevents a leaked connection (and its billing) per disconnect.
+      // Previously this was a no-op so `ws` was never closed on client abort.
+      teardown(1000, 'client cancelled')
     },
   })
 

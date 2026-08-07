@@ -12,9 +12,9 @@ import type { ComfyUIStatus } from '../../../../shared/eventa'
 
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { homedir, platform } from 'node:os'
 import { join } from 'node:path'
-import { env, platform } from 'node:process'
+import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'

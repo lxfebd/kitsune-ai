@@ -5,11 +5,8 @@ import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import { isStageTamagotchi } from '@kitsune/stage-shared'
-
-import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { capturePosthogEvent } from '../analytics/posthog'
@@ -174,13 +171,11 @@ function migrateCardExtensions(cards: ReturnType<typeof useLocalStorageManualRes
     if (!ext?.airi || ext.kitsune)
       return
     const { airi, ...rest } = ext
-    cards.value.set(id, { ...card, extensions: { ...rest, kitsune: airi } })
+    cards.value.set(id, { ...card, extensions: { ...rest, kitsune: airi as KitsuneExtension } })
   })
 }
 
 export const usePersonaStore = defineStore('persona', () => {
-  const { t } = useI18n()
-
   const cards = useLocalStorageManualReset<Map<string, KitsuneCard>>('kitsune-cards', new Map())
   const activeCardId = useLocalStorageManualReset<string>('kitsune-card-active-id', 'default')
 

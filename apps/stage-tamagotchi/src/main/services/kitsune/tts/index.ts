@@ -14,7 +14,7 @@ import type { SidecarService } from '../sidecar'
 import type { SidecarState } from '../../../../shared/eventa'
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
@@ -289,6 +289,37 @@ export async function pollGptSovitsHealth(
 }
 
 /**
+ * 异步探测给定 Python 的 torch 是否支持 CUDA。
+ *
+ * 用 `spawn` 而非 `spawnSync`：冷启动 `import torch` 可能耗时数秒到 30s，
+ * 同步调用会阻塞 Electron 主进程事件循环。收集 stdout，命中 `1` 视为可用。
+ */
+function probeCudaAvailability(pythonExe: string, cwd: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(pythonExe, ['-c', 'import torch; print("1" if torch.cuda.is_available() else "0")'], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    let stdout = ''
+    const timer = setTimeout(() => {
+      child.kill()
+      resolve(false)
+    }, 30_000)
+    child.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString('utf-8')
+    })
+    child.on('error', () => {
+      clearTimeout(timer)
+      resolve(false)
+    })
+    child.on('close', () => {
+      clearTimeout(timer)
+      resolve(stdout.trim() === '1')
+    })
+  })
+}
+
+/**
  * 启动 GPT-SoVITS sidecar 进程。
  *
  * 程序化启动传入解析后的 `command`（runtime/python 或 `'python'`）与 `cwd`（安装目录），
@@ -324,17 +355,10 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
   // 初始化阶段崩溃导致 sidecar 秒退。
   let device = configuredDevice
   if (device === 'cuda' || device === 'cuda-half') {
-    let cudaAvailable = false
-    try {
-      const probe = spawnSync(pythonExe, [
-        '-c',
-        'import torch; print("1" if torch.cuda.is_available() else "0")',
-      ], { cwd: dir, encoding: 'utf-8', timeout: 30_000 })
-      cudaAvailable = (probe.stdout ?? '').trim() === '1'
-    }
-    catch {
-      cudaAvailable = false
-    }
+    // NOTICE:
+    // 探测必须用异步 spawn，不能是 spawnSync：冷启动 `import torch` 可能耗时
+    // 数秒到 30s，spawnSync 会阻塞 Electron 主进程事件循环，导致整个 UI 冻结。
+    const cudaAvailable = await probeCudaAvailability(pythonExe, dir)
     if (!cudaAvailable) {
       log.warn(`GPT-SoVITS 配置为 ${device}，但当前 Python(${pythonExe}) 的 torch 无 CUDA 支持，自动降级为 cpu`)
       device = 'cpu'
@@ -369,6 +393,12 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
         PYTHONUNBUFFERED: '1',
       },
     })
+
+    // NOTICE:
+    // 新进程从初始权重启动，模型状态已回到默认。若不重置 `lastLoadedVoiceId`，
+    // 崩溃重启后 synthesizeGptSovits 会误以为声线未变而跳过 /set_model，
+    // 用错误的声线合成。
+    lastLoadedVoiceId = null
 
     // 轮询 /health 等待模型加载完成
     log.log('GPT-SoVITS 进程已启动，等待 /health ready...')
@@ -485,33 +515,45 @@ export function getGptSovitsConfig(): { dir: string | null, port: number, device
 let lastLoadedVoiceId: string | null = null
 
 /**
- * 通过 HTTP 调用 GPT-SoVITS sidecar 进行语音合成，返回 WAV 音频 Buffer。
+ * 已解析的声线 manifest 元数据缓存条目。
  *
- * 合成流程：
- * 1. 解析 voice manifest，获取参考音频和模型路径
- * 2. 如果 voice 变了，调用 /set_model 切换 v2Pro 权重
- * 3. POST / 合成语音
+ * `expiresAt` 为绝对时间戳（毫秒），超过则视为过期并触发重新解析。
  */
-export async function synthesizeGptSovits(
-  _sidecarService: SidecarService,
-  text: string,
-  options: { voice?: string, speed?: number } = {},
-): Promise<Buffer> {
-  const port = getGptSovitsPort()
-  const dir = resolveGptSovitsDir()
-  if (!dir)
-    throw new Error('GPT-SoVITS 目录未配置')
+interface CachedVoiceMeta {
+  voiceDir: string
+  referWavPath: string
+  promptText: string
+  promptLanguage: string
+  gptModel: string | null
+  sovitsModel: string | null
+  expiresAt: number
+}
 
-  const voiceId = options.voice ?? 'ailini'
+// NOTICE:
+// 每次合成都 `readdirSync` + `readFileSync` 遍历 voices 目录会同步阻塞主进程。
+// 这里按 `(dir, voiceId)` 缓存解析结果并设 TTL（30s），既避免重复阻塞 I/O，
+// 又保证用户新增/修改声线后最多 30s 内被重新读取，避免长期脏缓存。
+const VOICE_META_CACHE_TTL_MS = 30_000
+const voiceMetaCache = new Map<string, CachedVoiceMeta>()
+
+/**
+ * 解析声线 manifest 元数据，结果带 30s TTL 缓存。
+ *
+ * 优先匹配 `voices/<voiceId>/manifest.json` 目录，其次按 manifest 的
+ * `id`/`display_name` 匹配子目录。返回参考音频、prompt 文本与模型权重路径，
+ * 供 `synthesizeGptSovits` 使用，避免每次合成重复同步遍历磁盘。
+ *
+ * @param dir GPT-SoVITS 安装目录
+ * @param voiceId 声线 ID 或 display_name
+ * @returns 解析后的声线元数据（含缓存过期时间戳）
+ */
+export function resolveVoiceMeta(dir: string, voiceId: string): CachedVoiceMeta {
+  const cacheKey = `${dir}\u0000${voiceId}`
+  const cached = voiceMetaCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now())
+    return cached
+
   const voicesRoot = join(dir, 'voices')
-
-  // 解析 voice manifest
-  let referWavPath: string
-  let promptText = ''
-  let promptLanguage = 'zh'
-  let gptModel: string | null = null
-  let sovitsModel: string | null = null
-
   const directDir = join(voicesRoot, voiceId)
   let voiceDir: string | null = null
 
@@ -535,6 +577,12 @@ export async function synthesizeGptSovits(
     throw new Error(`voice "${voiceId}" 不存在`)
 
   const manifestPath = join(voiceDir, 'manifest.json')
+  let referWavPath = ''
+  let promptText = ''
+  let promptLanguage = 'zh'
+  let gptModel: string | null = null
+  let sovitsModel: string | null = null
+
   if (existsSync(manifestPath)) {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
     referWavPath = join(voiceDir, manifest.default_reference ?? '')
@@ -551,6 +599,48 @@ export async function synthesizeGptSovits(
       throw new Error(`voice "${voiceId}" 下没有参考音频`)
   }
 
+  const meta: CachedVoiceMeta = {
+    voiceDir,
+    referWavPath,
+    promptText,
+    promptLanguage,
+    gptModel,
+    sovitsModel,
+    expiresAt: Date.now() + VOICE_META_CACHE_TTL_MS,
+  }
+  voiceMetaCache.set(cacheKey, meta)
+  return meta
+}
+
+/**
+ * 通过 HTTP 调用 GPT-SoVITS sidecar 进行语音合成，返回 WAV 音频 Buffer。
+ *
+ * 合成流程：
+ * 1. 解析 voice manifest，获取参考音频和模型路径
+ * 2. 如果 voice 变了，调用 /set_model 切换 v2Pro 权重
+ * 3. POST / 合成语音
+ */
+export async function synthesizeGptSovits(
+  _sidecarService: SidecarService,
+  text: string,
+  options: { voice?: string, speed?: number } = {},
+): Promise<Buffer> {
+  const port = getGptSovitsPort()
+  const dir = resolveGptSovitsDir()
+  if (!dir)
+    throw new Error('GPT-SoVITS 目录未配置')
+
+  const voiceId = options.voice ?? 'ailini'
+
+  // 解析 voice manifest（走 TTL 缓存，避免重复同步阻塞主进程）
+  const {
+    referWavPath,
+    promptText,
+    promptLanguage,
+    gptModel,
+    sovitsModel,
+  } = resolveVoiceMeta(dir, voiceId)
+
   // 语言智能路由（跨语言合成）：
   // 声线训练语言（manifest.language，如 ja）只影响声学权重，不决定文本前端。
   // 文本前端语言由"待合成文本的实际语言"决定：
@@ -563,9 +653,8 @@ export async function synthesizeGptSovits(
   // prompt_language 跟随文本前端语言，避免处理声线自带的非中文 prompt 时
   // 触发 japanese 模块。
   const cjkCount = (text.match(/[一-鿿]/g) ?? []).length
-  const textLanguage = cjkCount > text.replace(/[一-鿿]/g, '').length * 0.3 || cjkCount > 0
-    ? 'zh'
-    : promptLanguage
+  const nonCjkCount = text.length - cjkCount
+  const textLanguage = cjkCount > nonCjkCount * 0.3 ? 'zh' : promptLanguage
   const effectivePromptLanguage = textLanguage === 'zh' ? 'zh' : promptLanguage
 
   log.log(`语言检测: CJK字符数=${cjkCount}, 文本语言=${textLanguage}, 声线语言=${promptLanguage}`)

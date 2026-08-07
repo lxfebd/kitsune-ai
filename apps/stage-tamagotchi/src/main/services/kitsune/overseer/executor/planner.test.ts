@@ -24,7 +24,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     cwd: '/tmp',
     critical: false,
     ...overrides,
-  }
+  } as Task
 }
 
 function makePlan(overrides: Partial<Plan> = {}): Plan {

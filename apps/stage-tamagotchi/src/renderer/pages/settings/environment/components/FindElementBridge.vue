@@ -158,7 +158,7 @@ const offFindElement = eventaContext?.on(electronFindElementRequest, async (even
     await invokeFindElementResult({
       ...base,
       reason: `vision inference failed: ${errorMessageFrom(e) ?? 'unknown error'}`,
-    }).catch(err =>
+    }).catch((err: any) =>
       console.error('[find-element] failed to send error result:', errorMessageFrom(err) ?? 'unknown'),
     )
   }

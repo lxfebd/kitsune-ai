@@ -65,7 +65,7 @@ async function callLlmWithProvider(
   const body = isAnthropic
     ? { model: provider.model, max_tokens: provider.max_completion_tokens ?? 4096, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] }
     : { model: provider.model, max_tokens: provider.max_completion_tokens ?? 4096, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }] }
-  const headers = isAnthropic
+  const headers: Record<string, string> = isAnthropic
     ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }
     : { 'Authorization': `Bearer ${apiKey}`, 'content-type': 'application/json' }
 

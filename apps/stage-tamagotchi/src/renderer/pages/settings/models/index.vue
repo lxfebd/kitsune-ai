@@ -309,14 +309,14 @@ watch(
 )
 
 onMounted(async () => {
-  disposeGodotStageStatusListener = context.value.on(electronGodotStageStatusChanged, (event) => {
+  disposeGodotStageStatusListener = context.value!.on(electronGodotStageStatusChanged, (event) => {
     if (!event.body)
       return
 
     applyGodotStageStatus(event.body)
   })
 
-  disposeGodotViewSnapshotListener = context.value.on(electronGodotStageViewSnapshotChanged, (event) => {
+  disposeGodotViewSnapshotListener = context.value!.on(electronGodotStageViewSnapshotChanged, (event) => {
     if (!event.body)
       return
 
@@ -327,7 +327,7 @@ onMounted(async () => {
     godotViewError.value = undefined
   })
 
-  disposeGodotViewErrorListener = context.value.on(electronGodotStageViewStateError, (event) => {
+  disposeGodotViewErrorListener = context.value!.on(electronGodotStageViewStateError, (event) => {
     if (!event.body)
       return
 

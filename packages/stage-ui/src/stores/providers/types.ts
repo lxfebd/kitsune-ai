@@ -98,8 +98,8 @@ export interface VoiceInfo {
   deprecated?: boolean
   previewURL?: string
   languages: {
-    id: string
-    name: string
+    code: string
+    title: string
   }[]
 }
 

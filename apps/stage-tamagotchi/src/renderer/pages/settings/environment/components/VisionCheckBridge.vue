@@ -43,7 +43,7 @@ const offVisionCheck = eventaContext?.on(electronOverseerVisionCheck, async (eve
   if (!event?.body)
     return
   const payload = event.body as VisionCheckRequestPayload
-  const base: VisionCheckResult = { requestId: payload.requestId }
+  const base: Omit<VisionCheckResult, 'passed' | 'reason'> = { requestId: payload.requestId }
 
   if (!payload.imageDataUrl) {
     await invokeVisionCheckResult({ ...base, passed: false, reason: 'missing screenshot for vision check' })
@@ -70,7 +70,7 @@ const offVisionCheck = eventaContext?.on(electronOverseerVisionCheck, async (eve
       ...base,
       passed: false,
       reason: `vision inference failed: ${errorMessageFrom(e) ?? 'unknown error'}`,
-    }).catch(err => logVisionCheck('error', 'failed to send fallback result', { error: errorMessageFrom(err) ?? 'unknown' }))
+    }).catch((err: any) => logVisionCheck('error', 'failed to send fallback result', { error: errorMessageFrom(err) ?? 'unknown' }))
   }
 })
 

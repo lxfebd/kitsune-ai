@@ -1,7 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { AutoUpdaterState } from '@kitsune/electron-eventa/electron-updater'
 import type { BrowserWindow } from 'electron'
-import type { UpdateInfo } from 'electron-updater'
+import type { ProgressInfo, UpdateInfo } from 'electron-updater'
 
 import type { ElectronUpdaterChannel } from '../../../shared/eventa'
 
@@ -436,8 +436,10 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   autoUpdater.on('error', error => broadcastUpdaterError(error, 'autoUpdater error'))
   autoUpdater.on('checking-for-update', () => broadcast({ status: 'checking' }))
-  autoUpdater.on('update-available', (info: UpdateInfo) => broadcast({ status: 'available', info }))
-  autoUpdater.on('update-downloaded', (info: UpdateInfo) => broadcast({ status: 'downloaded', info }))
+  // electron-updater's emitter overloads resolve to `(...args: unknown[]) => void`
+  // here, so the payload has to be narrowed back to its documented event type.
+  autoUpdater.on('update-available', info => broadcast({ status: 'available', info: info as UpdateInfo }))
+  autoUpdater.on('update-downloaded', info => broadcast({ status: 'downloaded', info: info as UpdateInfo }))
   autoUpdater.on('update-not-available', () => broadcast({
     status: 'not-available',
     info: {
@@ -446,16 +448,19 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       releaseDate: committerDate,
     },
   }))
-  autoUpdater.on('download-progress', progress => broadcast({
-    ...state,
-    status: 'downloading',
-    progress: {
-      percent: progress.percent,
-      bytesPerSecond: progress.bytesPerSecond,
-      transferred: progress.transferred,
-      total: progress.total,
-    },
-  }))
+  autoUpdater.on('download-progress', (rawProgress) => {
+    const progress = rawProgress as ProgressInfo
+    broadcast({
+      ...state,
+      status: 'downloading',
+      progress: {
+        percent: progress.percent,
+        bytesPerSecond: progress.bytesPerSecond,
+        transferred: progress.transferred,
+        total: progress.total,
+      },
+    })
+  })
 
   // Delay update check to after app is fully loaded (30 seconds)
   setTimeout(() => {

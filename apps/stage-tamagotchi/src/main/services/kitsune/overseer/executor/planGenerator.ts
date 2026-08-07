@@ -89,6 +89,8 @@ export interface ExecutorStatus {
   currentTaskId: string | null
   currentTaskAttempt: number
   isRunning: boolean
+  /** 当前正在执行的 DAG 层级序号（planGenerator 分层规划时递增）。 */
+  currentLevel?: number
 }
 
 // ——— 实现 ———

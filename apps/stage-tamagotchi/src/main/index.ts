@@ -18,6 +18,7 @@ import { initScreenCaptureForMain } from '@kitsune/electron-screen-capture/main'
 import { app, dialog, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { errorMessageFrom } from '@moeru/std'
 import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
@@ -75,7 +76,6 @@ import {
   electronTtsStop,
   electronTtsSynthesize,
   electronTtsGetConfig,
-  electronTtsInstallProgress,
 } from '../shared/eventa'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -167,10 +167,11 @@ app.whenReady().then(async () => {
   const HF_HOSTS = ['hf-mirror.com', 'huggingface.co']
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const url = details.url
-    if (HF_HOSTS.some(host => url.includes(host))) {
-      details.responseHeaders['access-control-allow-origin'] = ['*']
-      details.responseHeaders['access-control-allow-methods'] = ['GET', 'HEAD', 'OPTIONS']
-      details.responseHeaders['access-control-allow-headers'] = ['*']
+    const responseHeaders = details.responseHeaders
+    if (responseHeaders && HF_HOSTS.some(host => url.includes(host))) {
+      responseHeaders['access-control-allow-origin'] = ['*']
+      responseHeaders['access-control-allow-methods'] = ['GET', 'HEAD', 'OPTIONS']
+      responseHeaders['access-control-allow-headers'] = ['*']
     }
     callback({ responseHeaders: details.responseHeaders })
   })
@@ -481,9 +482,7 @@ app.whenReady().then(async () => {
             return
           }
           log.log('[GPT-SoVITS] 应用启动，自动拉起 sidecar...')
-          const result = await startGptSovits(sidecarService, (message) => {
-            log.log(`[GPT-SoVITS] ${message}`)
-          })
+          const result = await startGptSovits(sidecarService)
           if (!result.success)
             log.warn(`[GPT-SoVITS] 自动启动失败（可稍后在设置页手动启动）: ${result.message}`)
         }
@@ -596,9 +595,7 @@ app.whenReady().then(async () => {
         if (!sidecarServiceRef)
           throw new Error('sidecarService not ready')
         const { startGptSovits } = await import('./services/kitsune/tts')
-        return startGptSovits(sidecarServiceRef, (message) => {
-          context.emit(electronTtsInstallProgress, { message })
-        })
+        return startGptSovits(sidecarServiceRef)
       })
       defineInvokeHandler(context, electronTtsStop, async () => {
         if (!sidecarServiceRef)
@@ -632,18 +629,19 @@ app.whenReady().then(async () => {
           const sidecarId = getEngineSidecarId('gpt-sovits')
           if (sidecarId && sidecarServiceRef.getStatus(sidecarId)?.state !== 'running') {
             const { startGptSovits } = await import('./services/kitsune/tts')
-            const result = await startGptSovits(sidecarServiceRef, (message) => {
-              context.emit(electronTtsInstallProgress, { message })
-            })
+            const result = await startGptSovits(sidecarServiceRef)
             if (!result.success)
               throw new Error(result.message)
           }
           const { synthesizeGptSovits } = await import('./services/kitsune/tts')
+          // `speed` is supported by the sidecar but is not part of the shared
+          // invoke contract in @kitsune/stage-shared yet, so read it defensively.
+          const speed = (payload as { speed?: number }).speed
           const wavBuffer = await synthesizeGptSovits(sidecarServiceRef, payload.text, {
             voice: payload.voice,
-            speed: payload.speed,
+            speed,
           })
-          return { success: true, audioData: wavBuffer.buffer.slice(wavBuffer.byteOffset, wavBuffer.byteOffset + wavBuffer.byteLength) }
+          return { success: true, audioData: wavBuffer.buffer.slice(wavBuffer.byteOffset, wavBuffer.byteOffset + wavBuffer.byteLength) as ArrayBuffer }
         }
         catch (error) {
           return { success: false, error: errorMessageFrom(error) ?? 'GPT-SoVITS synthesis failed' }
@@ -704,16 +702,27 @@ app.whenReady().then(async () => {
               if (err) return reject(err)
               zipfile.readEntry()
               zipfile.on('entry', (entry: any) => {
-                const entryPath = path.join(tmpDir, entry.fileName)
+                // NOTICE:
+                // A malicious voice pack can declare entries like `../evil.js` to
+                // escape `tmpDir`. Resolve the target and only allow entries that
+                // stay inside `tmpDir`; escaping entries are skipped and logged.
+                const targetPath = path.resolve(tmpDir, entry.fileName)
+                if (targetPath !== tmpDir && !targetPath.startsWith(tmpDir + path.sep)) {
+                  log.warn(`[语音包] 跳过越界条目: ${entry.fileName}`)
+                  zipfile.readEntry()
+                  return
+                }
                 if (entry.fileName.endsWith('/')) {
-                  fs.mkdirSync(entryPath, { recursive: true })
+                  fs.mkdirSync(targetPath, { recursive: true })
                   zipfile.readEntry()
                 }
                 else {
-                  fs.mkdirSync(path.dirname(entryPath), { recursive: true })
+                  fs.mkdirSync(path.dirname(targetPath), { recursive: true })
                   zipfile.openReadStream(entry, (err2: any, readStream: any) => {
                     if (err2) return reject(err2)
-                    const writeStream = fs.createWriteStream(entryPath)
+                    const writeStream = fs.createWriteStream(targetPath)
+                    readStream.on('error', (e: any) => reject(e))
+                    writeStream.on('error', (e: any) => reject(e))
                     readStream.pipe(writeStream)
                     writeStream.on('close', () => zipfile.readEntry())
                   })

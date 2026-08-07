@@ -25,7 +25,7 @@ import { defineProvider } from '../registry'
 
 const electronAsrTranscribe = defineInvokeEventa<
   { text: string, lang?: string, emotion?: string, event?: string },
-  { audioSamples: number[], sampleRate: number }
+  { audioSamples: Float32Array, sampleRate: number }
 >('eventa:invoke:electron:asr:transcribe')
 
 // Module-level singleton — eventa context lives for the renderer lifetime.
@@ -33,7 +33,7 @@ const electronAsrTranscribe = defineInvokeEventa<
 // Raw ipcRenderer.invoke() cannot reach handlers registered via defineInvokeHandler()
 // because eventa routes through ipcRenderer.send('eventa-message', ...) instead of
 // native ipcMain.handle(). Using eventa's renderer context bridges the gap.
-let invokeTranscribe: ((input: { audioSamples: number[], sampleRate: number }) => Promise<{ text: string, lang?: string, emotion?: string, event?: string }>) | undefined
+let invokeTranscribe: ((input: { audioSamples: Float32Array, sampleRate: number }) => Promise<{ text: string, lang?: string, emotion?: string, event?: string }>) | undefined
 
 // ---------------------------------------------------------------------------
 // Provider config
@@ -118,8 +118,12 @@ export const providerSherpaAsr = defineProvider<SherpaAsrConfig>({
 
           console.log('[Sherpa-ASR] 发送音频到 main 进程...')
           const startTime = Date.now()
+          // NOTICE:
+          // 直接发送 Float32Array：Electron IPC 的 structured clone 会保留类型化数组，
+          // 无需 `Array.from()` 转成 number[]（那会产生整段音频的 JS number 拷贝，
+          // 且 main 侧还得 `new Float32Array()` 再拷回去）。零拷贝传输降低 GC 压力。
           const result = await invokeTranscribe({
-            audioSamples: Array.from(audioFloat32),
+            audioSamples: audioFloat32,
             sampleRate: 16000,
           })
           const duration = Date.now() - startTime

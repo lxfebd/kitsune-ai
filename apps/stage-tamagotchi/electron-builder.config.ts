@@ -106,7 +106,7 @@ export default {
     {
       from: 'resources/gpt-sovits',
       to: 'gpt-sovits',
-      filter: ['**/*', '!pretrained_models/**', '!__pycache__/**', '!*.pyc'],
+      filter: ['**/*', '!pretrained_models/**', '!__pycache__/**', '!*.pyc', '!_tier*_backup/**'],
     },
     // ASR 模型：SenseVoice-Small + Paraformer-Small
     // 首次使用前需运行 scripts/download-asr-models.ps1 下载

@@ -32,24 +32,24 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
     return llmToolsStore.registerTools(
       'plugin-tools',
       listPluginXsaiToolDefinitions(undefined, { signal: abortController.signal })
-        .catch((error) => {
+        .catch((error: any) => {
           console.warn(`[plugin-tools] Failed to list plugin xsai tools: ${errorMessageFrom(error) ?? 'Unknown error'}`)
           return { prompts: [], tools: [] }
         })
         .finally(() => {
           clearTimeout(timeout)
         })
-        .then((definitions) => {
+        .then((definitions: any) => {
           llmToolsetPromptsStore.registerToolsetPrompts(
             'plugin-tools',
-            definitions.prompts.map(definition => ({
+            definitions.prompts.map((definition: any) => ({
               id: `${definition.ownerExtensionId}:${definition.id}`,
               title: definition.prompt.title,
               content: definition.prompt.content,
             })),
           )
 
-          return definitions.tools.map(definition =>
+          return definitions.tools.map((definition: any) =>
             rawTool({
               name: definition.name,
               description: definition.description,

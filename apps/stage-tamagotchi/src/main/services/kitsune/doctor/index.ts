@@ -38,6 +38,11 @@ const MIN_MEMORY_BYTES = 8 * 1024 * 1024 * 1024
 const MIN_DISK_BYTES = 5 * 1024 * 1024 * 1024
 const CHANNEL_PORT = env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
 
+/** Lazily-resolved module-scope logger for check helpers declared outside createDoctorService. */
+function doctorLog() {
+  return useLogg('main/doctor').useGlobalConfig()
+}
+
 // ---- path helpers ----
 
 function projectRoot() {
@@ -291,7 +296,7 @@ async function checkMcpConnectivity(): Promise<DoctorResult> {
  * 1. 入口脚本 api.py 是否存在
  * 2. 数据目录是否存在且包含模型文件
  */
-async function checkGptSovitsConfig(): Promise<DoctorResult> {
+export async function checkGptSovitsConfig(): Promise<DoctorResult> {
   const issues: string[] = []
 
   // 检查入口脚本 api.py — GPT-SoVITS 使用 api.py 而非 genie_tts_sidecar.py
@@ -685,7 +690,7 @@ async function checkTtsFallbackChain(sidecar: SidecarService): Promise<DoctorRes
         const dir = resolveGptSovitsDir()
         const status = getGptSovitsStatus(sidecar)
         const available = !!(dir && status.running)
-        log.log(`[TTS] ${engine.name}: dir=${dir}, running=${status.running}, available=${available}`)
+        doctorLog().log(`[TTS] ${engine.name}: dir=${dir}, running=${status.running}, available=${available}`)
         engineStatuses.push({ name: engine.name, available })
         break
       }
@@ -1036,7 +1041,7 @@ async function checkSafetySandbox(): Promise<DoctorResult[]> {
 
   // 动态导入安全模块验证
   try {
-    const { DEFAULT_ALLOWED_ACTIONS, SENSITIVE_KEYS, SafetyError } = await import('../desktop-automation/safety')
+    const { DEFAULT_ALLOWED_ACTIONS, SENSITIVE_KEYS } = await import('../desktop-automation/safety')
 
     // 验证白名单包含所有核心操作
     const expectedOps = ['click', 'moveTo', 'drag', 'type', 'pressKey', 'screenshot', 'getCursorPosition', 'findElement', 'setOverlayInteractive']

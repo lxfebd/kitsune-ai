@@ -14,7 +14,10 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 import { dirname, join, resolve } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
-import { ExtensionHost } from '@kitsune/plugin-sdk/plugin-host'
+import {
+  ExtensionHost,
+} from '@kitsune/plugin-sdk/plugin-host'
+import type { ModulePermissionDeclaration, ModulePermissionGrant } from '@kitsune/plugin-sdk/plugin-host'
 import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
@@ -31,6 +34,50 @@ import {
 } from './registry'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
+
+// NOTICE:
+// Plugins are loaded into the main process (see plugin-sdk node/fs loader), so
+// granting a permission is equivalent to trusting a plugin with host privileges.
+// Only the non-privileged `kitsune:plugin-sdk:apis:protocol:*` namespace is
+// auto-approved; everything else is denied. This matches the devtools sample
+// plugin and the built-in local extensions, which only need protocol discovery.
+const SAFE_PROTOCOL_PERMISSION_PREFIX = 'kitsune:plugin-sdk:apis:protocol:'
+
+interface PermissionScopeEntry {
+  key: string
+  actions: string[]
+}
+
+function isSafeProtocolScope(scope: { key: string }): boolean {
+  return scope.key.startsWith(SAFE_PROTOCOL_PERMISSION_PREFIX)
+}
+
+function narrowScopes<T extends PermissionScopeEntry>(scopes: T[] | undefined): T[] | undefined {
+  if (!scopes)
+    return undefined
+  const narrowed = scopes.filter(isSafeProtocolScope)
+  return narrowed.length > 0 ? narrowed : undefined
+}
+
+/**
+ * Decides the granted permission set for one extension session.
+ *
+ * Auto-approves only protocol-discovery permissions; returns an empty grant for
+ * privileged areas (filesystem, network, shell/exec, system). Keeps built-in
+ * local extensions working while denying arbitrary plugin permission escalation.
+ */
+function resolvePluginPermissionGrant(_payload: {
+  requested: ModulePermissionDeclaration
+}): ModulePermissionGrant {
+  const { requested } = _payload
+  return {
+    apis: narrowScopes(requested.apis),
+    resources: narrowScopes(requested.resources),
+    capabilities: narrowScopes(requested.capabilities),
+    processors: narrowScopes(requested.processors),
+    pipelines: narrowScopes(requested.pipelines),
+  }
+}
 
 function createElectronExtensionAssetCookieAdapter() {
   return {
@@ -262,7 +309,18 @@ export async function setupExtensionHostServiceInternal(
 
   // Kit API, Host
   const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const host = new ExtensionHost({
+    runtime: 'electron',
+    // NOTICE:
+    // Previously no `permissionResolver` was passed, so every manifest-declared
+    // permission was auto-approved (see ExtensionHost.startExtension fallback).
+    // Plugins are loaded with full host process privileges (see node/fs loader),
+    // so a resolver must exist as the last line of defense. Only the non-privileged
+    // protocol namespace is auto-approved; privileged areas (filesystem, network,
+    // shell/exec, system) are denied unless a trusted built-in explicitly requests
+    // them and is added to the allowlist below.
+    permissionResolver: resolvePluginPermissionGrant,
+  })
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 

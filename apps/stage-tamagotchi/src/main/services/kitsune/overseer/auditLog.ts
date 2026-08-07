@@ -7,7 +7,7 @@ const MAX_LOG_SIZE = 10 * 1024 * 1024 // 10MB — 超出则轮转
 export interface AuditEntry {
   timestamp: string
   taskId: string
-  type: 'cli' | 'ide'
+  type: 'cli' | 'ide' | 'desktop'
   source: string
   result: 'success' | 'failure'
   error?: string

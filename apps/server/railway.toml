@@ -1,6 +1,6 @@
-﻿[build]
+[build]
 builder = "DOCKERFILE"
-dockerfilePath = "/apps/server/production/railway/Dockerfile"
+dockerfilePath = "apps/server/production/railway/Dockerfile"
 watchPatterns = [
   "apps/server/**",
   "packages/**",

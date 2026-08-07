@@ -1,4 +1,4 @@
-import type { OverseerStatus, PluginRegistrySnapshot } from '../../../../shared/eventa'
+import type { OverseerStatus, PluginRegistrySnapshot, SidecarStatus } from '../../../../shared/eventa'
 import type { SidecarService } from '../sidecar'
 import type { OverseerService } from '../overseer'
 import type { ExtensionHostService } from '../plugins/types'
@@ -31,7 +31,7 @@ const {
   mockAppendFile: vi.fn(() => Promise.resolve(undefined)),
   mockStatfs: vi.fn(() => Promise.resolve({ bavail: 1000000, bsize: 4096 })),
   mockExecFile: vi.fn((_cmd: string, _args: unknown, _opts: unknown, cb?: (err: Error | null, stdout: string) => void) => {
-    if (typeof _opts === 'function') { cb = _opts; _opts = undefined }
+    if (typeof _opts === 'function') { cb = _opts as (err: Error | null, stdout: string) => void; _opts = undefined }
     if (cb) cb(null, '5.1.0')
     return {} as never
   }),
@@ -177,7 +177,7 @@ beforeEach(() => {
   mockFetch.mockReset()
   mockFetch.mockResolvedValue({ ok: true, status: 200 })
   // 全局 fetch mock — 阻止网络/TTS 检查发起真实 HTTP 请求
-  globalThis.fetch = mockFetch
+  globalThis.fetch = mockFetch as unknown as typeof fetch
 })
 
 afterEach(() => {
@@ -369,7 +369,7 @@ describe('doctor: checkPlugins', () => {
 describe('doctor: checkSidecar deep health check', () => {
   it('returns PASS for healthy non-deep sidecar', async () => {
     const sidecar = createMockSidecar({
-      listStatuses: vi.fn(() => [{ id: 'generic', state: 'running', pid: 123 }]),
+      listStatuses: vi.fn(() => ([{ id: 'generic', state: 'running', pid: 123, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
       healthCheck: vi.fn(() => Promise.resolve({ healthy: true })),
     })
 
@@ -389,7 +389,7 @@ describe('doctor: checkSidecar deep health check', () => {
 
   it('returns FAIL with fixPayload.sidecarId for unhealthy sidecar', async () => {
     const sidecar = createMockSidecar({
-      listStatuses: vi.fn(() => [{ id: 'comfyui', state: 'error', pid: null }]),
+      listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'error', pid: null, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
       healthCheck: vi.fn(() => Promise.resolve({ healthy: false, reason: 'process crashed' })),
     })
 
@@ -410,7 +410,7 @@ describe('doctor: checkSidecar deep health check', () => {
   it('returns WARN with fixPayload when process healthy but HTTP unreachable', async () => {
     // getComfyUIStatus returns url='', so probeSidecarHttp returns false
     const sidecar = createMockSidecar({
-      listStatuses: vi.fn(() => [{ id: 'comfyui', state: 'running', pid: 123 }]),
+      listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'running', pid: 123, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
       healthCheck: vi.fn(() => Promise.resolve({ healthy: true })),
     })
 
@@ -431,9 +431,9 @@ describe('doctor: checkSidecar deep health check', () => {
 
 describe('doctor: fixOne', () => {
   it('restarts sidecar when fixPayload.sidecarId is present', async () => {
-    const restartMock = vi.fn(() => Promise.resolve())
+    const restartMock = vi.fn((_id: string) => Promise.resolve({ id: _id, state: 'running', pid: 123, restartCount: 0, updatedAt: 0 } as any))
     const sidecar = createMockSidecar({
-      listStatuses: vi.fn(() => [{ id: 'comfyui', state: 'error', pid: null }]),
+      listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'error', pid: null, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
       healthCheck: vi.fn(() => Promise.resolve({ healthy: false, reason: 'crashed' })),
       restart: restartMock,
     })
@@ -460,7 +460,7 @@ describe('doctor: fixOne', () => {
     // sidecar unhealthy but healthCheck returns healthy=false without fixPayload
     // This tests the fallback: if fixPayload is missing, fixOne returns MANUAL
     const sidecar = createMockSidecar({
-      listStatuses: vi.fn(() => [{ id: 'comfyui', state: 'error', pid: null }]),
+      listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'error', pid: null, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
       healthCheck: vi.fn(() => Promise.resolve({ healthy: false, reason: 'crashed' })),
       restart: vi.fn(),
     })

@@ -122,7 +122,7 @@ const adjustStyleClasses = computed(() => {
  *
  * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
  */
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const startDraggingWindow = !isLinux() ? defineInvoke(context.value!, electronStartDraggingWindow) : undefined
 
 function refreshWindow() {
   window.location.reload()

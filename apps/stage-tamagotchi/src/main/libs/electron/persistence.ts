@@ -56,6 +56,7 @@ function parseWithSchema<TSchema extends PersistedSchema>(
 
 export interface Config<TSchema extends PersistedSchema> {
   setup: () => ConfigDiagnostics<InferOutput<TSchema>>
+  setupAsync: () => Promise<ConfigDiagnostics<InferOutput<TSchema>>>
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined

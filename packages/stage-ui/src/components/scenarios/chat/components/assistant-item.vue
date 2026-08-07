@@ -18,7 +18,8 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 
 const props = withDefaults(defineProps<{
-  message: ChatAssistantMessage
+  // History entries carry the optional `createdAt` timestamp from ChatHistoryItem
+  message: ChatAssistantMessage & { createdAt?: number }
   label: string
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'

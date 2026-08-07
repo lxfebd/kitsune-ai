@@ -52,12 +52,7 @@
       "@vue-macros/volar/define-slots"
     ]
   },
-  "references": [
-    { "path": "../../packages/stage-pages" },
-    { "path": "../../packages/stage-ui" },
-    { "path": "../../packages/stage-layouts" },
-    { "path": "../../packages/electron-vueuse" }
-  ],
+  "references": [],
   "include": [
     "src/main/**/*.ts",
     "src/main/**/*.d.ts",
@@ -77,6 +72,10 @@
     "src/shared/**/*.ts",
     "src/shared/**/*.d.ts",
     "src/shared/**/*.tsx",
-    "src/shared/**/*.vue"
+    "src/shared/**/*.vue",
+
+    // Ambient module declarations for untyped native deps consumed across packages
+    // (`sherpa-onnx` has no bundled types; .d.ts files are not pulled in transitively).
+    "../../packages/stage-ui/src/libs/inference/sherpa-onnx.d.ts"
   ]
 }

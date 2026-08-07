@@ -42,6 +42,8 @@ export interface SupervisorOptions {
    * 缺省为空数组，此时不会实例化任何监控器。
    */
   tools?: SupervisorToolConfig[]
+  /** 监控器轮询间隔（毫秒）。yaml 未配置时由各监控器回退到内置默认值 */
+  pollInterval?: number
 }
 
 export interface EventBus {
@@ -61,7 +63,18 @@ export class Supervisor {
 
 export class TaskPusher {
   constructor(options?: any)
-  push(tool: string, templateKey: string, input?: string): Promise<any>
+  /** 推送任务到指定工具（白名单/净化/注入检测/超时强杀） */
+  pushTask(options: { tool: string, templateKey: string, input?: string, cwd?: string, userPermission?: string }): Promise<any>
+  /** 返回工具白名单配置（binary/timeoutMs/riskLevel 等） */
+  getToolConfig(tool: string): any
+  /** 公开的输入净化方法（控制字符剥离 + 截断） */
+  sanitizeInput(raw: string, maxLength?: number): string
+  /** 使用 spawn 数组传参执行命令（非 shell，防注入） */
+  spawnCommand(binary: string, args: string[], cwd: string, timeoutMs: number): Promise<any>
+  /** 强杀当前活跃子进程 */
+  killAll(): void
+  getAvailableTools(): any[]
+  getHistory(limit?: number): any[]
 }
 
 export const TOOL_ALLOWLIST: Record<string, any>

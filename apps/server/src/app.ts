@@ -8,6 +8,8 @@ import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
+import type { FluxMeter } from './services/domain/billing/flux-meter'
+import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmRouterService } from './services/domain/llm-router'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderService } from './services/domain/providers'
@@ -81,6 +83,29 @@ interface AppDeps {
   auth?: { api: { getSession: (ctx: any) => Promise<any> } }
 }
 
+// NOTICE:
+// The app intentionally ships without login/billing (user-declared), but the WS
+// and v1 routes call `ttsMeter`/`billingService` methods. Passing `{} as any`
+// made every such call throw `TypeError: x is not a function`. These factories
+// return typed no-ops so those routes behave as "meter disabled": the debit is
+// always affordable and consumption records zero flux.
+function createNoopFluxMeter(): FluxMeter {
+  return {
+    assertCanAfford: async () => {},
+    accumulate: async () => ({ fluxDebited: 0, debtAfter: 0, balanceAfter: 0, unbilledFlux: 0 }),
+    peekDebt: async () => 0,
+    config: { name: 'noop', resolveRuntime: async () => ({ unitsPerFlux: 1, debtTtlSeconds: 86400 }) },
+  }
+}
+
+function createNoopBillingService(): BillingService {
+  return {
+    consumeFluxForLLM: async () => ({ ok: true }),
+    creditFlux: async () => ({ applied: true, balanceAfter: 0 }),
+    setFlux: async () => ({ applied: true, balanceAfter: 0 }),
+  } as unknown as BillingService
+}
+
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
 
@@ -133,7 +158,7 @@ export async function buildApp(deps: AppDeps) {
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
     fluxService: deps.fluxService,
-    ttsMeter: {} as any,
+    ttsMeter: createNoopFluxMeter(),
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
   })
@@ -163,11 +188,11 @@ export async function buildApp(deps: AppDeps) {
   // Built once so the OpenAI-compat and audio routers share the same closure
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
-    billingService: { consumeFluxForLLM: async () => ({}), creditFlux: async () => ({}), setFlux: async () => ({}) } as any,
+    billingService: createNoopBillingService(),
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
-    ttsMeter: {} as any,
+    ttsMeter: createNoopFluxMeter(),
     llmRouter: deps.llmRouter,
     voicePackService: deps.voicePackService,
     genAi: deps.otel?.genAi,

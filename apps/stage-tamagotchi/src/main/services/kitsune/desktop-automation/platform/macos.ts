@@ -200,28 +200,8 @@ export class MacAutomation implements PlatformAutomation {
   }
 
   async listWindows(): Promise<WindowInfo[]> {
-    const script = `
-      tell application "System Events"
-        set windowList to {}
-        set allProcesses to every process whose visible is true
-        repeat with proc in allProcesses
-          set procName to name of proc
-          set procId to unix id of proc
-          set procWindows to windows of proc
-          repeat with win in procWindows
-            set winTitle to name of win
-            set winPos to position of win
-            set winSize to size of win
-            set winMin to miniaturized of win
-            set winMax to zoomed of win
-            set end of windowList to {procName, procId, winTitle, item 1 of winPos, item 2 of winPos, item 1 of winSize, item 2 of winSize, true, winMin, winMax}
-          end repeat
-        end repeat
-      end tell
-      return windowList
-    `
-    // 注意：AppleScript 返回复杂数据结构较困难，这里简化处理
-    // 实际使用中可能需要使用 JavaScript for Automation (JXA)
+    // 注意：AppleScript 返回复杂数据结构较困难，这里改用
+    // JavaScript for Automation (JXA) 直接返回 JSON。
     try {
       const jxaScript = `
         const app = Application.currentApplication();

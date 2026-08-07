@@ -223,8 +223,8 @@ async function refreshEngines() {
 async function refreshConfig() {
   try {
     const config = await invokeGetConfig()
-    if (config?.dataDir)
-      dirInput.value = config.dataDir
+    if (config?.dir)
+      dirInput.value = config.dir
     if (config?.port !== undefined)
       portInput.value = config.port
     if (config?.device)

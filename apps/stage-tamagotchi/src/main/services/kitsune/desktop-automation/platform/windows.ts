@@ -13,9 +13,14 @@ const execAsync = promisify(execFile)
 
 // ========== PowerShell 命令模板 ==========
 
-/** 移动光标到指定坐标 */
-const MOUSE_MOVE_CMD = (x: number, y: number) =>
-  `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x},${y})`
+/** 移动光标到指定坐标（强制整数并校验有限值，避免注入非法表达式） */
+const MOUSE_MOVE_CMD = (x: number, y: number) => {
+  if (!Number.isFinite(x) || !Number.isFinite(y))
+    throw new TypeError(`Invalid cursor coordinates: ${x}, ${y}`)
+  const px = Math.trunc(x)
+  const py = Math.trunc(y)
+  return `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${px},${py})`
+}
 
 /** 模拟鼠标点击（down/up 鼠标事件） */
 const CLICK_CMD = (button: 'left' | 'right' | 'middle') => {
@@ -26,7 +31,13 @@ const CLICK_CMD = (button: 'left' | 'right' | 'middle') => {
 
 /** 键盘输入 */
 const KEYBOARD_TYPE_CMD = (text: string) => {
+  // NOTICE:
+  // The result is wrapped in PowerShell single quotes, so a literal `'` would
+  // terminate the string and allow command injection. PowerShell escapes a
+  // single quote inside a single-quoted string by doubling it (`''`). `$()`,
+  // backticks and `;` are inert inside single quotes.
   const escaped = text
+    .replace(/'/g, "''")
     .replace(/\+/g, '{+}')
     .replace(/\^/g, '{^}')
     .replace(/%/g, '{%}')
@@ -39,6 +50,17 @@ const KEYBOARD_TYPE_CMD = (text: string) => {
     .replace(/\}/g, '{}}')
   return `(New-Object -ComObject WScript.Shell).SendKeys('${escaped}')`
 }
+
+/** SendKeys 特殊键名白名单：仅允许固定键名，禁止任意字符串进入 PowerShell 单引号串 */
+const SEND_KEYS_KEY_ALLOWLIST = [
+  'ENTER', 'TAB', 'ESC', 'ESCAPE', 'BACKSPACE', 'BKSP', 'BS',
+  'DELETE', 'DEL', 'INSERT', 'INS', 'HOME', 'END', 'PGUP', 'PGDN',
+  'UP', 'DOWN', 'LEFT', 'RIGHT', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6',
+  'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'F13', 'F14', 'F15', 'F16',
+  'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23', 'F24',
+  'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE', 'NUMPAD0', 'NUMPAD1', 'NUMPAD2',
+  'NUMPAD3', 'NUMPAD4', 'NUMPAD5', 'NUMPAD6', 'NUMPAD7', 'NUMPAD8', 'NUMPAD9',
+]
 
 /** 获取鼠标位置 */
 const GET_CURSOR_POSITION_CMD = `
@@ -146,6 +168,14 @@ export class WindowsAutomation implements PlatformAutomation {
   }
 
   async pressKey(key: string): Promise<void> {
+    // NOTICE:
+    // SendKeys special-key names are wrapped in braces and injected into a
+    // single-quoted PowerShell string. Only a fixed allowlist of well-known
+    // names is accepted; anything else is rejected rather than echoed, so an
+    // untrusted key string cannot smuggle a closing quote or `{}` sequence.
+    if (!SEND_KEYS_KEY_ALLOWLIST.includes(key)) {
+      throw new TypeError(`Unsupported SendKeys key name: ${key}`)
+    }
     await this.execPowerShell(KEYBOARD_TYPE_CMD(`{${key}}`))
   }
 
@@ -179,10 +209,15 @@ export class WindowsAutomation implements PlatformAutomation {
   }
 
   private async windowAction(action: string, title?: string, processName?: string): Promise<boolean> {
+    // NOTICE:
+    // Title/processName are interpolated into PowerShell strings. Previously a
+    // double-quoted string with backtick-escaping of `"` was used; that leaves
+    // `$()` subexpressions injectable. Single-quoted strings make everything
+    // inert except `'`, which we escape by doubling it (`''`).
     const matchCondition = title
-      ? `$_.Title -like "*${title.replace(/"/g, '`"')}*"`
+      ? `$_.Title -like '*${title.replace(/'/g, "''")}*'`
       : processName
-        ? `$_.ProcessName -eq "${processName.replace(/"/g, '`"')}"`
+        ? `$_.ProcessName -eq '${processName.replace(/'/g, "''")}'`
         : '$false'
 
     let cmd: string

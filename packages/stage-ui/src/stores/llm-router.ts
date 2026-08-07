@@ -72,7 +72,6 @@ export const useLlmRouter = defineStore('llm-router', () => {
   const settingsRouting = useSettingsLlmRouting()
   const providersStore = useProvidersStore()
   const { trackModelSwitched } = useAnalytics()
-  const { activeProvider, activeModel } = storeToRefs(providersStore as any)
 
   const { enabled, rules } = storeToRefs(settingsRouting)
 

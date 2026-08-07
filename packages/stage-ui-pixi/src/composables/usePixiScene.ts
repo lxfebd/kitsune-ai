@@ -1,6 +1,6 @@
-import type { Container } from 'pixi.js'
 import type { Ref } from 'vue'
 
+import { Container } from 'pixi.js'
 import { onUnmounted, shallowRef, watch } from 'vue'
 
 export interface UsePixiSceneOptions {

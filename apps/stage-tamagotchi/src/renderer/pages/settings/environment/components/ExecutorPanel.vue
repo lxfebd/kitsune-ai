@@ -66,7 +66,7 @@ async function executorGenerate() {
       executorPlan.value = result.plan
     }
     else {
-      errorMessage.value = errorMessageFrom(new Error(result?.error ?? '生成计划失败'))
+      errorMessage.value = errorMessageFrom(new Error(result?.error ?? '生成计划失败')) ?? '生成计划失败'
     }
   }
   catch (e) {

@@ -18,11 +18,14 @@
  *   @deprecated 已被 apps/stage-tamagotchi 的 services/kitsune/overseer（TypeScript 编排层）
  *   的 executor/{loop,taskRunner,planner,acceptance} + permission 取代。生产路径不再调用，
  *   仅保留供 *.test.js 运行与历史参考。后续清理时可直接移除此导出组并删除对应文件。
- * 遗留模块清单（仅 test 引用）：UnifiedSmartRouter, DecisionEngine, ActionExecutor,
- * RiskController, SuggestionPusher, ProjectImprover, CodeReviewer, AgenticTaskRunner,
- * AutonomousAgentLoop, AutonomousTaskStore, AgentToolKit, LLMEnhancer, LlDbAutoRecorder,
- * LlDbRuleChecker, ProactiveNotifier, ArchDuplicationDetector, IdleDetector, MonitorStore,
- * DisturbancePolicy, BaseEventHandler, TaskPlanner。
+ * 遗留模块清单（仅 test / 其它遗留模块引用，生产路径不引用）：UnifiedSmartRouter,
+ * DecisionEngine, ActionExecutor, RiskController, SuggestionPusher, ProjectImprover,
+ * CodeReviewer, AgenticTaskRunner, AutonomousAgentLoop, AutonomousTaskStore, AgentToolKit,
+ * LLMEnhancer, LlDbAutoRecorder, LlDbRuleChecker, ProactiveNotifier, ArchDuplicationDetector,
+ * DisturbancePolicy, BaseEventHandler, TaskPlanner。（注：原清单中的 MonitorStore 与
+ * IdleDetector 并非死代码——supervisor.js 在运行时 require 二者，属活跃依赖，已保留。）
+ * 上述遗留文件已于 2026-08-07 整体移出 src/ 至仓库根 `_dead_overseer_js_2026-08-07/`
+ * （可还原），仅保留其对应测试/活跃节点的引用关系不变。
  */
 
 const { Supervisor } = require('./supervisor')

@@ -105,7 +105,7 @@ watch(widgetId, (id) => {
 
 onMounted(() => {
   try {
-    context.value.on(widgetsRenderEvent, (evt) => {
+    context.value!.on(widgetsRenderEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
@@ -117,7 +117,7 @@ onMounted(() => {
   }
 
   try {
-    context.value.on(widgetsUpdateEvent, (evt) => {
+    context.value!.on(widgetsUpdateEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
@@ -141,7 +141,7 @@ onMounted(() => {
   }
 
   try {
-    context.value.on(widgetsRemoveEvent, (evt) => {
+    context.value!.on(widgetsRemoveEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
@@ -155,7 +155,7 @@ onMounted(() => {
   }
 
   try {
-    context.value.on(widgetsClearEvent, () => {
+    context.value!.on(widgetsClearEvent, () => {
       clearTtl()
       widget.value = null
       loading.value = false

@@ -14,8 +14,8 @@ import { defaultPerfTracer } from '@kitsune/stage-shared'
 import { Mutex } from 'async-mutex'
 
 import { removeInferenceStatus, updateInferenceStatus } from '../../../composables/use-inference-status'
-import { DEVICE_LOSS_WASM_THRESHOLD, IDLE_UNLOAD_TIMEOUT, MAX_RESTARTS, MODEL_IDS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
-import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
+import { IDLE_UNLOAD_TIMEOUT, MAX_RESTARTS, MODEL_IDS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
+import { getGPUCoordinator, getLoadQueue } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
 import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
@@ -34,7 +34,8 @@ export type WhisperState
 export interface WhisperTranscribeInput {
   audio?: string
   audioFloat32?: Float32Array
-  language: string
+  /** Omit (or pass `undefined`) to let the model auto-detect the language. */
+  language?: string
 }
 
 /**

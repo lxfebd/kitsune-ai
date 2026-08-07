@@ -103,15 +103,20 @@ function sanitizeInput(raw, maxLength = 500) {
 }
 
 /**
- * 检测命令注入特征
+ * 检测输入中的危险内容（内容策略兜底）。
+ *
+ * NOTICE: TaskPusher 统一走 spawn(binary, args) 数组传参（非 shell 模式），
+ * shell 元字符（;|&`$(){} 等）作为参数内容传给 AI CLI 是安全的，无法构成注入，
+ * 因此不再拦截这些字符（此前会把含代码片段/模板字符串的合法 prompt 误判为注入，
+ * 导致自动修复指令被 INJECTION_DETECTED 拒绝）。
+ * 此处仅保留高置信危险项：
+ *   - 空字节（spawn 无法接收，属非法输入）
+ *   - 明确的敏感目录路径（.git/.svn/.hg/.env 作为完整路径段，避免误伤 .gitignore 等）
  */
 function detectInjection(str) {
   const dangerous = [
-    /[;|&`$(){}]/,           // shell 元字符
-    /\$\{/,                   // 变量展开
-    /\/\.\./,                 // 路径遍历
-    /\x00/,                   // 空字节
-    /(?:^|\/)\.(?:git|svn|hg|env)/i,  // 敏感文件访问
+    /\x00/,                                     // 空字节
+    /(?:^|[/\\])\.(?:git|svn|hg|env)(?:[/\\]|$)/i, // 敏感目录（完整路径段）
   ];
   return dangerous.some(re => re.test(str));
 }

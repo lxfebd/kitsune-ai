@@ -83,12 +83,14 @@ export async function cleanupOldLogs(logsDir: string, retentionDays: number, now
 export async function createFileLogger(options: FileLoggerOptions = {}): Promise<FileLogger> {
   const retentionDays = options.retentionDays ?? DEFAULT_RETENTION_DAYS
   const minLevel = options.minLevel ?? 'DEBUG'
-  let logsDir = options.logsDir
-  if (!logsDir) {
+  let resolvedLogsDir = options.logsDir
+  if (!resolvedLogsDir) {
     // Lazy import — avoids requiring electron in unit tests that pass logsDir explicitly.
     const { app } = await import('electron')
-    logsDir = join(app.getPath('userData'), 'logs')
+    resolvedLogsDir = join(app.getPath('userData'), 'logs')
   }
+  // Bind to a const so closures below (rotateIfNeeded) keep the narrowed `string` type.
+  const logsDir: string = resolvedLogsDir
   await mkdir(logsDir, { recursive: true })
   await cleanupOldLogs(logsDir, retentionDays)
 

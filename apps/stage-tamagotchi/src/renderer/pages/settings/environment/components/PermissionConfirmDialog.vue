@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { PermissionConfirmPayload, PermissionConfirmResult } from '../../../../../shared/eventa'
 
-import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { Button, Checkbox } from '@kitsune/ui'
 import { onScopeDispose, ref } from 'vue'

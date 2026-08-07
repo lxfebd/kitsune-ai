@@ -13,7 +13,10 @@ export function getElectronMainDirname() {
   return electronMainDirname
 }
 
-export function baseUrl(parentOfIndexHtml: string, filename?: string) {
+export function baseUrl(
+  parentOfIndexHtml: string,
+  filename?: string,
+): { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions } {
   const devUrl = env.ELECTRON_RENDERER_URL || 'http://localhost:5173'
   if (devUrl) {
     if (!filename) {

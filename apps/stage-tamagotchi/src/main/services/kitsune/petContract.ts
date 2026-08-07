@@ -46,7 +46,7 @@ export const FILTER_REASON = z.enum([
   'unknown-source',
   'invalid-payload',
   'pet-busy',
-]) as const
+])
 
 // ─── 各 type 的 payload ───
 

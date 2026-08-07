@@ -8,7 +8,6 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
-import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type {
   ListVoicesOptions,
   UnAlibabaCloudOptions,
@@ -19,8 +18,6 @@ import type {
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
 
-import type { ProviderSourceDeployment, ProviderSourcePricing } from '../libs/providers/source-metadata'
-import type { ProviderOnboardingField } from '../libs/providers/types'
 import type { AliyunRealtimeSpeechExtraOptions } from './providers/aliyun/stream-transcription'
 
 import type { ModelInfo, ProviderMetadata, ProviderRuntimeState, VoiceInfo } from './providers/types'
@@ -29,7 +26,7 @@ export type { ModelInfo, ProviderMetadata, ProviderRuntimeState, VoiceInfo } fro
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled, isStageTamagotchi, isUrl } from '@kitsune/stage-shared'
-import { getCachedWebGPUCapabilities, isWebGPUSupported } from '@kitsune/stage-shared/webgpu'
+import { isWebGPUSupported } from '@kitsune/stage-shared/webgpu'
 import { computedAsync, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import {
   createOpenAI,

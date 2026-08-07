@@ -17,7 +17,6 @@ const frequencies = ref<number[]>(Array.from<number>({ length: props.bars }).fil
 // 组件作用域资源引用：用于在卸载、流切换或页面隐藏时正确清理
 // AudioContext 浏览器上限约 6 个，泄漏后将无法创建新 context
 let audioContext: AudioContext | null = null
-let analyser: AnalyserNode | null = null
 let source: MediaStreamAudioSourceNode | null = null
 // requestAnimationFrame 返回的 id，用于 cancelAnimationFrame
 let analyzeRafId: number | null = null
@@ -61,7 +60,6 @@ function cleanupResources() {
     }
     audioContext = null
   }
-  analyser = null
   analyzeFn = null
 }
 
@@ -111,7 +109,6 @@ function handleAnalyze() {
 
   // 暴露到组件作用域以便 onUnmounted / visibilitychange 清理
   audioContext = ctx
-  analyser = anl
   source = src
 
   const analyze = () => {

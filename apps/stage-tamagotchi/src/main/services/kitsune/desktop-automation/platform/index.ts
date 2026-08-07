@@ -5,9 +5,9 @@
  */
 
 // 从 shared/eventa 统一导入 WindowInfo 类型
-export type { WindowInfo } from '../../../../shared/eventa'
+export type { WindowInfo } from '../../../../../shared/eventa'
 
-import type { WindowInfo } from '../../../../shared/eventa'
+import type { WindowInfo } from '../../../../../shared/eventa'
 
 export interface PlatformAutomation {
   // 鼠标操作

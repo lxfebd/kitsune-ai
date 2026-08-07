@@ -83,7 +83,6 @@ import {
   petReactionContractSchema,
   petReactionResultSchema,
   PET_REACTION_SOURCE,
-  type PetReactionContract,
   type PetReactionResult,
 } from '../petContract'
 import { getElectronMainDirname } from '../../../libs/electron/location'
@@ -337,13 +336,28 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   })
   const pendingExecutorConfirms = new Map<string, { resolve: (r: { approved: boolean, addToWhitelist: boolean }) => void, timer: NodeJS.Timeout }>()
 
-  function confirmRequest(permKey: string, _task: Task): Promise<{ approved: boolean, addToWhitelist: boolean }> {
+  function confirmRequest(task: Task): Promise<{ approved: boolean, addToWhitelist: boolean }> {
+    const taskKey = task.id
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
-        pendingExecutorConfirms.delete(permKey)
+        pendingExecutorConfirms.delete(taskKey)
         resolve({ approved: false, addToWhitelist: false })
       }, PERMISSION_CONFIRM_TIMEOUT_MS)
-      pendingExecutorConfirms.set(permKey, { resolve, timer })
+      pendingExecutorConfirms.set(taskKey, { resolve, timer })
+
+      // 向渲染进程发起授权弹窗 — 与 correction loop 的 confirmPermission 使用同一事件源，
+      // 由 PermissionConfirmDialog 监听展示，用户确认后经 electronPermissionResult 回传。
+      // 修复前此处只设超时不发事件，导致执行层权限确认永远无人响应、60s 后自动拒绝。
+      const source = task.type === 'cli' ? task.provider : task.type === 'ide' ? task.connectorId : 'desktop'
+      const assertionType = task.type === 'cli' ? 'cli:run' : task.type === 'ide' ? `ide:${task.action}` : `desktop:${task.action}`
+      const payload: PermissionConfirmPayload = {
+        taskId: taskKey,
+        source,
+        assertionType,
+        diff: '执行器任务需要授权后执行',
+        summary: `任务「${task.title}」请求执行 ${assertionType}（来源 ${source}）`,
+      }
+      context.emit(electronPermissionConfirm, payload)
     })
   }
 
@@ -425,7 +439,7 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     }
   }
 
-  const loop = createLoop({ runner, permission: permissionModel, checkAcceptance: acceptance.checkAcceptance, emit: emitExecutorEvent, confirmRequest, killRunningTask, onTaskCompleted: writeTaskMemory, onPlanCompleted: writePlanMemory, onTaskFailed: generatePersonaFeedback, auditLog, planner, maxConcurrency: 3 })
+  const loop = createLoop({ runner, permission: permissionModel, checkAcceptance: acceptance.checkAcceptance, emit: emitExecutorEvent, confirmRequest, killRunningTask, onTaskCompleted: writeTaskMemory, onPlanCompleted: writePlanMemory, onTaskFailed: generatePersonaFeedback, auditLog, planner })
 
   // 外部接入桥：MCP Server 子进程（宿主 spawn）→ HTTP localhost → triggerPetReaction
   // 不污染 channel-server WS（6121 仍只收内部 IPC）。桥常驻监听，独立于 overseer 开关，

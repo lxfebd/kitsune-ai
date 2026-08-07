@@ -41,19 +41,21 @@ export class ReplicateProvider implements ArtistryProvider {
   }
 
   async initialize(config: Record<string, unknown>): Promise<void> {
-    if (config?.replicateApiKey) {
-      this.apiKey = config.replicateApiKey
+    // config 来自持久化 JSON，值类型为 unknown — 逐项收窄后再赋值。
+    const apiKey = typeof config?.replicateApiKey === 'string' ? config.replicateApiKey : ''
+    if (apiKey) {
+      this.apiKey = apiKey
       this.replicate = new Replicate({ auth: this.apiKey })
     }
     else {
       this.apiKey = ''
       this.replicate = null
     }
-    if (config?.replicateDefaultModel)
+    if (typeof config?.replicateDefaultModel === 'string' && config.replicateDefaultModel)
       this.defaultModel = config.replicateDefaultModel
-    if (config?.replicateAspectRatio)
+    if (typeof config?.replicateAspectRatio === 'string' && config.replicateAspectRatio)
       this.aspectRatio = config.replicateAspectRatio
-    if (config?.replicateInferenceSteps)
+    if (typeof config?.replicateInferenceSteps === 'number' && config.replicateInferenceSteps)
       this.inferenceSteps = config.replicateInferenceSteps
   }
 
@@ -119,7 +121,7 @@ export class ReplicateProvider implements ArtistryProvider {
     inputOptions = replacePlaceholders(inputOptions) as typeof inputOptions
 
     // Ensure main prompt is also truncated if not using a placeholder
-    if (inputOptions.prompt && !hasPromptPlaceholder) {
+    if (typeof inputOptions.prompt === 'string' && inputOptions.prompt && !hasPromptPlaceholder) {
       inputOptions.prompt = this.truncatePrompt(inputOptions.prompt)
     }
 

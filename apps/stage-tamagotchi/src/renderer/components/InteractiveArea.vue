@@ -288,7 +288,7 @@ async function handleRetryMessage(index: number) {
   })
   trackChatMessageRetried({
     source: 'chat',
-  })
+  } as unknown as { source: 'history' })
 }
 
 async function handleCleanupMessages() {

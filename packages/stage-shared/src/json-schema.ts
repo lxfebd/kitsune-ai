@@ -33,8 +33,8 @@ export function isJsonSchema(value: unknown): value is Record<string, unknown> {
  * After:
  * - `{ type: ["string", "null"] }`
  */
-export function normalizeNullableAnyOf<T extends Record<string, unknown>>(schema: T): T {
-  const next = { ...schema } as Record<string, unknown>
+export function normalizeNullableAnyOf<T extends object>(schema: T): T {
+  const next = { ...schema } as unknown as Record<string, unknown>
 
   if (next.properties && typeof next.properties === 'object') {
     const properties = Object.fromEntries(
@@ -94,5 +94,5 @@ export function normalizeNullableAnyOf<T extends Record<string, unknown>>(schema
     next.oneOf = next.oneOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
   }
 
-  return next as T
+  return next as unknown as T
 }

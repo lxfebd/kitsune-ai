@@ -11,7 +11,6 @@
 
 import { detectWebGPU } from '@kitsune/stage-shared/webgpu'
 
-import { useProvidersStore } from '../stores/providers'
 import { useModelPreload } from './use-model-preload'
 
 export interface UseInferencePreloadOptions {
@@ -34,7 +33,6 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
     // Ensure WebGPU capabilities are cached for downstream use
     await detectWebGPU()
 
-    const providersStore = useProvidersStore()
     const tasks: { modelId: string, loader: (signal: AbortSignal) => Promise<void> }[] = []
 
     // NOTICE: Whisper preloading is intentionally omitted here.

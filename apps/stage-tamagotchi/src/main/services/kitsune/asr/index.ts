@@ -80,6 +80,33 @@ let recognizer: OfflineRecognizer | null = null
 let currentEngineId: string | null = null
 let asrModelsDir: string | null = null
 
+// NOTICE:
+// sherpa-onnx WASM 的 OfflineRecognizer 非线程安全：并发 `decode(stream)` 访问
+// 同一实例会破坏 WASM 内存（结果损坏甚至崩溃）。renderer 可能并行发起多次
+// transcribe，因此用一个 promise 链把对共享 recognizer 的访问串行化。
+let transcribeQueue: Promise<unknown> = Promise.resolve()
+
+function runSerialized<T>(task: () => Promise<T>): Promise<T> {
+  const run = transcribeQueue.then(task)
+  // 无论成功失败都续上队列，避免一次异常卡死后续任务
+  transcribeQueue = run.then(() => undefined, () => undefined)
+  return run
+}
+
+/**
+ * 串行化共享 ASR recognizer 访问的互斥原语。
+ *
+ * sherpa-onnx WASM 的 OfflineRecognizer 非线程安全，`transcribe` 用它保证
+ * 并发调用不会同时 `decode` 同一实例。任务按调用顺序依次执行；单个任务失败
+ * 不会阻塞队列中的后续任务。
+ *
+ * @param task 需串行执行的异步任务
+ * @returns task 的结果；若 task 抛错则返回被拒绝的 Promise
+ */
+export function enqueueRecognizerTask<T>(task: () => Promise<T>): Promise<T> {
+  return runSerialized(task)
+}
+
 // ---------------------------------------------------------------------------
 // 引擎管理
 // ---------------------------------------------------------------------------
@@ -112,7 +139,7 @@ function resolveRecognizerConfig(engine: AsrEngineDefinition): ReturnType<typeof
     w.decoder = resolveModelPath(w.decoder as string)
   }
 
-  return sherpa_onnx.createOfflineRecognizer(config)
+  return sherpa_onnx.createOfflineRecognizer(config as unknown as Parameters<typeof sherpa_onnx.createOfflineRecognizer>[0])
 }
 
 function resolveModelPath(relativePath: string): string {
@@ -178,43 +205,49 @@ export async function transcribe(
   samples: Float32Array,
   sampleRate: number = 16000,
 ): Promise<TranscribeResult> {
-  if (!recognizer || !currentEngineId) {
-    // 自动初始化默认引擎
-    await initEngine()
-    if (!recognizer) {
-      throw new Error('ASR engine failed to initialize')
-    }
-  }
-
-  const engine = getAsrEngine(currentEngineId)
-  const supportsEmotion = engine?.supportsEmotion ?? false
-
-  const stream = recognizer.createStream()
-  try {
-    stream.acceptWaveform(sampleRate, samples)
-    recognizer.decode(stream)
-    const rawResult = recognizer.getResult(stream) as OfflineRecognizerResult & {
-      lang?: string
-      emotion?: string
-      event?: string
+  // 串行化对共享 recognizer 的访问（详见 transcribeQueue 处 NOTICE）
+  return enqueueRecognizerTask(async () => {
+    if (!recognizer || !currentEngineId) {
+      // 自动初始化默认引擎
+      await initEngine()
+      if (!recognizer) {
+        throw new Error('ASR engine failed to initialize')
+      }
     }
 
-    const result: TranscribeResult = {
-      text: rawResult.text ?? '',
-    }
+    // `currentEngineId` is a module-level `let`, so TS drops the narrowing from
+    // the guard above across the `await`. Re-read it into a local instead.
+    const engineId = currentEngineId
+    const engine = engineId ? getAsrEngine(engineId) : undefined
+    const supportsEmotion = engine?.supportsEmotion ?? false
 
-    // SenseVoice 特有字段
-    if (supportsEmotion) {
-      result.lang = rawResult.lang
-      result.emotion = rawResult.emotion
-      result.event = rawResult.event
-    }
+    const stream = recognizer.createStream()
+    try {
+      stream.acceptWaveform(sampleRate, samples)
+      recognizer.decode(stream)
+      const rawResult = recognizer.getResult(stream) as OfflineRecognizerResult & {
+        lang?: string
+        emotion?: string
+        event?: string
+      }
 
-    return result
-  }
-  finally {
-    stream.free()
-  }
+      const result: TranscribeResult = {
+        text: rawResult.text ?? '',
+      }
+
+      // SenseVoice 特有字段
+      if (supportsEmotion) {
+        result.lang = rawResult.lang
+        result.emotion = rawResult.emotion
+        result.event = rawResult.event
+      }
+
+      return result
+    }
+    finally {
+      stream.free()
+    }
+  })
 }
 
 /**
