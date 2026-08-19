@@ -132,6 +132,11 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # gh 需要用 git 仓库校验 tag 与生成 release notes，因此必须 checkout（含完整历史与 tag）。
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
@@ -156,7 +161,7 @@ jobs:
             const p=path.join(dir,file);
             if(!fs.existsSync(p)){ console.error("MISSING "+p); return; }
             const s=sha(p),size=fs.statSync(p).size;
-            const body=`version: ${process.env.VERSION}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
+            const body=`version: ${String(process.env.VERSION).replace(/^v/,'')}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
             fs.writeFileSync(path.join(dir,name),body);
             console.log("wrote "+name+" for "+file);
           }
