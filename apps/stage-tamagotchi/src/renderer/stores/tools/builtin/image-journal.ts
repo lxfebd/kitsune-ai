@@ -16,14 +16,23 @@ export function getArtistryConfig(): ResolvedArtistryConfig {
   return resolveArtistryConfigFromStore(useArtistryStore())
 }
 
-const sharedContext = getElectronEventaContext()
-const invokers = {
-  generateHeadless: defineInvoke(sharedContext, artistryGenerateHeadless),
-  addWidget: defineInvoke(sharedContext, widgetsAdd),
+// NOTICE: build the eventa context lazily instead of at module scope. Module-scope
+// `getElectronEventaContext()` throws when imported without an Electron IPC bridge
+// (unit tests, web runtime), which broke tool definition resolution. Production
+// behavior is unchanged: the context is still created once, on first invocation.
+let sharedContext: ReturnType<typeof getElectronEventaContext> | undefined
+
+function getContext() {
+  sharedContext ??= getElectronEventaContext()
+  return sharedContext
 }
 
 function createInvokers() {
-  return invokers
+  const context = getContext()
+  return {
+    generateHeadless: defineInvoke(context, artistryGenerateHeadless),
+    addWidget: defineInvoke(context, widgetsAdd),
+  }
 }
 
 type Invokers = ReturnType<typeof createInvokers>

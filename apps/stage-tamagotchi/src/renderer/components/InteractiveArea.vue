@@ -16,7 +16,7 @@ import { useJournalPreviewStore } from '@kitsune/stage-ui/stores/journal-preview
 import { usePersonaStore } from '@kitsune/stage-ui/stores/modules/persona'
 import { useSettingsAudioDevice } from '@kitsune/stage-ui/stores/settings'
 import { BasicTextarea } from '@kitsune/ui'
-import { useLocalStorage } from '@vueuse/core'
+import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -57,8 +57,6 @@ const { enabled: audioInputEnabled, stream } = storeToRefs(audioDeviceStore)
 
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && stream.value)
 
 const { init: initVAD, dispose: disposeVAD, start: startVAD } = useVAD(workletUrl, {
   threshold: ref(0.5),
@@ -71,18 +69,31 @@ async function startHearing() {
   try {
     await audioDeviceStore.askPermission()
     audioInputEnabled.value = true
+    // 等待 stream 就绪：audioInputEnabled 的 watcher 异步调用 startStream，
+    // stream.value 不会立即生效，需要等待。
+    if (!stream.value) {
+      try {
+        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+      }
+      catch {
+        console.warn('[Chat] Timed out waiting for audio stream')
+        hearingActive.value = false
+        return
+      }
+    }
     if (stream.value) {
       await initVAD()
       startVAD(stream.value)
-      if (shouldUseStreamInput.value) {
-        await transcribeForMediaStream(stream.value, {
-          onSentenceEnd: (text: string) => {
-            if (text.trim()) {
-              messageInput.value = (messageInput.value ? messageInput.value + ' ' : '') + text.trim()
-            }
-          },
-        })
-      }
+      // transcribeForMediaStream 内部处理流式支持：
+      // - 支持流式的 provider（aliyun-nls / web-speech-api）走实时流
+      // - 不支持流式的 provider（sherpa-asr / app-local-whisper）走 VAD 分段批处理降级
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: (text: string) => {
+          if (text.trim()) {
+            messageInput.value = (messageInput.value ? messageInput.value + ' ' : '') + text.trim()
+          }
+        },
+      })
       hearingActive.value = true
     }
   }

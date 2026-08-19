@@ -170,6 +170,13 @@ vi.mock('./tools/builtin/image-journal', () => ({
   imageJournalTools: vi.fn(async () => []),
 }))
 
+// NOTICE: desktop-automation calls getElectronEventaContext() at module scope,
+// which throws in the jsdom test env (no ipcRenderer). Mock it like the other
+// tool modules so the chat-sync store can be tested without an Electron bridge.
+vi.mock('./tools/builtin/desktop-automation', () => ({
+  desktopAutomationTools: vi.fn(async () => []),
+}))
+
 describe('useChatSyncStore', async () => {
   const { useChatSyncStore } = await import('./chat-sync')
 

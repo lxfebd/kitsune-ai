@@ -1,4 +1,4 @@
-﻿import type { ElectronServerChannelConfig } from '../../../shared/eventa'
+import type { ElectronServerChannelConfig } from '../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@kitsune/electron-vueuse'
@@ -37,7 +37,11 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
 
   async function refreshServerChannelConfig() {
     const config = await getServerChannelConfig()
-    syncConfigFromServer(config)
+    // NOTICE: In non-Electron environments the IPC invoke resolves to `null`,
+    // so skip syncing instead of crashing on `config.tlsConfig`.
+    if (config) {
+      syncConfigFromServer(config)
+    }
     return config
   }
 

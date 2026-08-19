@@ -22,13 +22,14 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@kitsune/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@kitsune/stage-ui/components/scenes'
+import VisionCheckBridge from './settings/environment/components/VisionCheckBridge.vue'
 import { useAudioRecorder } from '@kitsune/stage-ui/composables/audio/audio-recorder'
 import { useCanvasPixelIsTransparentAtPoint } from '@kitsune/stage-ui/composables/canvas-alpha'
 import { useVAD } from '@kitsune/stage-ui/stores/ai/models/vad'
 import { useHearingSpeechInputPipeline } from '@kitsune/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@kitsune/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@kitsune/stage-ui/stores/settings'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
+import { refDebounced, until, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 
@@ -236,12 +237,10 @@ watch(modelSettingsRuntimeChannelEvent, (event) => {
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission } = settingsAudioDeviceStore
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatSyncStore = useChatSyncStore()
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const { init: initVAD, dispose: disposeVAD, start: startVAD, loaded: vadLoaded } = useVAD(workletUrl, {
   threshold: ref(0.5),
@@ -288,21 +287,15 @@ function handleStreamingSpeechEnd(text: string) {
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value) {
-    console.info('Speech detected - transcription session should already be active')
-    return
-  }
-
-  startRecord()
+  // transcribeForMediaStream（含 VAD 降级）内部处理音频和分段转写，
+  // 外部 VAD 仅用于宠物动画反馈，不再触发录音，避免双重转写。
+  console.info('[Main Page] Speech detected (VAD callback)')
 }
 
 async function handleSpeechEnd() {
-  if (shouldUseStreamInput.value) {
-    // Keep streaming session alive; idle timer in pipeline will handle teardown.
-    return
-  }
-
-  stopRecord()
+  // transcribeForMediaStream 内部处理静音检测和句尾转写，
+  // 外部 VAD 仅用于宠物动画反馈，不再触发转录，避免双重转写。
+  console.info('[Main Page] Speech ended (VAD callback)')
 }
 
 async function startAudioInteraction() {
@@ -331,31 +324,33 @@ async function startAudioInteraction() {
       console.warn('[Main Page] VAD initialization failed (non-critical for Web Speech API):', err)
     })
 
-    if (shouldUseStreamInput.value) {
-      console.info('[Main Page] Starting streaming transcription...', {
-        supportsStreamInput: supportsStreamInput.value,
+    // 等待 stream 就绪（audioInputEnabled 的 watcher 异步调用 startStream）
+    if (!stream.value) {
+      try {
+        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+      }
+      catch {
+        console.warn('[Main Page] Timed out waiting for audio stream')
+        return
+      }
+    }
+    if (stream.value) {
+      console.info('[Main Page] Starting transcription...', {
         hasStream: !!stream.value,
       })
 
-      if (!stream.value) {
-        console.warn('[Main Page] Stream not available despite shouldUseStreamInput being true')
-        return
-      }
-
-      // Use sentence deltas for live captions and speech end for final text.
+      // transcribeForMediaStream 内部处理：
+      // - 支持流式的 provider（aliyun-nls / web-speech-api）走实时流
+      // - 不支持流式的 provider（sherpa-asr / app-local-whisper）走 VAD 分段批处理降级
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: handleStreamingSentenceEnd,
         onSpeechEnd: handleStreamingSpeechEnd,
       })
 
-      console.info('[Main Page] Streaming transcription started successfully')
+      console.info('[Main Page] Transcription started successfully')
     }
     else {
-      console.warn('[Main Page] Not starting streaming transcription:', {
-        shouldUseStreamInput: shouldUseStreamInput.value,
-        hasStream: !!stream.value,
-        supportsStreamInput: supportsStreamInput.value,
-      })
+      console.warn('[Main Page] Stream not available, cannot start transcription')
     }
 
     // NOTICE: This hook is only for record-then-transcribe providers.
@@ -368,7 +363,10 @@ async function startAudioInteraction() {
     // Hook once for non-streaming providers.
     if (!stopOnStopRecord) {
       stopOnStopRecord = onStopRecord(async (recording) => {
-        if (shouldUseStreamInput.value)
+        // transcribeForMediaStream（含 VAD 降级）内部处理分段转写，
+        // 此回调仅作为 push-to-talk 回退路径保留，正常情况下不会触发
+        // （handleSpeechStart 是 no-op，startRecord 不会被调用）。
+        if (!recording)
           return
 
         const text = await transcribeForRecording(recording)
@@ -568,6 +566,8 @@ const cursorPosition = computed(() => ({
       />
     </div>
   </Transition>
+  <!-- 后台：视觉校验桥接（无 UI），始终挂载以保证 overseer 视觉校验可达 -->
+  <VisionCheckBridge />
 </template>
 
 <style scoped>

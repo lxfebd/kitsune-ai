@@ -1,4 +1,4 @@
-﻿import type { ElectronWindowLifecycleState } from '../../shared/eventa'
+import type { ElectronWindowLifecycleState } from '../../shared/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
 import { getElectronEventaContext } from '@kitsune/electron-vueuse'
@@ -40,7 +40,17 @@ export const useStageWindowLifecycleStore = defineStore('stageWindowLifecycle', 
 
     initialized = true
 
-    const context = getElectronEventaContext()
+    let context: ReturnType<typeof getElectronEventaContext> | undefined
+    try {
+      context = getElectronEventaContext()
+    }
+    catch (error) {
+      // NOTICE: In non-Electron environments (browser preview / tests) there is
+      // no ipcRenderer, so the window-lifecycle bridge must be skipped gracefully.
+      console.warn('[StageWindowLifecycle] Electron IPC unavailable, window lifecycle bridge disabled.', error)
+      return
+    }
+
     context.on(electronWindowLifecycleChanged, (event) => {
       if (!event?.body)
         return

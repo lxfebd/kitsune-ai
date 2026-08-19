@@ -203,7 +203,9 @@ function createFullStageRuntime() {
     }
   }, { deep: true, immediate: true })
 
-  context.value!.on(electronGodotStageStatusChanged, (event) => {
+  // NOTICE: In non-Electron environments (e.g. browser preview / tests) the
+  // eventa context is undefined; only register listeners when IPC is available.
+  context.value?.on(electronGodotStageStatusChanged, (event) => {
     if (!event.body) {
       return
     }
@@ -211,7 +213,7 @@ function createFullStageRuntime() {
     syncGodotStageRenderer(event.body)
   })
 
-  context.value!.on(electronPluginToolsChanged, () => {
+  context.value?.on(electronPluginToolsChanged, () => {
     void refreshPluginRuntimeTools()
   })
 
@@ -239,12 +241,14 @@ function createFullStageRuntime() {
       }
 
       const serverChannelConfig = await getServerChannelConfig()
-      serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
-      serverChannelSettingsStore.hostname = serverChannelConfig.hostname
-      serverChannelSettingsStore.authToken = serverChannelConfig.authToken
+      if (serverChannelConfig) {
+        serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
+        serverChannelSettingsStore.hostname = serverChannelConfig.hostname
+        serverChannelSettingsStore.authToken = serverChannelConfig.authToken
+      }
 
       await serverChannelStore.initialize({
-        token: serverChannelConfig.authToken || undefined,
+        token: serverChannelConfig?.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       if (!isAuxiliaryChatRoute) {
@@ -255,7 +259,9 @@ function createFullStageRuntime() {
         }
       }
 
-      defineInvokeHandler(context.value!, pluginProtocolListProviders, async () => listProvidersForPluginHost())
+      if (context.value) {
+        defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
+      }
 
       if (shouldPublishPluginHostCapabilities()) {
         await reportPluginCapability({
@@ -288,7 +294,7 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 if (isSettingsWindowRoute) {
-  context.value!.on(electronSettingsNavigate, (event) => {
+  context.value?.on(electronSettingsNavigate, (event) => {
     const targetRoute = event?.body?.route
     if (!targetRoute || route.fullPath === targetRoute) {
       return

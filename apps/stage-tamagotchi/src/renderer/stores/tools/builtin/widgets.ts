@@ -65,30 +65,35 @@ type WidgetActionInput
 
 export type WidgetInvokers = ReturnType<typeof createInvokers>
 
-const sharedContext = getElectronEventaContext()
-const widgetInvokers = {
-  prepareWindow: defineInvoke(sharedContext, widgetsPrepareWindow),
-  openWindow: defineInvoke(sharedContext, widgetsOpenWindow),
-  addWidget: defineInvoke(sharedContext, widgetsAdd),
-  updateWidget: defineInvoke(sharedContext, widgetsUpdate),
-  removeWidget: defineInvoke(sharedContext, widgetsRemove),
-  clearWidgets: defineInvoke(sharedContext, widgetsClear),
+// NOTICE: build the eventa context lazily instead of at module scope. Module-scope
+// `getElectronEventaContext()` throws when imported without an Electron IPC bridge
+// (unit tests, web runtime), which broke tool definition resolution. Production
+// behavior is unchanged: the context is still created once, on first invocation.
+let sharedContext: ReturnType<typeof getElectronEventaContext> | undefined
+
+function getContext() {
+  sharedContext ??= getElectronEventaContext()
+  return sharedContext
 }
 
 function createInvokers() {
+  const context = getContext()
   return {
-    prepareWindow: widgetInvokers.prepareWindow,
-    openWindow: widgetInvokers.openWindow,
-    addWidget: widgetInvokers.addWidget,
-    updateWidget: widgetInvokers.updateWidget,
-    removeWidget: widgetInvokers.removeWidget,
-    clearWidgets: widgetInvokers.clearWidgets,
+    prepareWindow: defineInvoke(context, widgetsPrepareWindow),
+    openWindow: defineInvoke(context, widgetsOpenWindow),
+    addWidget: defineInvoke(context, widgetsAdd),
+    updateWidget: defineInvoke(context, widgetsUpdate),
+    removeWidget: defineInvoke(context, widgetsRemove),
+    clearWidgets: defineInvoke(context, widgetsClear),
   }
 }
+
+let widgetInvokers: WidgetInvokers | undefined
 
 function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
   if (override)
     return override
+  widgetInvokers ??= createInvokers()
   return widgetInvokers
 }
 

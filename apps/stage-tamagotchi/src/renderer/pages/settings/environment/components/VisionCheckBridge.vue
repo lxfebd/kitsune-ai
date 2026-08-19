@@ -4,6 +4,7 @@ import type { VisionCheckRequestPayload, VisionCheckResult } from '../../../../.
 import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { buildVerifyPrompt, useVisionInference } from '@kitsune/stage-ui/composables'
+import { useVisionStore } from '@kitsune/stage-ui/stores/modules/vision'
 import { onScopeDispose } from 'vue'
 
 import {
@@ -30,6 +31,7 @@ function logVisionCheck(level: 'warn' | 'error', message: string, fields?: Recor
  */
 const invokeVisionCheckResult = useElectronEventaInvoke(electronOverseerVisionCheckResult)
 const { runVisionInference } = useVisionInference()
+const visionStore = useVisionStore()
 
 let eventaContext: ReturnType<typeof getElectronEventaContext> | undefined
 try {
@@ -47,6 +49,13 @@ const offVisionCheck = eventaContext?.on(electronOverseerVisionCheck, async (eve
 
   if (!payload.imageDataUrl) {
     await invokeVisionCheckResult({ ...base, passed: false, reason: 'missing screenshot for vision check' })
+    return
+  }
+
+  // 视觉模型未配置时直接跳过校验（判定通过），避免无谓超时阻塞联动修正循环。
+  // 这让"没有视觉能力"的场景不会因等待超时而被误判为校验失败。
+  if (!visionStore.configured) {
+    await invokeVisionCheckResult({ ...base, passed: true, reason: 'vision model not configured, skip visual check' })
     return
   }
 

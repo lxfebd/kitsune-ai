@@ -7,6 +7,7 @@ import LogLevelPanel from './components/LogLevelPanel.vue'
 import WhitelistPanel from './components/WhitelistPanel.vue'
 import DesktopAutomationPanel from './components/DesktopAutomationPanel.vue'
 import ExecutorPanel from './components/ExecutorPanel.vue'
+import OverseerPanel from './components/OverseerPanel.vue'
 import PermissionConfirmDialog from './components/PermissionConfirmDialog.vue'
 import VisionCheckBridge from './components/VisionCheckBridge.vue'
 import FindElementBridge from './components/FindElementBridge.vue'
@@ -43,6 +44,9 @@ const PANEL = 'settings-panel'
       <LogLevelPanel />
       <WhitelistPanel />
     </div>
+
+    <!-- 监工系统 -->
+    <OverseerPanel />
 
     <!-- 桌面自动化 -->
     <DesktopAutomationPanel />

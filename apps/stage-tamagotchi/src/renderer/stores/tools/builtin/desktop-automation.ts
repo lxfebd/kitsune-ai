@@ -11,33 +11,54 @@ import { getElectronEventaContext } from '@kitsune/electron-vueuse'
 import { normalizeNullableAnyOf } from '@kitsune/stage-shared/json-schema'
 import { electronDesktopAutomationInvoke } from '../../../../shared/eventa'
 
-// Single shared eventa context — avoids creating 5 redundant ipcRenderer listeners.
-const sharedContext = getElectronEventaContext()
+// 单个共享 eventa context — 避免创建 5 个冗余 ipcRenderer listeners。
+// 懒加载：模块作用域调用 getElectronEventaContext() 在无 Electron IPC 的
+// 环境（测试 / 纯浏览器预览）会立即抛错，首次真正使用工具时才初始化。
+let sharedContext: ReturnType<typeof getElectronEventaContext> | undefined
 
-const invokeDesktop = defineInvoke(sharedContext, electronDesktopAutomationInvoke)
-const invokeWindowGetBounds = defineInvoke(sharedContext, electron.window.getBounds)
-const invokeWindowSetBounds = defineInvoke(sharedContext, electron.window.setBounds)
-const invokeGetAllDisplays = defineInvoke(sharedContext, electron.screen.getAllDisplays)
-const invokeGetCursorScreenPoint = defineInvoke(sharedContext, electron.screen.getCursorScreenPoint)
+function getContext() {
+  sharedContext ??= getElectronEventaContext()
+  return sharedContext
+}
+
+function createInvokers() {
+  const context = getContext()
+  return {
+    desktop: defineInvoke(context, electronDesktopAutomationInvoke),
+    windowGetBounds: defineInvoke(context, electron.window.getBounds),
+    windowSetBounds: defineInvoke(context, electron.window.setBounds),
+    getAllDisplays: defineInvoke(context, electron.screen.getAllDisplays),
+    getCursorScreenPoint: defineInvoke(context, electron.screen.getCursorScreenPoint),
+  }
+}
+
+type Invokers = ReturnType<typeof createInvokers>
+
+let invokeCache: Invokers | undefined
+
+function resolveInvokers(): Invokers {
+  invokeCache ??= createInvokers()
+  return invokeCache
+}
 
 function resolveDesktopInvoker() {
-  return invokeDesktop
+  return resolveInvokers().desktop
 }
 
 function resolveWindowInvoker() {
-  return invokeWindowGetBounds
+  return resolveInvokers().windowGetBounds
 }
 
 function resolveSetBoundsInvoker() {
-  return invokeWindowSetBounds
+  return resolveInvokers().windowSetBounds
 }
 
 function resolveDisplaysInvoker() {
-  return invokeGetAllDisplays
+  return resolveInvokers().getAllDisplays
 }
 
 function resolveMouseInvoker() {
-  return invokeGetCursorScreenPoint
+  return resolveInvokers().getCursorScreenPoint
 }
 
 /**
