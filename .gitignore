@@ -72,3 +72,17 @@ resources/
 
 # 死代码备份（可还原，不入库；2026-08-07 overseer m0.5 清理）
 _dead_overseer_js_*/
+
+# 一次性调试产物（不提交到仓库）
+coverage/
+diag-*.mjs
+*.diag.mjs
+.screenshots/
+*_check.png
+*_capture.png
+capture_screen.ps1
+
+# .ai-memory：提交长期价值文档，忽略运行时会话态
+.ai-memory/sessions/
+.ai-memory/issues/
+.ai-memory/tmp/

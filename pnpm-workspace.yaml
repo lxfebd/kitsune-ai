@@ -24,6 +24,8 @@ catalog:
   '@capacitor/core': ^8.3.1
   '@capacitor/ios': ^8.3.1
   '@capacitor/local-notifications': ^8.0.2
+  '@capacitor/splash-screen': ^8.0.2
+  '@capacitor/status-bar': ^8.0.3
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
   '@dotenvx/dotenvx': ^1.61.1
@@ -471,11 +473,4 @@ packageExtensions:
   'vue-sonner':
     peerDependencies:
       vue: '^3.2.0'
-patchedDependencies:
-  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
-  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
-  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
-  pixi-live2d-display: patches/pixi-live2d-display.patch
-  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
-  uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 shellEmulator: true
