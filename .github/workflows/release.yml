@@ -1,0 +1,109 @@
+name: Release
+
+# 构建并发布桌面安装包到 GitHub Release，供 electron-updater 自动更新。
+# 触发方式：
+#   - 推送 tag（v*）→ 自动构建并发布（matrix 中启用的平台）
+#   - 手动 workflow_dispatch → 选择目标平台（默认不发布，仅构建验证）
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '要构建的目标平台'
+        required: true
+        default: 'win'
+        type: choice
+        options:
+          - win
+          - linux
+          - mac
+          - all
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win
+            os: windows-latest
+            script: build:win
+
+          - target: linux
+            os: ubuntu-latest
+            script: build:linux
+
+    # macOS 需要 Apple Developer 证书签名 + 公证（CSC_LINK、CSC_KEY_PASSWORD、APPLE_ID 等 secrets）。
+    # 未配置相关 secrets 时该作业会失败；配置后去掉下方注释即可启用 mac 安装包与公证。
+    # - target: mac
+    #   os: macos-latest
+    #   script: build:mac
+
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      inputs.target == 'all' ||
+      inputs.target == matrix.target
+
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      # Windows 需要 VS Build Tools 编译原生模块（uiohook-napi、koffi 等）
+      - name: Install native build tools (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build packages
+        run: pnpm run build:packages
+
+      # tag 触发时 electron-builder 通过 publish.provider=github 自动上传产物与
+      # latest-*.yml 更新 feed；手动触发则仅构建（发布由 --publish never 显式关闭）。
+      - name: Build App (${{ matrix.target }}) — tag
+        if: runner.os != 'Windows' && startsWith(github.ref, 'refs/tags/v')
+        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build App (${{ matrix.target }}) — tag (Windows)
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v')
+        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Build App (${{ matrix.target }}) — manual
+        if: startsWith(github.ref, 'refs/tags/v') != true
+        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

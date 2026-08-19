@@ -133,8 +133,8 @@ export default {
       provider: 'github',
       // NOTICE: 配置为你的 GitHub 仓库，格式：owner/repo
       // 例如：owner: 'your-username', repo: 'kitsune-ai'
-      owner: '',
-      repo: '',
+      owner: 'lxfebd',
+      repo: 'kitsune-ai',
       channel: 'latest-${arch}',
     },
   },
@@ -154,8 +154,8 @@ export default {
     publish: {
       provider: 'github',
       // NOTICE: 配置为你的 GitHub 仓库，格式：owner/repo
-      owner: '',
-      repo: '',
+      owner: 'lxfebd',
+      repo: 'kitsune-ai',
       channel: 'latest-${arch}',
     },
     extendInfo: [
@@ -189,8 +189,8 @@ export default {
     publish: {
       provider: 'github',
       // NOTICE: 配置为你的 GitHub 仓库，格式：owner/repo
-      owner: '',
-      repo: '',
+      owner: 'lxfebd',
+      repo: 'kitsune-ai',
       channel: 'latest-${arch}',
     },
     category: 'Utility',
