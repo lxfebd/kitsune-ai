@@ -66,8 +66,14 @@ open/
 
 # 二进制模型和资源（太大，应该用 LFS 或外部下载）
 # 仅忽略仓库根的 resources 与桌面端模型目录；包内 src/resources 源码需提交，不在此规则内
+# 注意：apps/stage-tamagotchi/resources 下的 gpt-sovits/workflows 等大型运行时资源不入库；
+# 但图标等小型构建必需资源必须提交，否则 CI 构建在解析 icon.png?asset 时会报 UNRESOLVED_IMPORT。
 /resources/
-apps/stage-tamagotchi/resources/
+apps/stage-tamagotchi/resources/*
+!apps/stage-tamagotchi/resources/icon.png
+!apps/stage-tamagotchi/resources/icon-512.png
+!apps/stage-tamagotchi/resources/icon.svg
+!apps/stage-tamagotchi/resources/tray-icon-macos.png
 
 # 环境变量/密钥（禁止入仓；保留 *.example 作为模板）
 .env
