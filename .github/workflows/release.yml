@@ -2,8 +2,12 @@ name: Release
 
 # 构建并发布桌面安装包到 GitHub Release，供 electron-updater 自动更新。
 # 触发方式：
-#   - 推送 tag（v*）→ 自动构建并发布（matrix 中启用的平台）
+#   - 推送 tag（v*）→ 自动构建并发布（Windows + Linux）
 #   - 手动 workflow_dispatch → 选择目标平台（默认不发布，仅构建验证）
+#
+# 并行发布竞态说明：Windows 与 Linux 若并行执行 electron-builder --publish always，
+# 会在同一 tag 下抢建 Release 草稿，导致重复/破碎的 Release。因此这里拆为两个独立
+# job，build-linux 显式 depends on build-win，保证同一版本下按顺序只有一个 job 做上传。
 
 on:
   push:
@@ -30,24 +34,62 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: win
-            os: windows-latest
-            script: build:win
+  build-win:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
 
-          - target: linux
-            os: ubuntu-latest
-            script: build:linux
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
 
-    # macOS 需要 Apple Developer 证书签名 + 公证（CSC_LINK、CSC_KEY_PASSWORD、APPLE_ID 等 secrets）。
-    # 未配置相关 secrets 时该作业会失败；配置后去掉下方注释并补回 mac 矩阵项即可启用。
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
 
-    name: Build ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      # Windows 需要 VS Build Tools 编译原生模块（uiohook-napi、koffi 等）
+      - name: Install native build tools (Windows)
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build packages
+        run: pnpm run build:packages
+
+      # tag 触发：electron-builder --publish always 自动创建/复用 tag 的 Release 并上传
+      # Windows 安装包与 latest.yml。手动触发：仅构建，不发布。
+      - name: Build App — Windows
+        run: pnpm -F @kitsune/stage-tamagotchi run build:win ${{ startsWith(github.ref, 'refs/tags/v') && '-- --publish always' || '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      # 手动触发时把安装包传到 Artifacts 供下载校验。
+      - name: Upload artifacts (Windows) — manual
+        if: startsWith(github.ref, 'refs/tags/v') != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitsune-ai-win-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            apps/stage-tamagotchi/dist/*
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    # 依赖 Windows 完成后再构建，保证同一 tag 只有一个 job 在创建/上传 Release，避免竞态。
+    needs: build-win
+
     steps:
       - uses: actions/checkout@v6
 
@@ -68,59 +110,25 @@ jobs:
 
       # Linux 需要 X11/Xrandr 头文件编译 uiohook-napi 等原生模块
       - name: Install native build deps (Linux)
-        if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev libxrandr-dev pkg-config build-essential
 
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
-      # Windows 需要 VS Build Tools 编译原生模块（uiohook-napi、koffi 等）
-      - name: Install native build tools (Windows)
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Build packages
         run: pnpm run build:packages
 
-      # tag/手动共同决定本次是否应构建当前矩阵平台。
-      # 注意：job 级 if 无法引用 matrix 上下文（GitHub 在创建 job 前求值），
-      # 因此平台过滤下放到 step 级 if，这里可以安全访问 matrix.target 与 github.event.inputs。
-      # tag 触发时 electron-builder 通过 publish.provider=github 自动上传产物与
-      # latest-*.yml 更新 feed；手动触发则仅构建（发布由 --publish never 显式关闭）。
-      - name: Build App (${{ matrix.target }}) — tag
-        if: |
-          startsWith(github.ref, 'refs/tags/v') &&
-          runner.os != 'Windows'
-        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
+      - name: Build App — Linux
+        run: pnpm -F @kitsune/stage-tamagotchi run build:linux ${{ startsWith(github.ref, 'refs/tags/v') && '-- --publish always' || '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build App (${{ matrix.target }}) — tag (Windows)
-        if: |
-          startsWith(github.ref, 'refs/tags/v') &&
-          runner.os == 'Windows'
-        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-
-      - name: Build App (${{ matrix.target }}) — manual
-        id: build_manual
-        if: |
-          startsWith(github.ref, 'refs/tags/v') != true &&
-          (github.event.inputs.target == 'all' || github.event.inputs.target == matrix.target || github.event.inputs.target == '')
-        run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # 手动触发时把安装包传到 Artifacts 供下载校验，不发布到 Release。
-      # 正式发布仍由"打 tag"触发（上面的 tag 步骤 electron-builder --publish always 自动上传 Release）。
-      - name: Upload artifacts (${{ matrix.target }}) — manual
-        if: steps.build_manual.outcome == 'success'
+      # 手动触发时把安装包传到 Artifacts 供下载校验。
+      - name: Upload artifacts (Linux) — manual
+        if: startsWith(github.ref, 'refs/tags/v') != true
         uses: actions/upload-artifact@v4
         with:
-          name: kitsune-ai-${{ matrix.target }}-${{ github.run_id }}
+          name: kitsune-ai-linux-${{ github.run_id }}
           if-no-files-found: warn
           path: |
             apps/stage-tamagotchi/dist/*
