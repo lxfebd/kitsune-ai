@@ -2,12 +2,13 @@ name: Release
 
 # 构建并发布桌面安装包到 GitHub Release，供 electron-updater 自动更新。
 # 触发方式：
-#   - 推送 tag（v*）→ 自动构建并发布（Windows + Linux）
-#   - 手动 workflow_dispatch → 选择目标平台（默认不发布，仅构建验证）
+#   - 推送 tag（v*）→ 自动构建（Windows + Linux）并由 publish job 创建唯一 Release 并上传全部产物
+#   - 手动 workflow_dispatch → 选择目标平台，仅构建并上传到 Actions Artifacts（不发布）
 #
-# 并行发布竞态说明：Windows 与 Linux 若并行执行 electron-builder --publish always，
-# 会在同一 tag 下抢建 Release 草稿，导致重复/破碎的 Release。因此这里拆为两个独立
-# job，build-linux 显式 depends on build-win，保证同一版本下按顺序只有一个 job 做上传。
+# 为什么用显式发布：electron-builder 勾子会为同一 tag 的多个平台各自 publish 时静默创建
+# 多个 draft Release（"already exists/overwrite" 却仍新建），导致破碎的重复产物。因此这里
+# 平台 job 一律 --publish never 只构建，产物经 artifacts 收集后由一个 publish job 用 gh 创建
+# 唯一 Release 并统一上传，保证发布过程确定且单一。
 
 on:
   push:
@@ -33,14 +34,17 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  VERSION: ${{ github.ref_name }}
+
 jobs:
   build-win:
     name: Build Windows
     runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'all' || github.event.inputs.target == 'win'))
     steps:
       - uses: actions/checkout@v6
 
-      # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
         with:
@@ -58,49 +62,33 @@ jobs:
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
-      # Windows 需要 VS Build Tools 编译原生模块（uiohook-napi、koffi 等）
       - name: Install native build tools (Windows)
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Build packages
         run: pnpm run build:packages
 
-      # tag 触发：electron-builder --publish always 自动创建/复用 tag 的 Release 并上传
-      # Windows 安装包与 latest.yml。注意必须用 exec 原样透传参数、避免 pnpm 在脚本
-      # 命令后追加多余 `--` 吞掉 publish 参数（否则只打包不发布）。
-      # 手动触发：仅构建，不发布。
-      - name: Build App — Windows (tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --win --publish always
+      - name: Build & package (Windows)
+        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
-      - name: Build App — Windows (manual)
-        if: startsWith(github.ref, 'refs/tags/v') != true
-        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --win
-
-      # 手动触发时把安装包传到 Artifacts 供下载校验。
-      - name: Upload artifacts (Windows) — manual
-        if: startsWith(github.ref, 'refs/tags/v') != true
+      - name: Upload artifact (Windows)
         uses: actions/upload-artifact@v4
         with:
-          name: kitsune-ai-win-${{ github.run_id }}
-          if-no-files-found: warn
-          path: |
-            apps/stage-tamagotchi/dist/*
+          name: dist-win
+          if-no-files-found: error
+          path: apps/stage-tamagotchi/dist/*
 
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
-    # 依赖 Windows 完成后再构建，保证同一 tag 只有一个 job 在创建/上传 Release，避免竞态。
-    needs: build-win
-
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'all' || github.event.inputs.target == 'linux'))
     steps:
       - uses: actions/checkout@v6
 
-      # Turborepo
       - name: Cache turbo build setup
         uses: actions/cache@v5
         with:
@@ -115,7 +103,6 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      # Linux 需要 X11/Xrandr 头文件编译 uiohook-napi 等原生模块
       - name: Install native build deps (Linux)
         run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev libxrandr-dev pkg-config build-essential
 
@@ -125,22 +112,67 @@ jobs:
       - name: Build packages
         run: pnpm run build:packages
 
-      - name: Build App — Linux (tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --linux --publish always
+      - name: Build & package (Linux)
+        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --linux --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build App — Linux (manual)
-        if: startsWith(github.ref, 'refs/tags/v') != true
-        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --linux
-
-      # 手动触发时把安装包传到 Artifacts 供下载校验。
-      - name: Upload artifacts (Linux) — manual
-        if: startsWith(github.ref, 'refs/tags/v') != true
+      - name: Upload artifact (Linux)
         uses: actions/upload-artifact@v4
         with:
-          name: kitsune-ai-linux-${{ github.run_id }}
-          if-no-files-found: warn
-          path: |
-            apps/stage-tamagotchi/dist/*
+          name: dist-linux
+          if-no-files-found: error
+          path: apps/stage-tamagotchi/dist/*
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [build-win, build-linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-win
+          path: ./artifacts
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-linux
+          path: ./artifacts
+
+      - name: Generate update feeds
+        # electron-builder 在 --publish never 下不写 latest-*.yml，这里按产物生成，
+        # 供 electron-updater 解析（Windows: latest-x64.yml；Linux: latest-x64-linux.yml）。
+        run: |
+          node -e '
+          const fs=require("fs"),crypto=require("crypto"),path=require("path");
+          const dir="./artifacts";
+          const sha=p=>crypto.createHash("sha512").update(fs.readFileSync(p)).digest("base64");
+          function feed(name,file){
+            const p=path.join(dir,file);
+            if(!fs.existsSync(p)){ console.error("MISSING "+p); return; }
+            const s=sha(p),size=fs.statSync(p).size;
+            const body=`version: ${process.env.VERSION}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
+            fs.writeFileSync(path.join(dir,name),body);
+            console.log("wrote "+name+" for "+file);
+          }
+          feed("latest-x64.yml","Kitsune-AI-0.10.3-windows-x64-setup.exe");
+          feed("latest-x64-linux.yml","Kitsune-AI-0.10.3-linux-amd64.deb");
+          '
+
+      - name: Remove existing Release for tag (idempotent)
+        run: gh release delete "${{ github.ref_name }}" --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Create and upload Release
+        run: |
+          cd ./artifacts
+          gh release create "${{ github.ref_name }}" ./* --title "${{ github.ref_name }}" --generate-notes
+
+      - name: Verify Release
+        run: |
+          echo "== assets on ${{ github.ref_name }} =="
+          gh release view "${{ github.ref_name }}" --json assets -q '.assets[].name'
