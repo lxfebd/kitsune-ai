@@ -73,7 +73,10 @@ export class TaskPusher {
   spawnCommand(binary: string, args: string[], cwd: string, timeoutMs: number): Promise<any>
   /** 强杀当前活跃子进程 */
   killAll(): void
-  getAvailableTools(): any[]
+  /** 获取可用工具列表（含二进制可用性探测） */
+  getAvailableTools(): Array<{ key: string, name: string, templates: any[], riskLevel: string, available: boolean, binary: string }>
+  /** 探测各工具二进制是否在 PATH 中可用，返回 { toolKey: boolean } */
+  probeToolAvailability(): Record<string, boolean>
   getHistory(limit?: number): any[]
 }
 

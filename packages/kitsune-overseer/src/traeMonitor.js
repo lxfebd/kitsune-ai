@@ -14,8 +14,10 @@ const path = require('path');
 const { execFile } = require('node:child_process');
 const { mapToUnifiedState } = require('./activityStates');
 
-// Trae 进程特征
+// Trae 进程特征（仅辅助信号）
 const TRAE_PROCESS_PATTERNS = ['trae', 'Trae'];
+// 检测存活阈值
+const FILE_ACTIVITY_THRESHOLD_MS = 60_000;
 
 // NOTICE: fs.watch(recursive: true) 在 Windows 上无法排除子目录，node_modules/.git 等大型目录
 // 会触发海量事件导致 CPU 飙升和事件队列阻塞（R3/R4）。在回调中按路径段过滤是最稳妥的跨平台方案。
@@ -191,10 +193,12 @@ class TraeMonitor {
       timestamp: Date.now()
     };
 
-    // 1. 检测 Trae 进程
-    status.isTraeRunning = await this._checkProcessRunning();
+    // 1. 检测 Trae 进程（文件系统信号优先 + 进程辅助）
+    const detect = await this._checkProcess();
+    status.isTraeRunning = detect.running;
+    status.detectSignal = detect.signal;
 
-    if (!status.isTraeRunning) {
+    if (!detect.running) {
       // 检查是否有最近的文件变更（可能是 Trae 自动编辑的）
       if (this.recentFileChanges.length > 0) {
         status.activity = 'file_changes';
@@ -237,7 +241,65 @@ class TraeMonitor {
   }
 
   /**
-   * 检测 Trae 进程
+   * 检测 Trae 是否在运行。
+   *
+   * 策略（优先级）：
+   * 1. 文件系统信号：watchDir/日志目录中的文件 mtime 在阈值内 → 正在运行
+   * 2. 进程检测：tasklist/ps（辅助，Windows 上进程名可能不匹配）
+   *
+   * 返回 { running, signal }
+   */
+  async _checkProcess() {
+    // 1. 文件系统信号（主检测手段）
+    const fileSignal = await this._detectByFileActivity()
+    if (fileSignal) {
+      this._lastFileSignalAt = Date.now()
+      return { running: true, signal: 'file' }
+    }
+
+    // 2. 进程检测（辅助信号）
+    const processRunning = await this._checkProcessRunning()
+    if (processRunning) {
+      return { running: true, signal: 'process' }
+    }
+
+    // 3. 文件信号惯性
+    if (this._lastFileSignalAt && Date.now() - this._lastFileSignalAt < FILE_ACTIVITY_THRESHOLD_MS * 2) {
+      return { running: true, signal: 'file_inertia' }
+    }
+
+    return { running: false, signal: 'none' }
+  }
+
+  /**
+   * 通过文件系统信号检测。
+   * 检查 .trae 目录及日志文件 mtime 是否在阈值内。
+   */
+  _detectByFileActivity() {
+    const now = Date.now()
+    const threshold = FILE_ACTIVITY_THRESHOLD_MS
+    const candidates = [
+      path.join(this.watchDir, '.trae', 'build.log'),
+      path.join(this.watchDir, '.trae', 'test-result.log'),
+      path.join(this.watchDir, 'logs', 'build.log'),
+      path.join(this.watchDir, 'test-results', 'latest.log'),
+    ]
+
+    for (const filePath of candidates) {
+      try {
+        if (!fs.existsSync(filePath)) continue
+        const stat = fs.statSync(filePath)
+        if (now - stat.mtimeMs < threshold) {
+          return true
+        }
+      } catch { /* 跳过 */ }
+    }
+
+    return false
+  }
+
+  /**
+   * 通过进程列表检测（辅助）。
    */
   _checkProcessRunning() {
     return new Promise((resolve) => {
@@ -473,6 +535,7 @@ class TraeMonitor {
       buildError: '',
       hasTestResult: false,
       testResult: '',
+      detectSignal: 'none',
       timestamp: 0
     };
   }

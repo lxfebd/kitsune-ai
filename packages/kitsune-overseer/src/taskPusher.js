@@ -11,6 +11,7 @@
  */
 
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 
 // 预定义工具配置 — 白名单，不可运行时修改
@@ -20,11 +21,21 @@ const TOOL_ALLOWLIST = {
     binary: 'claude',
     // 允许的命令模板（参数由用户提供）
     templates: [
-      { key: 'prompt', label: '发送指令', args: ['--print', '--no-input'], inputParam: '-p', maxLen: 2000 },
-      { key: 'diff', label: '请求 diff 审查', args: ['--diff', '--no-input'], inputParam: null, maxLen: 0 },
-      { key: 'commit', label: '生成 commit', args: ['--commit', '--no-input'], inputParam: null, maxLen: 0 },
+      { key: 'prompt', label: '发送指令', args: ['--print'], inputParam: '-p', maxLen: 2000 },
+      { key: 'diff', label: '请求 diff 审查', args: ['--diff', '--print'], inputParam: null, maxLen: 0 },
+      { key: 'commit', label: '生成 commit', args: ['--commit', '--print'], inputParam: null, maxLen: 0 },
     ],
     timeoutMs: 60_000,
+    riskLevel: 'medium',
+  },
+  opencode: {
+    name: 'Opencode',
+    binary: 'opencode',
+    templates: [
+      { key: 'prompt', label: '发送指令', args: ['--print'], inputParam: null, maxLen: 2000 },
+      { key: 'full-auto', label: '全自动模式', args: ['--full-auto'], inputParam: null, maxLen: 0 },
+    ],
+    timeoutMs: 120_000,
     riskLevel: 'medium',
   },
   codex: {
@@ -164,14 +175,21 @@ class TaskPusher {
   }
 
   /**
-   * 获取可用工具列表
+   * 获取可用工具列表（含二进制可用性探测）。
+   *
+   * 返回 { key, name, templates, riskLevel, available, binary }
+   * available=false 表示该工具的 CLI 二进制不在 PATH 中（如 trae/cursor 无 CLI，
+   * 或 claude/codex/aider 未安装），调用方应跳过自动修复。
    */
   getAvailableTools() {
+    const availability = this.probeToolAvailability()
     return Object.entries(TOOL_ALLOWLIST).map(([key, cfg]) => ({
       key,
       name: cfg.name,
       templates: cfg.templates.map(t => ({ key: t.key, label: t.label })),
       riskLevel: cfg.riskLevel,
+      available: Boolean(availability[key]),
+      binary: cfg.binary,
     }));
   }
 
@@ -359,6 +377,58 @@ class TaskPusher {
       }, 5000);
     }
     this._activeChildren.clear();
+  }
+
+  /**
+   * 探测各工具二进制是否在 PATH 中可用。
+   *
+   * ── 修复笔记 ──
+   * trae/cursor/windsurf 是 GUI IDE，没有 CLI 二进制，spawn('trae') 必然失败。
+   * claude/codex/aider 需要用户手动安装（npm install / pip install）。
+   * 此方法在 startup 时扫描 PATH 目录，标记不可用的工具，使自动修复可跳过它们。
+   *
+   * 返回 { toolKey: boolean } 对象，例如 { claude: true, codex: false, trae: false }。
+   * 结果会缓存到 this._binaryCache，避免频繁磁盘扫描。
+   */
+  probeToolAvailability() {
+    if (this._binaryCache) return this._binaryCache
+
+    const cache = {}
+    const pathDirs = (process.env.PATH || '').split(path.delimiter)
+    const isWin = process.platform === 'win32'
+    // Windows 上可执行文件扩展名
+    const exts = isWin ? ['', '.exe', '.cmd', '.bat'] : ['']
+
+    for (const [key, cfg] of Object.entries(TOOL_ALLOWLIST)) {
+      const binary = cfg.binary
+      let found = false
+
+      for (const dir of pathDirs) {
+        if (!dir) continue
+        for (const ext of exts) {
+          try {
+            const fullPath = path.join(dir, binary + ext)
+            if (fs.existsSync(fullPath)) {
+              // 非 Windows 上检查可执行位
+              if (!isWin) {
+                try {
+                  const stat = fs.statSync(fullPath)
+                  if (!(stat.mode & 0o111)) continue
+                } catch { continue }
+              }
+              found = true
+              break
+            }
+          } catch { /* 继续 */ }
+        }
+        if (found) break
+      }
+
+      cache[key] = found
+    }
+
+    this._binaryCache = cache
+    return cache
   }
 }
 

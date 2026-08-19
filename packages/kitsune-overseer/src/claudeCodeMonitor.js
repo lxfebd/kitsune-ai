@@ -1,25 +1,44 @@
 /**
- * Claude Code 进程监控（v2：正确路径 + 实时任务追踪）
+ * Claude Code 进程监控（v3：文件系统信号优先）
  *
- * 监控来源：
- * 1. ~/.claude/history.jsonl — 用户最近输入（当前任务）
- * 2. ~/.claude/cc-haha/traces/*.jsonl — 实时执行过程
- * 3. 进程状态检测（tasklist/ps）
- * 4. git 变更分析
+ * ── 修复笔记 ──
+ * 原实现依赖 tasklist/ps 进程名搜索来检测 Claude Code 是否运行。
+ * 问题：Windows 上 Claude Code 的主进程是 node.exe，tasklist 搜 "claude" 永远匹配不到，
+ * 且 Cursor/Trae 等基于 VS Code 的工具进程名可能是 Code.exe/Electron.exe，不是 trae/cursor。
+ * 结果：监控器永远以为工具没在运行，整个监工系统形同虚设。
+ *
+ * 修复方案：改用文件系统信号作为主要检测手段。
+ *   Claude Code 在运行时一定会写 ~/.claude/history.jsonl 和 trace 文件，
+ *   检测文件 mtime 是否在最近 N 秒内更新，比进程名可靠得多，且跨平台一致。
+ *   进程检测保留为辅助信号（仅 Unix 上 node/claude 进程名可识别时）。
+ *
+ * 监控来源（按优先级）：
+ * 1. ~/.claude/history.jsonl mtime — 只要有交互就会更新
+ * 2. ~/.claude/cc-haha/traces/*.jsonl — 旧版执行 trace（已被新版替代但仍保留兼容）
+ * 3. ~/.claude/projects/<proj>/records/<file>.jsonl — 新版执行 trace
+ * 4. 进程状态检测（tasklist/ps）— 辅助信号，仅用于非 Windows 或进程名可识别时
+ * 5. git 变更分析
  */
 
 const fs = require('node:fs');
+const fsp = fs.promises;
 const path = require('path');
 const { execFile } = require('node:child_process');
 const { mapToUnifiedState } = require('./activityStates');
 
-// Claude Code 数据路径（Windows）
-const CLAUDE_BASE_PATH = path.join(process.env.USERPROFILE || '', '.claude');
-const CLAUDE_HISTORY_FILE = path.join(CLAUDE_BASE_PATH, 'history.jsonl');
-const CLAUDE_TRACES_DIR = path.join(CLAUDE_BASE_PATH, 'cc-haha', 'traces');
+// Claude Code 数据路径（跨平台）
+const CLAUDE_HOME = process.env.CLAUDE_HOME || process.env.XDG_CONFIG_HOME
+  ? path.join(process.env.XDG_CONFIG_HOME, 'claude')
+  : path.join(process.env.USERPROFILE || process.env.HOME || '', '.claude');
+const CLAUDE_HISTORY_FILE = path.join(CLAUDE_HOME, 'history.jsonl');
+const OLD_TRACES_DIR = path.join(CLAUDE_HOME, 'cc-haha', 'traces');
+const NEW_TRACES_DIR = path.join(CLAUDE_HOME, 'projects');
 
-// Claude Code 进程名称特征
-const CLAUDE_PROCESS_PATTERNS = ['claude', '@anthropic-ai/claude-code'];
+// 检测存活阈值：此秒数内文件有更新即视为"正在运行"
+const FILE_ACTIVITY_THRESHOLD_MS = 60_000; // 60 秒
+
+// Claude Code 进程名称特征（仅作为辅助信号）
+const CLAUDE_PROCESS_PATTERNS = ['claude', '@anthropic-ai/claude-code', 'node'];
 
 // NOTICE: 原实现用正则 matchPatterns 去"猜" activity（thinking/coding/executing…），
 // 误报率极高——一段解释性文本里含 "running" 就会被误判成 executing。
@@ -109,7 +128,7 @@ class ClaudeCodeMonitor {
   start() {
     if (this.isRunning) return;
     this.isRunning = true;
-    console.log('[ClaudeCodeMonitor] 已启动，监控路径:', CLAUDE_BASE_PATH);
+    console.log('[ClaudeCodeMonitor] 已启动，监控路径:', CLAUDE_HOME);
     this._startPolling();
   }
 
@@ -141,11 +160,14 @@ class ClaudeCodeMonitor {
       hasError: false,
       errorMessage: '',
       tokenUsage: 0,
+      detectSignal: 'none',
       timestamp: Date.now(),
     };
 
-    // 1. 检测进程
-    status.isRunning = await this._checkProcessRunning();
+    // 1. 检测运行状态（文件系统信号优先 + 进程辅助）
+    const detect = await this._checkProcessRunning();
+    status.isRunning = detect.running;
+    status.detectSignal = detect.signal;
 
     // 2. 读取用户最新输入（当前任务）
     const latestUserInput = this._readLatestUserInput();
@@ -154,7 +176,7 @@ class ClaudeCodeMonitor {
     }
     status.currentTask = this._currentTask;
 
-    // 3. 如果进程在运行，读取实时 trace
+    // 3. 如果检测到运行，读取实时 trace
     if (status.isRunning) {
       const traceInfo = this._readLatestTrace();
       if (traceInfo) {
@@ -176,7 +198,7 @@ class ClaudeCodeMonitor {
         status.lastFilePath = this._lastFilePath;
       }
     } else {
-      // 进程未运行，检查 git 变更
+      // 未检测到运行，检查 git 变更
       const gitChanges = await this._getRecentGitChanges();
       if (gitChanges.hasChanges) {
         status.activity = 'code_changed';
@@ -191,12 +213,102 @@ class ClaudeCodeMonitor {
   }
 
   /**
-   * 检测 Claude Code 进程是否在运行
+   * 检测 Claude Code 是否在运行。
+   *
+   * 策略（按优先级）：
+   * 1. 文件系统信号：history.jsonl 或 traces 目录中最新文件 mtime 在最近
+   *    FILE_ACTIVITY_THRESHOLD_MS 内 → 正在运行（最可靠，跨平台一致）
+   * 2. 进程检测：tasklist/ps 搜索进程名（辅助信号，Windows 上 node.exe 无法识别）
+   *
+   * 返回 { running, signal } 结构，signal 标明检测来源（'file'|'process'|'none'），
+   * 供调试与日志排查。
    */
-  _checkProcessRunning() {
+  async _checkProcessRunning() {
+    // 1. 文件系统信号（主检测手段）
+    const fileSignal = await this._detectByFileActivity()
+    if (fileSignal) {
+      this._lastFileSignalAt = Date.now()
+      return { running: true, signal: 'file' }
+    }
+
+    // 2. 进程检测（辅助信号）
+    const processRunning = await this._detectByProcessList()
+    if (processRunning) {
+      return { running: true, signal: 'process' }
+    }
+
+    // 3. 文件信号的"惯性"——如果 2 倍阈值内曾检测到文件活动，仍视为运行中
+    // 避免 Claude Code 空闲时（不写文件但进程仍在）被误判为已停止
+    if (this._lastFileSignalAt && Date.now() - this._lastFileSignalAt < FILE_ACTIVITY_THRESHOLD_MS * 2) {
+      return { running: true, signal: 'file_inertia' }
+    }
+
+    return { running: false, signal: 'none' }
+  }
+
+  /**
+   * 通过文件系统信号检测。
+   * 检查 history.jsonl 和所有 trace 目录下最新文件的 mtime。
+   * 任一文件在阈值内更新 → 返回 true。
+   */
+  _detectByFileActivity() {
+    const now = Date.now()
+    const threshold = FILE_ACTIVITY_THRESHOLD_MS
+    const candidates = [CLAUDE_HISTORY_FILE]
+
+    // 扫描新版 trace 目录：~/.claude/projects/*/records/*.jsonl
+    try {
+      if (fs.existsSync(NEW_TRACES_DIR)) {
+        const projects = fs.readdirSync(NEW_TRACES_DIR)
+        for (const project of projects) {
+          const recordsDir = path.join(NEW_TRACES_DIR, project, 'records')
+          if (fs.existsSync(recordsDir)) {
+            const traceFiles = fs.readdirSync(recordsDir)
+              .filter(f => f.endsWith('.jsonl'))
+              .map(f => path.join(recordsDir, f))
+            candidates.push(...traceFiles)
+          }
+        }
+      }
+    } catch { /* 目录不可读则跳过 */ }
+
+    // 扫描旧版 trace 目录
+    try {
+      if (fs.existsSync(OLD_TRACES_DIR)) {
+        const oldFiles = fs.readdirSync(OLD_TRACES_DIR)
+          .filter(f => f.endsWith('.jsonl'))
+          .map(f => path.join(OLD_TRACES_DIR, f))
+        candidates.push(...oldFiles)
+      }
+    } catch { /* 跳过 */ }
+
+    // 检查所有候选文件，任一文件在阈值内更新 → 有活动
+    for (const filePath of candidates) {
+      try {
+        const stat = fs.statSync(filePath)
+        if (now - stat.mtimeMs < threshold) {
+          return true
+        }
+      } catch { /* 文件不存在或不可读，跳过 */ }
+    }
+
+    return false
+  }
+
+  /**
+   * 通过进程列表检测（辅助信号）。
+   * 仅用于非 Windows 平台（进程名可识别时）。
+   * Windows 上 node.exe 无法区分，返回 false。
+   */
+  _detectByProcessList() {
     return new Promise((resolve) => {
-      const cmd = process.platform === 'win32' ? 'tasklist' : 'ps';
-      const args = process.platform === 'win32' ? [] : ['aux'];
+      // Windows 上 Claude Code 进程名是 node.exe，无法区分，直接返回 false
+      if (process.platform === 'win32') {
+        resolve(false)
+        return
+      }
+      const cmd = 'ps';
+      const args = ['aux'];
       execFile(cmd, args, { timeout: 5000 }, (err, stdout) => {
         if (err) { resolve(false); return; }
         const output = stdout.toLowerCase();
@@ -235,34 +347,67 @@ class ClaudeCodeMonitor {
 
   /**
    * 读取最新 trace 文件（实时活动）
+   *
+   * 探测路径（按优先级）：
+   * 1. ~/.claude/projects/<proj>/records/<file>.jsonl — 新版 Claude Code
+   * 2. ~/.claude/cc-haha/traces/*.jsonl — 旧版 Claude Code
+   *
+   * 返回第一个有内容的 trace 目录的最新文件内容。
    */
   _readLatestTrace() {
+    // 收集所有候选 trace 目录
+    const traceDirs = []
+    // 新版路径：~/.claude/projects/*/records/
     try {
-      if (!fs.existsSync(CLAUDE_TRACES_DIR)) return null;
-
-      // 找最新的 trace 文件
-      const files = fs.readdirSync(CLAUDE_TRACES_DIR)
-        .filter(f => f.endsWith('.jsonl'))
-        .map(f => ({
-          name: f,
-          mtime: fs.statSync(path.join(CLAUDE_TRACES_DIR, f)).mtimeMs,
-        }))
-        .sort((a, b) => b.mtime - a.mtime);
-
-      if (files.length === 0) return null;
-
-      const latestFile = path.join(CLAUDE_TRACES_DIR, files[0].name);
-
-      // 如果文件没变，跳过
-      if (files[0].mtime === this._lastTraceMTime) {
-        return null;
+      if (fs.existsSync(NEW_TRACES_DIR)) {
+        const projects = fs.readdirSync(NEW_TRACES_DIR)
+        for (const project of projects) {
+          const recordsDir = path.join(NEW_TRACES_DIR, project, 'records')
+          if (fs.existsSync(recordsDir)) {
+            traceDirs.push(recordsDir)
+          }
+        }
       }
-      this._lastTraceMTime = files[0].mtime;
+    } catch { /* 跳过 */ }
+    // 旧版路径
+    if (fs.existsSync(OLD_TRACES_DIR)) {
+      traceDirs.push(OLD_TRACES_DIR)
+    }
+    // 默认回退（兼容旧版配置）
+    if (traceDirs.length === 0) return null;
 
-      // 读取最后 50 行
-      const content = fs.readFileSync(latestFile, 'utf8');
-      const lines = content.trim().split('\n').filter(Boolean);
-      const recentLines = lines.slice(-50);
+    // 在所有目录中找最新的 trace 文件
+    let latestFile = '';
+    let latestMtime = 0;
+    for (const dir of traceDirs) {
+      try {
+        const files = fs.readdirSync(dir)
+          .filter(f => f.endsWith('.jsonl'))
+          .map(f => ({
+            name: f,
+            mtime: fs.statSync(path.join(dir, f)).mtimeMs,
+          }))
+        for (const f of files) {
+          if (f.mtime > latestMtime) {
+            latestMtime = f.mtime
+            latestFile = path.join(dir, f.name)
+          }
+        }
+      } catch { /* 跳过 */ }
+    }
+
+    if (!latestFile) return null;
+
+    // 如果文件没变，跳过（避免重复解析相同内容）
+    if (latestMtime === this._lastTraceMTime) {
+      return null;
+    }
+    this._lastTraceMTime = latestMtime;
+
+    // 读取最后 50 行
+    const content = fs.readFileSync(latestFile, 'utf8');
+    const lines = content.trim().split('\n').filter(Boolean);
+    const recentLines = lines.slice(-50);
 
       let activity = 'active';
       let lastOutput = '';
@@ -346,10 +491,7 @@ class ClaudeCodeMonitor {
       }
 
       return { activity, lastOutput, lastToolCall, lastFilePath, hasError, errorMessage, tokenUsage };
-    } catch {
-      return null;
     }
-  }
 
   /**
    * 获取最近的 git 变更
@@ -447,7 +589,8 @@ class ClaudeCodeMonitor {
     return this.lastStatus || {
       isRunning: false, activity: 'idle', currentTask: '',
       lastOutput: '', lastToolCall: '', lastFilePath: '',
-      hasError: false, errorMessage: '', tokenUsage: 0, timestamp: 0,
+      hasError: false, errorMessage: '', tokenUsage: 0,
+      detectSignal: 'none', timestamp: 0,
     };
   }
 }

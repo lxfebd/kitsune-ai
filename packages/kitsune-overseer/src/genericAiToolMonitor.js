@@ -218,10 +218,11 @@ class GenericAiToolMonitor {
       timestamp: Date.now(),
     };
 
-    const processRunning = await this._checkProcess();
-    status.isRunning = processRunning;
+    const detect = await this._checkProcess();
+    status.isRunning = detect.running;
+    status.detectSignal = detect.signal;
 
-    if (!processRunning) {
+    if (!detect.running) {
       if (this.recentFileChanges.length > 0) {
         status.activity = 'file_changes';
         status.lastOutput = `${this.recentFileChanges.length} 个文件变更`;
@@ -248,8 +249,73 @@ class GenericAiToolMonitor {
     this.lastStatus = status;
   }
 
-  // 轻量级进程检测：Windows用tasklist过滤，Unix用pgrep
-  _checkProcess() {
+  /**
+   * 检测工具进程是否在运行。
+   *
+   * 策略（优先级）：
+   * 1. 文件系统信号：日志目录下的最新文件 mtime 在阈值内 → 正在运行
+   * 2. 进程检测：tasklist/pgrep（辅助，Windows 上进程名可能不匹配）
+   *
+   * 返回 { running, signal }
+   */
+  async _checkProcess() {
+    // 1. 文件系统信号：检查日志目录中最新文件的 mtime
+    const fileSignal = await this._detectByFileActivity()
+    if (fileSignal) {
+      this._lastFileSignalAt = Date.now()
+      return { running: true, signal: 'file' }
+    }
+
+    // 2. 进程检测（辅助信号）
+    const processRunning = await this._detectByProcessList()
+    if (processRunning) {
+      return { running: true, signal: 'process' }
+    }
+
+    // 3. 文件信号惯性（2 倍阈值内曾检测到文件活动，仍视为运行中）
+    if (this._lastFileSignalAt && Date.now() - this._lastFileSignalAt < POLL_INTERVAL_MS * 3) {
+      return { running: true, signal: 'file_inertia' }
+    }
+
+    return { running: false, signal: 'none' }
+  }
+
+  /**
+   * 通过文件系统信号检测。
+   * 检查 logPaths 中最新文件的 mtime 是否在阈值内。
+   */
+  _detectByFileActivity() {
+    const now = Date.now()
+    const threshold = POLL_INTERVAL_MS * 2
+    const logPathFns = this.config.logPaths || []
+
+    for (const fn of logPathFns) {
+      try {
+        const logDir = typeof fn === 'function' ? fn() : fn
+        if (!logDir) continue
+        if (!fs.existsSync(logDir)) continue
+
+        const files = fs.readdirSync(logDir)
+        for (const file of files.slice(-5)) {
+          try {
+            const filePath = path.join(logDir, file)
+            const stat = fs.statSync(filePath)
+            if (now - stat.mtimeMs < threshold) {
+              return true
+            }
+          } catch { /* 跳过 */ }
+        }
+      } catch { /* 跳过 */ }
+    }
+
+    return false
+  }
+
+  /**
+   * 通过进程列表检测（辅助）。
+   * Windows 上 tasklist 过滤，Unix 上 pgrep。
+   */
+  _detectByProcessList() {
     return new Promise((resolve) => {
       let cmd, args;
       if (process.platform === 'win32') {
