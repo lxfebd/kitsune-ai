@@ -133,7 +133,8 @@
     "xsschema": "catalog:",
     "zod": "catalog:",
     "electron-updater": "catalog:",
-    "mkcert": "catalog:"
+    "mkcert": "catalog:",
+    "yauzl": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
@@ -197,8 +198,7 @@
     "vite-plugin-vue-layouts": "catalog:",
     "vue-macros": "catalog:",
     "vue-tsc": "catalog:",
-    "yaml": "catalog:",
-    "yauzl": "catalog:"
+    "yaml": "catalog:"
   },
   "build": {
     "appId": "ai.kitsune.desktop",

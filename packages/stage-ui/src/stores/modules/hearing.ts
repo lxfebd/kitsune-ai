@@ -121,10 +121,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
   // Uses a separate flag to ensure this only runs once, not on every restart.
   // sherpa-asr (SenseVoice) is preferred for Chinese users as it has much better
   // Chinese recognition (~2% WER) compared to Whisper which may misdetect Chinese as English.
-  const autoConfiguredKey = 'settings/hearing/auto-configured-v2'
+  const autoConfiguredKey = 'settings/hearing/auto-configured-v3'
   if (import.meta.env.RUNTIME_ENVIRONMENT === 'electron' && !localStorage.getItem(autoConfiguredKey)) {
     if (!activeTranscriptionProvider.value || activeTranscriptionProvider.value === 'app-local-audio-transcription') {
       activeTranscriptionProvider.value = 'sherpa-asr'
+      // 同时设默认模型，否则 configured 为 false 导致聊天页 ASR 不工作
+      //（use-transcriptions.ts 的 startStreaming 在 hearingConfigured=false 时
+      //  尝试自动配置 Web Speech API，但 Electron 中不可用，直接 bail）
+      if (!activeTranscriptionModel.value) {
+        activeTranscriptionModel.value = 'sensevoice'
+      }
     }
     localStorage.setItem(autoConfiguredKey, '1')
   }
@@ -415,6 +421,188 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     return output
   }
 
+  /**
+   * 将 Float32Array 音频样本转换为 WAV Blob（16-bit 单声道）。
+   */
+  function float32ToWavBlob(samples: Float32Array, sampleRate: number): Blob {
+    const numSamples = samples.length
+    const buffer = new ArrayBuffer(44 + numSamples * 2)
+    const view = new DataView(buffer)
+
+    function writeStr(offset: number, str: string): void {
+      for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+    }
+
+    writeStr(0, 'RIFF')
+    view.setUint32(4, 36 + numSamples * 2, true)
+    writeStr(8, 'WAVE')
+    writeStr(12, 'fmt ')
+    view.setUint32(16, 16, true)
+    view.setUint16(20, 1, true)
+    view.setUint16(22, 1, true)
+    view.setUint32(24, sampleRate, true)
+    view.setUint32(28, sampleRate * 2, true)
+    view.setUint16(32, 2, true)
+    view.setUint16(34, 16, true)
+    writeStr(36, 'data')
+    view.setUint32(40, numSamples * 2, true)
+
+    let offset = 44
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]))
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true)
+      offset += 2
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' })
+  }
+
+  /**
+   * VAD 分段批处理转录：用于不支持流式输入的 provider。
+   *
+   * 当持续的音频流进来时，用能量检测划分语音段，每段结束后拼接成 WAV 文件，
+   * 调用 transcribeForRecording 转写。这样本地 provider（sherpa-asr / app-local-whisper）
+   * 也能实现"说完一句出一句"的体感。
+   *
+   * 这不是真 partial（不会边喂边出字），但比"完全不能持续监听"好得多。
+   */
+  const VAD_ENERGY_THRESHOLD = 0.025
+  const VAD_SILENCE_FRAMES = 30   // ~0.96s 静音 = 句尾（30 × 512 samples / 16000Hz）
+  const VAD_MIN_SEGMENT_SAMPLES = 8000  // 500ms @16kHz 最小语音段
+
+  async function transcribeWithVadBatch(
+    stream: MediaStream,
+    providerId: string,
+    options?: {
+      sampleRate?: number
+      providerOptions?: Record<string, unknown>
+      onSentenceEnd?: (delta: string) => void
+      onSpeechEnd?: (text: string) => void
+    },
+  ): Promise<void> {
+    const sampleRate = options?.sampleRate ?? DEFAULT_SAMPLE_RATE
+    const audioContext = new AudioContext({ sampleRate, latencyHint: 'interactive' })
+    await audioContext.audioWorklet.addModule(vadWorkletUrl)
+    const workletNode = new AudioWorkletNode(audioContext, 'vad-audio-worklet-processor')
+
+    const abortController = new AbortController()
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const idleTimeout = DEFAULT_STREAM_IDLE_TIMEOUT
+
+    function bumpIdle(): void {
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(async () => {
+        await stopStreamingTranscription(false, providerId)
+      }, idleTimeout)
+    }
+
+    // VAD 状态
+    let isInSpeech = false
+    let silenceFrames = 0
+    let segmentChunks: Float32Array[] = []
+    let totalSamples = 0
+
+    // 转写队列：同一时间只能转写一段，后续段排队等待
+    const segmentQueue: Array<{ chunks: Float32Array[], samples: number }> = []
+    let isProcessing = false
+
+    const signal = abortController.signal
+
+    async function drainQueue(): Promise<void> {
+      if (signal.aborted) return
+      isProcessing = true
+      while (segmentQueue.length > 0) {
+        if (signal.aborted) break
+        const { chunks, samples } = segmentQueue.shift()!
+        if (samples < VAD_MIN_SEGMENT_SAMPLES) continue
+
+        const combined = new Float32Array(samples)
+        let offset = 0
+        for (const chunk of chunks) {
+          combined.set(chunk, offset)
+          offset += chunk.length
+        }
+
+        const wavBlob = float32ToWavBlob(combined, sampleRate)
+
+        try {
+          const text = await transcribeForRecording(wavBlob)
+          if (text && text.trim()) {
+            options?.onSentenceEnd?.(text)
+            options?.onSpeechEnd?.(text)
+          }
+        }
+        catch (err) {
+          if (isExpectedStreamStopError(err)) return
+          console.error('[VAD Batch] Transcription error:', err)
+        }
+      }
+      isProcessing = false
+    }
+
+    workletNode.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
+      const buffer = data?.buffer
+      if (!buffer) return
+
+      // 计算 RMS 能量
+      let sum = 0
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i]
+      const rms = Math.sqrt(sum / buffer.length)
+
+      if (rms > VAD_ENERGY_THRESHOLD) {
+        // 语音活动
+        isInSpeech = true
+        silenceFrames = 0
+        segmentChunks.push(buffer)
+        totalSamples += buffer.length
+        bumpIdle()
+      }
+      else if (isInSpeech) {
+        // 静音（语音段中）
+        silenceFrames++
+        segmentChunks.push(buffer)
+        totalSamples += buffer.length
+
+        if (silenceFrames >= VAD_SILENCE_FRAMES) {
+          // 句尾：结束当前语音段，入队转写
+          isInSpeech = false
+          silenceFrames = 0
+          segmentQueue.push({ chunks: segmentChunks.slice(), samples: totalSamples })
+          segmentChunks = []
+          totalSamples = 0
+          if (!isProcessing) {
+            void drainQueue()
+          }
+        }
+      }
+    }
+
+    const mediaStreamSource = audioContext.createMediaStreamSource(stream)
+    mediaStreamSource.connect(workletNode)
+
+    const silentGain = audioContext.createGain()
+    silentGain.gain.value = 0
+    workletNode.connect(silentGain)
+    silentGain.connect(audioContext.destination)
+
+    if (audioContext.state === 'suspended') await audioContext.resume()
+    bumpIdle()
+
+    streamingSession.value = {
+      audioContext,
+      workletNode,
+      mediaStreamSource,
+      audioStreamController: undefined,
+      abortController,
+      idleTimer,
+      providerId,
+      callbacks: {
+        onSentenceEnd: options?.onSentenceEnd,
+        onSpeechEnd: options?.onSpeechEnd,
+      },
+    }
+  }
+
   async function createAudioStreamFromMediaStream(stream: MediaStream, sampleRate = DEFAULT_SAMPLE_RATE, onActivity?: () => void) {
     const audioContext = new AudioContext({ sampleRate, latencyHint: 'interactive' })
     await audioContext.audioWorklet.addModule(vadWorkletUrl)
@@ -585,11 +773,27 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       const providerId = activeTranscriptionProvider.value
       if (!providerId) {
         error.value = '请先在设置中配置语音识别 Provider'
+        console.warn('[Hearing Pipeline] No transcription provider selected')
+        return
       }
-      else {
-        error.value = `当前语音识别 Provider (${providerId}) 不支持实时流式输入，请选择支持流式输入的 Provider`
+
+      // 降级到 VAD 分段批处理：本地 provider（sherpa-asr / app-local-whisper）
+      // 不支持流式输入，但可以通过 VAD 划分语音段、逐段转写，实现"说完一句出一句"
+      console.info('[Hearing Pipeline] Provider does not support stream input, falling back to VAD-batched transcription', { providerId })
+      error.value = undefined
+      try {
+        await transcribeWithVadBatch(stream, providerId, {
+          sampleRate: options?.sampleRate,
+          providerOptions: options?.providerOptions,
+          onSentenceEnd: options?.onSentenceEnd,
+          onSpeechEnd: options?.onSpeechEnd,
+        })
       }
-      console.warn('[Hearing Pipeline] Stream input not supported', { providerId })
+      catch (err) {
+        if (isExpectedStreamStopError(err)) return
+        error.value = errorMessage(err)
+        console.error('[Hearing Pipeline] VAD-batched transcription error:', error.value)
+      }
       return
     }
 

@@ -82,16 +82,15 @@ const testStreamWasStarted = ref(false) // Track if we started the stream for te
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
-
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    // Use both callbacks to support incremental updates and final transcript replacement.
-    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
+  // transcribeForMediaStream 内部处理：
+  // - 流式 provider（aliyun-nls / web-speech-api）走实时流
+  // - 非流式 provider（app-local-whisper）走 VAD 分段批处理降级
+  if (stream.value) {
     await transcribeForMediaStream(stream.value, {
       onSentenceEnd: (delta) => {
         transcriptions.value.push(delta)
@@ -107,12 +106,7 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
-  if (shouldUseStreamInput.value) {
-    // For streaming providers, keep the session alive; idle timer will handle teardown.
-    return
-  }
-
-  stopRecord()
+  // transcribeForMediaStream 内部处理静音检测和句尾转写，外部 VAD 不再触发录音
 }
 
 const {
@@ -258,9 +252,7 @@ function syncOpenAICompatibleSettings() {
 }
 
 onStopRecord(async (recording) => {
-  if (shouldUseStreamInput.value)
-    return
-
+  // transcribeForMediaStream 内部处理分段转写，此回调仅作为回退路径保留
   if (!recording || recording.size === 0)
     return
 
@@ -353,10 +345,11 @@ async function startSTTTest() {
       testStreamWasStarted.value = false // Stream was already running
     }
 
-    // Check if provider supports streaming input
-    if (shouldUseStreamInput.value && stream.value) {
+    // transcribeForMediaStream 内部处理：流式 provider 走实时流，
+    // 非流式 provider（app-local-whisper）走 VAD 分段批处理降级
+    if (stream.value) {
       testStatusMessage.value = t('settings.pages.modules.hearing.sections.section.stt-test.status.starting-streaming')
-      console.info('Starting STT test with streaming input for provider:', activeTranscriptionProvider.value)
+      console.info('Starting STT test with transcription for provider:', activeTranscriptionProvider.value)
 
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
@@ -415,12 +408,7 @@ async function stopSTTTest() {
 
   try {
     // Stop streaming transcription if active
-    if (shouldUseStreamInput.value) {
-      await stopStreamingTranscription(false, activeTranscriptionProvider.value)
-    }
-    else {
-      stopRecord()
-    }
+    await stopStreamingTranscription(false, activeTranscriptionProvider.value)
   }
   catch (err) {
     console.error('Error stopping STT test:', err)
@@ -486,11 +474,9 @@ onUnmounted(() => {
 
   // Clean up any active transcription sessions when leaving the page
   // This prevents stale sessions from interfering with other pages
-  if (shouldUseStreamInput.value) {
-    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch((err) => {
-      console.warn('[Hearing Module] Error cleaning up transcription session on unmount:', err)
-    })
-  }
+  stopStreamingTranscription(true, activeTranscriptionProvider.value).catch((err) => {
+    console.warn('[Hearing Module] Error cleaning up transcription session on unmount:', err)
+  })
 
   audioCleanups.value.forEach(cleanup => cleanup())
 })
@@ -863,7 +849,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div v-if="shouldUseStreamInput" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
+        <div v-if="stream" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
           <div class="flex items-center gap-2 text-primary-700 dark:text-primary-400">
             <div class="i-solar:info-circle-line-duotone text-sm" />
             <span class="text-xs">{{ t('settings.pages.modules.hearing.sections.section.stt-test.streaming-mode-hint') }}</span>
@@ -879,7 +865,7 @@ onUnmounted(() => {
               v-if="testTranscriptionText || testStreamingText"
               class="min-h-[100px] border border-neutral-200 rounded-lg bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             >
-              <div v-if="testStreamingText && shouldUseStreamInput" class="text-neutral-600 dark:text-neutral-400">
+              <div v-if="testStreamingText" class="text-neutral-600 dark:text-neutral-400">
                 <div class="mb-2 font-medium">
                   {{ t('settings.pages.modules.hearing.sections.section.stt-test.result.streaming') }}
                 </div>
@@ -888,7 +874,7 @@ onUnmounted(() => {
                 </div>
               </div>
               <div v-if="testTranscriptionText" class="text-neutral-700 dark:text-neutral-200">
-                <div v-if="testStreamingText && shouldUseStreamInput" class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700">
+                <div v-if="testStreamingText" class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700">
                   {{ t('settings.pages.modules.hearing.sections.section.stt-test.result.final') }}
                 </div>
                 <div class="whitespace-pre-wrap">
@@ -909,7 +895,7 @@ onUnmounted(() => {
             <div v-if="activeTranscriptionModel">
               {{ t('settings.pages.modules.hearing.sections.section.stt-test.model') }}: <span class="font-medium">{{ activeTranscriptionModel }}</span>
             </div>
-            <div>{{ t('settings.pages.modules.hearing.sections.section.stt-test.mode') }}: <span class="font-medium">{{ shouldUseStreamInput ? t('settings.pages.modules.hearing.sections.section.stt-test.mode.streaming') : t('settings.pages.modules.hearing.sections.section.stt-test.mode.recording') }}</span></div>
+            <div>{{ t('settings.pages.modules.hearing.sections.section.stt-test.mode') }}: <span class="font-medium">{{ supportsStreamInput ? t('settings.pages.modules.hearing.sections.section.stt-test.mode.streaming') : t('settings.pages.modules.hearing.sections.section.stt-test.mode.vad-batch') }}</span></div>
           </div>
         </div>
       </div>

@@ -865,6 +865,7 @@ pages:
             mode:
               streaming: Streaming (real-time)
               recording: Recording (file)
+              vad-batch: VAD Batch (batch)
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory

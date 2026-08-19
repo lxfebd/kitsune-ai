@@ -187,12 +187,6 @@ export const providerSherpaAsr = defineProvider<SherpaAsrConfig>({
           provider: 'sherpa-asr',
           description: 'Paraformer-Small: 68M params, ~2.8% WER on Chinese, ultra-low latency',
         },
-        {
-          id: 'whisper',
-          name: 'Whisper（降级）',
-          provider: 'sherpa-asr',
-          description: 'Whisper-Small: 244M params, multilingual fallback',
-        },
       ]
     },
   },

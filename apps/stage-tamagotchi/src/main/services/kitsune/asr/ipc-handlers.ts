@@ -36,7 +36,7 @@ const log = useLogg('asr-ipc-handlers').useGlobalConfig()
  * ```
  */
 export function registerAsrIpcHandlers(context: InvocableEventContext<any, any>): void {
-  // 注册内置引擎（SenseVoice / Paraformer / Whisper）
+  // 注册内置引擎（SenseVoice / Paraformer）
   registerBuiltinAsrEngines()
 
   // 内存管线：renderer 发送 Float32Array，main 直接识别

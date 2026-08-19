@@ -282,6 +282,19 @@ pages:
         add-to-whitelist: Add to whitelist (auto-execute similar)
         reject: Reject
         approve: Approve
+  overseer:
+      title: Overseer
+      description: Monitor AI coding tools and auto-fix failures
+      enable-label: Monitor & Auto-Fix
+      enable: Enable
+      disable: Disable
+      status:
+        running: Running
+        stopped: Stopped
+      tools-title: Monitored Tools
+      tool-running: Active
+      tool-idle: Idle
+      error-title: Error
   system:
     sections:
       section:

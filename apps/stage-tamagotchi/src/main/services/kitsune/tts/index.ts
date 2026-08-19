@@ -19,6 +19,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { env, platform } from 'node:process'
 
+import { app } from 'electron'
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { optional, object, string, number, integer, minValue, maxValue, pipe, union, literal } from 'valibot'
@@ -89,7 +90,6 @@ export function resolveGptSovitsDir(): string | null {
   // 开发模式下 app.getAppPath() 返回 apps/stage-tamagotchi
   // 打包后返回 app.asar 路径
   // resources/gpt-sovits 目录通过 electron-builder 的 extraResources 配置打包
-  const { app } = require('electron')
   const appPath = app.getAppPath()
   log.log(`[resolveGptSovitsDir] app.getAppPath() = ${appPath}`)
 
@@ -371,7 +371,11 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
   // NOTICE:
   // GPT-SoVITS v2ProPlus 使用 api.py 作为入口，通过 -p 参数指定监听端口。
   // 参考 api.py 文档：`python api.py -p 9880`
-  const args = ['api.py', '-p', String(port)]
+  // `-sm normal` 启用流式模式：api.py 的 get_tts_wav() 在推理循环内逐 chunk
+  // yield 音频帧 (L1071-1073)；`-mt raw` 跳过 OGG 编解码，直接输出 int16 PCM，
+  // 省去前端 decodeAudioData 的开销与有损压缩。主进程逐 chunk 转发至渲染进程，
+  // 前端直接构造 AudioBuffer 边合成边播放，降低首包延迟。
+  const args = ['api.py', '-p', String(port), '-sm', 'normal', '-mt', 'raw']
   if (device === 'cpu') {
     args.push('-d', 'cpu')
   }
@@ -706,10 +710,149 @@ export async function synthesizeGptSovits(
     throw new Error(`GPT-SoVITS 合成失败 (${res.status}): ${errText}`)
   }
 
+  const contentType = res.headers.get('content-type') ?? ''
   const arrayBuffer = await res.arrayBuffer()
   const duration = Date.now() - startTime
   log.log(`合成完成: ${arrayBuffer.byteLength} bytes, 耗时 ${duration}ms`)
+
+  // api.py 在 `-mt raw` 下返回裸 int16 PCM（无 WAV 头），
+  // 前端 decodeAudioData 无法直接解析，这里包装成 WAV 保持兼容。
+  if (!contentType.includes('ogg')) {
+    const sampleRate = 32000 // v2Pro 模型采样率
+    return wrapPcmToWav(Buffer.from(arrayBuffer), sampleRate)
+  }
   return Buffer.from(arrayBuffer)
+}
+
+/** 将 raw int16 PCM 包装为 WAV（44 字节头 + PCM 数据），供 decodeAudioData 兼容。 */
+function wrapPcmToWav(pcm: Buffer, sampleRate: number): Buffer {
+  const numChannels = 1
+  const bitsPerSample = 16
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
+  const blockAlign = numChannels * (bitsPerSample / 8)
+  const dataSize = pcm.length
+  const wav = Buffer.alloc(44 + dataSize)
+
+  wav.write('RIFF', 0)
+  wav.writeUInt32LE(36 + dataSize, 4)
+  wav.write('WAVE', 8)
+  wav.write('fmt ', 12)
+  wav.writeUInt32LE(16, 16)
+  wav.writeUInt16LE(1, 20) // PCM
+  wav.writeUInt16LE(numChannels, 22)
+  wav.writeUInt32LE(sampleRate, 24)
+  wav.writeUInt32LE(byteRate, 28)
+  wav.writeUInt16LE(blockAlign, 32)
+  wav.writeUInt16LE(bitsPerSample, 34)
+  wav.write('data', 36)
+  wav.writeUInt32LE(dataSize, 40)
+  pcm.copy(wav, 44)
+
+  return wav
+}
+
+/**
+ * GPT-SoVITS 流式语音合成 — 基于 api.py `-sm normal` 流式模式，
+ * 逐 OGG chunk yield，实现边合成边传输。
+ *
+ * 与 {@link synthesizeGptSovits} 的区别：不等待整段合成完成，
+ * 每收到一个 OGG chunk 立即 yield，供 IPC 流式 handler 转发至渲染进程
+ * 逐块 decodeAudioData 播放（首包延迟显著降低）。
+ *
+ * api.py 在流式模式下每生成一个推理块（Tchunk=1000，约 100-500ms 音频）
+ * 就 pack_ogg 写入 BytesIO 并由 read_clean_buffer 读取、yield 为独立 OGG 帧。
+ * 每个 OGG 帧是完整、可独立解码的 OGG 音频流。
+ */
+export async function* synthesizeGptSovitsStream(
+  _sidecarService: SidecarService,
+  text: string,
+  options: { voice?: string, speed?: number } = {},
+): AsyncGenerator<{ type: 'data', data: Buffer, sampleRate: number, format: 'ogg' | 'pcm-int16' }> {
+  const port = getGptSovitsPort()
+  const dir = resolveGptSovitsDir()
+  if (!dir)
+    throw new Error('GPT-SoVITS 目录未配置')
+
+  const voiceId = options.voice ?? 'ailini'
+  const {
+    referWavPath,
+    promptText,
+    promptLanguage,
+    gptModel,
+    sovitsModel,
+  } = resolveVoiceMeta(dir, voiceId)
+
+  // 语言智能路由（与 synthesizeGptSovits 相同的跨语言合成逻辑）
+  const cjkCount = (text.match(/[一-鿿]/g) ?? []).length
+  const nonCjkCount = text.length - cjkCount
+  const textLanguage = cjkCount > nonCjkCount * 0.3 ? 'zh' : promptLanguage
+  const effectivePromptLanguage = textLanguage === 'zh' ? 'zh' : promptLanguage
+
+  if (gptModel && sovitsModel && lastLoadedVoiceId !== voiceId) {
+    const gptAbs = join(dir, gptModel)
+    const sovitsAbs = join(dir, sovitsModel)
+    log.log(`切换模型: ${voiceId} -> GPT=${gptModel}, SoVITS=${sovitsModel}`)
+    const switchRes = await fetch(
+      `http://127.0.0.1:${port}/set_model?gpt_model_path=${encodeURIComponent(gptAbs)}&sovits_model_path=${encodeURIComponent(sovitsAbs)}`,
+      { signal: AbortSignal.timeout(120_000) },
+    )
+    if (!switchRes.ok) {
+      const err = await switchRes.text().catch(() => '')
+      log.error(`模型切换失败: ${err}`)
+      throw new Error(`模型切换失败: ${err}`)
+    }
+    lastLoadedVoiceId = voiceId
+    log.log(`模型切换完成`)
+  }
+
+  const body = {
+    refer_wav_path: referWavPath,
+    prompt_text: promptText,
+    prompt_language: effectivePromptLanguage,
+    text,
+    text_language: textLanguage,
+    speed: options.speed ?? 1.0,
+    top_k: 5,
+    top_p: 0.6,
+    temperature: 0.6,
+  }
+
+  log.log(`流式合成请求: voice=${voiceId}, text="${text.slice(0, 30)}..."`)
+
+  const res = await fetch(`http://127.0.0.1:${port}/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(180_000),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    log.error(`流式合成失败 (${res.status}): ${errText}`)
+    throw new Error(`GPT-SoVITS 流式合成失败 (${res.status}): ${errText}`)
+  }
+
+  // v2Pro 模型采样率为 32000Hz，OGG header 中亦含采样率，
+  // 前端 decodeAudioData 会自动读取，此处提供便于前端初始化 AudioContext。
+  const sampleRate = 32000
+
+  // 推断音频格式：api.py 在 `-mt raw` 下返回 Content-Type: audio/raw（int16 PCM），
+  // 否则为 OGG。带 WAV 头时（media_type=wav 非流式）也视为 pcm-int16（剥离头）。
+  const contentType = res.headers.get('content-type') ?? ''
+  const format: 'ogg' | 'pcm-int16' = contentType.includes('ogg') ? 'ogg' : 'pcm-int16'
+  log.log(`流式合成格式: ${format} (content-type=${contentType})`)
+
+  const reader = res.body!.getReader()
+  let chunkCount = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    if (value?.byteLength) {
+      chunkCount += 1
+      yield { type: 'data' as const, data: Buffer.from(value), sampleRate, format }
+    }
+  }
+  log.log(`流式合成完成: ${chunkCount} chunks, text="${text.slice(0, 30)}..."`)
 }
 
 /**

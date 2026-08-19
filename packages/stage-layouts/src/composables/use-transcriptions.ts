@@ -124,15 +124,12 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.info('Web Speech API configured as default provider', { source: 'useTranscriptions' })
     }
 
-    // Check if streaming input is supported
-    // TODO: implement non-streaming transcription
+    // Check if streaming input is supported.
+    // If not, transcribeForMediaStream internally falls back to VAD-batched
+    // transcription (local providers: sherpa-asr / app-local-whisper), so we
+    // proceed and let that layer decide the path.
     if (!supportsStreamInput.value) {
-      const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
-      console.warn(errorMsg, { source: 'useTranscriptions' })
-      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
-      await stopStreamingTranscription(true)
-      isListening.value = false
-      return
+      console.info('Streaming input not supported by the selected transcription provider. Falling back to VAD-batched transcription.', { provider: hearingStore.activeTranscriptionProvider, source: 'useTranscriptions' })
     }
 
     try {

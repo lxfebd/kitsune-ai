@@ -848,6 +848,7 @@ pages:
             mode:
               streaming: 串流（即時）
               recording: 錄音（檔案）
+              vad-batch: VAD 批量（分段）
     memory-long-term:
       description: 長期記憶
       title: 長期記憶

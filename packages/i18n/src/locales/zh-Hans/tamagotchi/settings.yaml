@@ -282,6 +282,19 @@ pages:
         add-to-whitelist: 加入白名单（自动执行同类操作）
         reject: 拒绝
         approve: 允许
+  overseer:
+      title: 监工系统
+      description: 监控 AI 编程工具状态，自动修复失败任务
+      enable-label: 自动监控与修复
+      enable: 开启
+      disable: 关闭
+      status:
+        running: 运行中
+        stopped: 已停止
+      tools-title: 监听工具
+      tool-running: 活跃
+      tool-idle: 空闲
+      error-title: 错误
   system:
     sections:
       section:

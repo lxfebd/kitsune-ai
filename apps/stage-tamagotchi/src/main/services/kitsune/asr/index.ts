@@ -5,7 +5,8 @@
  * renderer 发送 Float32Array → main 进程识别 → 返回文本 + 情感
  *
  * 引擎由 asr-engine-registry 配置驱动，支持热切换：
- * SenseVoice（默认，中文最优） ↔ Paraformer（最快） ↔ Whisper（降级）
+ * SenseVoice（默认，中文最优） ↔ Paraformer（最快）
+ * （Whisper 走浏览器端 transformers.js 独立管线，不在此 sherpa-onnx 体系内）
  */
 
 import type { AsrEngineDefinition } from '@kitsune/stage-ui/inference/asr-engine-registry'
@@ -13,7 +14,7 @@ import type { OfflineRecognizer, OfflineRecognizerResult } from 'sherpa-onnx'
 
 import { app } from 'electron'
 import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { useLogg } from '@guiiai/logg'
@@ -47,29 +48,33 @@ const __dirname = dirname(__filename)
  */
 function getAsrModelsDir(): string {
   const isDev = !app.isPackaged
+  const candidatePaths: string[] = []
 
   if (isDev) {
     // 开发模式：从 apps/stage-tamagotchi 向上找到 monorepo 根
-    const devPaths = [
+    candidatePaths.push(
       join(__dirname, '..', '..', '..', '..', '..', '..', 'resources', 'models', 'sherpa-onnx'),
       join(process.cwd(), '..', '..', 'resources', 'models', 'sherpa-onnx'),
-    ]
-    for (const p of devPaths) {
-      if (existsSync(p)) return p
-    }
+    )
   }
 
   // 生产模式
-  const prodPaths = [
+  candidatePaths.push(
     join(app.getAppPath(), 'models', 'sherpa-onnx'),
     join(app.getPath('exe'), '..', 'resources', 'models', 'sherpa-onnx'),
-  ]
-  for (const p of prodPaths) {
+  )
+
+  for (const p of candidatePaths) {
     if (existsSync(p)) return p
   }
 
-  // 最终回退：开发模式相对路径
-  return join(__dirname, '..', '..', '..', '..', '..', '..', 'resources', 'models', 'sherpa-onnx')
+  // 所有候选目录都不存在：抛可操作的错误，而非静默回退到不存在的路径
+  // （否则 sherpa-onnx WASM 会因为模型文件缺失抛底层 WASM 错误，用户无从下手）
+  throw new Error(
+    '未找到 ASR 模型目录。请从 https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models '
+    + '下载 SenseVoice / Paraformer 模型并解压到:\n'
+    + `  ${candidatePaths[0] ?? 'resources/models/sherpa-onnx/'}`,
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -150,6 +155,41 @@ function resolveModelPath(relativePath: string): string {
   return join(asrModelsDir, relativePath)
 }
 
+/**
+ * 校验引擎所需的模型文件是否全部存在
+ *
+ * sherpa-onnx WASM 在模型文件缺失时只会抛底层 WASM 错误（难懂且无指引），
+ * 这里在 createOfflineRecognizer 之前预检所有文件，缺失时给出可操作的下载指引。
+ *
+ * @param engine - 引擎定义（含配置文件路径列表）
+ * @param modelsDir - ASR 模型根目录
+ * @returns 缺失文件的绝对路径列表（空数组即全部存在）
+ */
+function validateModelFiles(engine: AsrEngineDefinition, modelsDir: string): string[] {
+  const missing: string[] = []
+  const mc = engine.recognizerConfig.modelConfig
+
+  function check(relativePath: string | undefined): void {
+    if (!relativePath) return
+    const absolute = join(modelsDir, relativePath)
+    if (!existsSync(absolute)) missing.push(absolute)
+  }
+
+  check(mc.tokens)
+  if (mc.senseVoice) {
+    check(mc.senseVoice.model)
+  }
+  if (mc.paraformer) {
+    check(mc.paraformer.model)
+  }
+  if (mc.whisper) {
+    check(mc.whisper.encoder)
+    check(mc.whisper.decoder)
+  }
+
+  return missing
+}
+
 // ---------------------------------------------------------------------------
 // 公共 API
 // ---------------------------------------------------------------------------
@@ -163,7 +203,7 @@ export async function initEngine(engineId?: string): Promise<void> {
   const id = engineId ?? getDefaultAsrEngineId()
   const engine = getAsrEngine(id)
   if (!engine) {
-    throw new Error(`ASR engine "${id}" is not registered. Available: ${Array.from(['sensevoice', 'paraformer', 'whisper']).join(', ')}`)
+    throw new Error(`ASR engine "${id}" is not registered. Available: ${Array.from(['sensevoice', 'paraformer']).join(', ')}`)
   }
 
   // 如果同一引擎已加载，跳过
@@ -180,6 +220,20 @@ export async function initEngine(engineId?: string): Promise<void> {
   }
 
   log.log(`Loading ASR engine: ${engine.name} (${engine.id})`)
+
+  // 预检模型文件：sherpa-onnx WASM 在文件缺失时抛底层错误（用户无法理解），
+  // 提前校验并给出可操作的下载指引
+  const modelsDir = asrModelsDir ?? getAsrModelsDir()
+  const missing = validateModelFiles(engine, modelsDir)
+  if (missing.length > 0) {
+    const downloadUrl = 'https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models'
+    const relPaths = missing.map(f => relative(modelsDir, f))
+    throw new Error(
+      `ASR 引擎 "${id}" 的模型文件缺失（${missing.length} 个）：\n`
+      + relPaths.map(p => `  - ${p}`).join('\n')
+      + `\n请从 ${downloadUrl} 下载对应模型并解压到:\n  ${modelsDir}`,
+    )
+  }
 
   try {
     recognizer = resolveRecognizerConfig(engine)
@@ -266,10 +320,22 @@ export async function switchEngine(engineId: string): Promise<void> {
  * 获取当前 ASR 状态
  */
 export function getStatus(): AsrStatus {
+  let modelsDir: string
+  if (asrModelsDir) {
+    modelsDir = asrModelsDir
+  }
+  else {
+    try {
+      modelsDir = getAsrModelsDir()
+    }
+    catch {
+      modelsDir = '（未找到 ASR 模型目录，请先下载模型）'
+    }
+  }
   return {
     engineId: currentEngineId,
     ready: recognizer !== null,
-    modelsDir: asrModelsDir ?? getAsrModelsDir(),
+    modelsDir,
   }
 }
 

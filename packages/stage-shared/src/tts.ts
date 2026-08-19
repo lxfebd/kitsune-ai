@@ -3,6 +3,14 @@ import { defineInvokeEventa } from '@moeru/eventa'
 /** GPT-SoVITS 语音合成 — 通过 sidecar JSON-RPC 进行本地语音合成，返回 ArrayBuffer 供前端播放。 */
 export const electronTtsSynthesize = defineInvokeEventa<{ success: boolean, audioData?: ArrayBuffer, error?: string }, { text: string, voice?: string }>('eventa:invoke:electron:tts:synthesize')
 
+/** GPT-SoVITS 流式语音合成 — 基于 api.py `-sm normal` 流式模式，返回 OGG 音频块流。
+ * 与 {@link electronTtsSynthesize} 的区别：走流式 IPC，主进程读取 api.py 的 StreamingResponse
+ * 逐 chunk 转发至渲染进程，实现边合成边播放。 */
+export const electronTtsStream = defineInvokeEventa<
+  { type: 'chunk', data: ArrayBuffer, sampleRate: number, format: 'ogg' | 'pcm-int16' } | { type: 'end', bytes: number },
+  { text: string, voice?: string, speed?: number }
+>('eventa:invoke:electron:tts:stream')
+
 /** TTS 声线列表 — 扫描 voices/ 目录动态获取可用声线。 */
 export const electronTtsListVoices = defineInvokeEventa<{ voices: Array<{ id: string, name: string, lang: string, is_cloned?: boolean, base_character?: string }> }>('eventa:invoke:electron:tts:list-voices')
 
