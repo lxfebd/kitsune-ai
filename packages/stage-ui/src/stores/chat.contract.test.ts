@@ -117,12 +117,6 @@ vi.mock('./llm', () => ({
   }),
 }))
 
-vi.mock('./llm-toolset-prompts', () => ({
-  useLlmToolsetPromptsStore: () => ({
-    activeToolsetPrompt: 'Plugin toolset guidance.',
-  }),
-}))
-
 vi.mock('./modules/active-model', () => ({
   useActiveModelStore: () => ({
     activeProvider: ref('mock-provider'),
@@ -265,15 +259,14 @@ describe('chat orchestrator contract', () => {
     const systemContent = (composedMessages[0] as any).content
     const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
-    expect(systemText).toContain('Plugin toolset guidance.')
 
-    // The user turn is prefixed with [YYYY-MM-DD HH:MM]. Both historic and
-    // current turns share the same shape so prefix-cache stays valid when a
-    // "current" turn becomes "historic" on the next send. Side-channel context
-    // (weather) is appended as a separate text part so providers don't see
-    // consecutive same-role messages.
+    // The user turn is forwarded verbatim. Historic and current turns share
+    // the same shape so prefix-cache stays valid when a "current" turn becomes
+    // "historic" on the next send. Side-channel context (weather) is appended
+    // as a separate text part so providers don't see consecutive same-role
+    // messages.
     const userMessageContent = (composedMessages[1] as any).content
-    expect(userMessageContent[0].text).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] hello from user$/)
+    expect(userMessageContent[0].text).toBe('hello from user')
 
     const syntheticContextText = userMessageContent[1].text
     expect(syntheticContextText).not.toContain('<context>')

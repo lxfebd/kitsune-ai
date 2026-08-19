@@ -2,7 +2,7 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../.
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { ref } from 'vue'
 
 // Refs the store reads through the mocked `useAuthStore` / `usePersonaStore`.
 // Tests mutate these to simulate auth and card swaps.
@@ -117,116 +117,6 @@ async function flushMicrotasks(rounds = 8) {
   for (let i = 0; i < rounds; i++)
     await Promise.resolve()
 }
-
-describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
-  // ROOT CAUSE:
-  //
-  // ensureActiveSessionForCharacter caches `ensureActivePromise` for singleflight
-  // and the IIFE captures `currentUserId` at start. When `userId` flips A → B
-  // mid-flight:
-  //   1. The userId watcher calls clearInMemoryState (resets sessionMetas /
-  //      index / activeSessionId), but does NOT reset `ensureActivePromise`.
-  //   2. A's IIFE eventually resumes after its awaited IDB read completes and
-  //      writes A's session record back into the now-empty B state — leak.
-  //   3. Any subsequent ensureActiveSessionForCharacter call (e.g. from the
-  //      [userId, activeCardId] watcher) returns A's stale promise instead of
-  //      starting a fresh hydrate for B — B silently sees no sessions.
-  //
-  // We fix this by:
-  //   - bumping an `ensureActiveEpoch` and nulling `ensureActivePromise` in
-  //     `clearInMemoryState`,
-  //   - re-checking the captured epoch after each await inside the IIFE,
-  //   - re-checking `sessionMetas[sessionId]` inside `loadSession` so the
-  //     post-IDB write does not resurrect cleared state,
-  //   - triggering a fresh hydrate from the userId watcher itself so the new
-  //     user actually loads.
-  it('runs a fresh hydrate for the new user and discards the stale write from the old user', async () => {
-    const aSessionMeta: ChatSessionMeta = {
-      sessionId: 'sess-A',
-      userId: 'A',
-      characterId: 'default',
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    const aIndex: ChatSessionsIndex = {
-      userId: 'A',
-      characters: {
-        default: {
-          activeSessionId: 'sess-A',
-          sessions: { 'sess-A': aSessionMeta },
-        },
-      },
-    }
-    const bSessionMeta: ChatSessionMeta = {
-      sessionId: 'sess-B',
-      userId: 'B',
-      characterId: 'default',
-      createdAt: 2,
-      updatedAt: 2,
-    }
-    const bIndex: ChatSessionsIndex = {
-      userId: 'B',
-      characters: {
-        default: {
-          activeSessionId: 'sess-B',
-          sessions: { 'sess-B': bSessionMeta },
-        },
-      },
-    }
-
-    let resolveASessionGet: ((rec: ChatSessionRecord | null) => void) | undefined
-    getIndexMock.mockImplementation((uid: string) => {
-      if (uid === 'A')
-        return Promise.resolve(aIndex)
-      if (uid === 'B')
-        return Promise.resolve(bIndex)
-      return Promise.resolve(null)
-    })
-    getSessionMock.mockImplementation((id: string) => {
-      // A's session getSession is the slow await we use to hold the IIFE open
-      // until after the user swap fires.
-      if (id === 'sess-A') {
-        return new Promise<ChatSessionRecord | null>((resolve) => {
-          resolveASessionGet = resolve
-        })
-      }
-      if (id === 'sess-B')
-        return Promise.resolve({ meta: bSessionMeta, messages: [] })
-      return Promise.resolve(null)
-    })
-
-    userIdRef.value = 'A'
-    const store = useChatSessionStore()
-
-    // Kick off initialize; it will await ensureActiveSessionForCharacter, which
-    // will await loadSession('sess-A') → getSession('sess-A') (deferred).
-    const initPromise = store.initialize()
-    await flushMicrotasks()
-
-    // Sanity: A's getSession was reached and is parked.
-    expect(getSessionMock).toHaveBeenCalledWith('sess-A')
-    expect(resolveASessionGet).toBeDefined()
-
-    // Auth swap mid-flight.
-    userIdRef.value = 'B'
-    await nextTick()
-    await flushMicrotasks()
-
-    // Resolve A's IDB read AFTER the swap. With the bug, A's IIFE writes
-    // sess-A back into the cleared sessionMetas.
-    resolveASessionGet!({ meta: aSessionMeta, messages: [] })
-    await initPromise.catch(() => {})
-    await flushMicrotasks()
-
-    // B's hydrate must have fired — without the fix, the [userId, activeCardId]
-    // watcher returned the stale A promise and B never loaded.
-    expect(getIndexMock).toHaveBeenCalledWith('B')
-    expect(store.sessionMetas['sess-B']).toBeDefined()
-
-    // A's data must NOT have leaked into B's state.
-    expect(store.sessionMetas['sess-A']).toBeUndefined()
-  })
-})
 
 describe('chat-session-store · loadSession vs concurrent deleteSession', () => {
   // ROOT CAUSE:

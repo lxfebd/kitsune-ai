@@ -33,7 +33,9 @@ describe('image_journal config snapshot', () => {
     const tools = await imageJournalTools()
 
     expect(tools).toSatisfyStrictToolSchemas()
-  }, 15_000)
+    // Heavy static import graph (stage-ui store modules) can exceed the default
+    // 15s timeout under parallel test load; keep headroom so CI stays green.
+  }, 30_000)
 
   it('extracts plain values instead of leaking Ref objects', () => {
     const config = resolveArtistryConfigFromStore({

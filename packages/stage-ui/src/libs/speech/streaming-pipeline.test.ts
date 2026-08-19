@@ -123,6 +123,7 @@ describe('createStreamingTtsPipeline', () => {
     const handle = createStreamingTtsPipeline({
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
+      token: 'test-jwt',
       voice: 'mock',
       audioContext: makeStubAudioContext(),
       onSentence,
@@ -178,6 +179,7 @@ describe('createStreamingTtsPipeline', () => {
     const onSentence = vi.fn()
     const handle = createStreamingTtsPipeline({
       serverUrl: server.url,
+      token: 'test-jwt',
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
       audioContext: makeStubAudioContext(),
@@ -212,6 +214,7 @@ describe('createStreamingTtsPipeline', () => {
     createStreamingTtsPipeline({
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
+      token: 'test-jwt',
       voice: 'mock',
       audioContext: makeStubAudioContext(),
       onError,
@@ -245,6 +248,7 @@ describe('createStreamingTtsPipeline', () => {
     createStreamingTtsPipeline({
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
+      token: 'test-jwt',
       voice: 'mock',
       audioContext: makeStubAudioContext(),
       onError,
@@ -276,6 +280,7 @@ describe('createStreamingTtsPipeline', () => {
     const handle = createStreamingTtsPipeline({
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
+      token: 'test-jwt',
       voice: 'mock',
       audioContext: makeStubAudioContext(),
       onDone,

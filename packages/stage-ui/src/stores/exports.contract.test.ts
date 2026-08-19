@@ -30,6 +30,7 @@ describe('stage-ui exports contract', () => {
       './composables/*',
       './constants',
       './constants/*',
+      './inference/asr-engine-registry',
       './libs',
       './libs/*',
       './libs/inference',

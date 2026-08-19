@@ -5,8 +5,8 @@ import { resolveVADConfig } from './vad'
 describe('resolveVADConfig', () => {
   it('uses safer defaults for threshold and silence duration', () => {
     expect(resolveVADConfig()).toEqual({
-      speechThreshold: 0.6,
-      exitThreshold: 0.18,
+      speechThreshold: 0.5,
+      exitThreshold: 0.15,
       minSilenceDurationMs: 800,
     })
   })

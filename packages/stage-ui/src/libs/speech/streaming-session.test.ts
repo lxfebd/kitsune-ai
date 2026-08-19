@@ -97,6 +97,7 @@ describe('streamingSynthesize', () => {
 
     const result = await streamingSynthesize({
       serverUrl: server.url,
+      token: 'test-jwt',
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
       input: 'hello',
@@ -139,6 +140,7 @@ describe('streamingSynthesize', () => {
 
     await expect(streamingSynthesize({
       serverUrl: server.url,
+      token: 'test-jwt',
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
       input: 'hello',
@@ -165,6 +167,7 @@ describe('streamingSynthesize', () => {
 
     await expect(streamingSynthesize({
       serverUrl: server.url,
+      token: 'test-jwt',
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
       input: 'hello',
@@ -186,6 +189,7 @@ describe('streamingSynthesize', () => {
     const ctrl = new AbortController()
     const promise = streamingSynthesize({
       serverUrl: server.url,
+      token: 'test-jwt',
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
       input: 'hello',

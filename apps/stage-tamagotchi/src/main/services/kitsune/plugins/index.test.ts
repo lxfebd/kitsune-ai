@@ -696,9 +696,19 @@ describe('setupExtensionHost', () => {
       '})',
     ].join('\n'))
 
-    const deadline = Date.now() + 3000
-    let afterSessionId = beforeSession?.id
-    while (Date.now() < deadline && afterSessionId === beforeSession?.id) {
+    // NOTICE:
+    // Why: during a reload the extension session is unloaded (inspect returns
+    // no matching session) before the new session spawns. The previous loop
+    // treated that transient `undefined` as success and exited immediately,
+    // failing under parallel test load (the spray reload outpace the poll).
+    // Root cause summary: `afterSessionId === beforeSession.id` was the only
+    // exit guard, so any non-matching value — including a reload-in-progress
+    // gap — stopped the poll.
+    // Removal condition: keep once reload semantics stabilize; this is a
+    // robustness guard, not a behavior change.
+    const deadline = Date.now() + 8000
+    let afterSessionId: string | undefined
+    while (Date.now() < deadline && (afterSessionId === undefined || afterSessionId === beforeSession?.id)) {
       await new Promise(resolve => setTimeout(resolve, 100))
       const snapshot = await invokeInspect()
       afterSessionId = snapshot.sessions.find(session => session.extensionId === 'test-auto-reload-reload')?.id
