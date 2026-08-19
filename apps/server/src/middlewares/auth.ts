@@ -51,9 +51,16 @@ export function createAuthGuard(auth?: { api: { getSession: (ctx: any) => Promis
 
 /**
  * Default auth guard (no auth integration, allows all requests through).
+ *
+ * Preserves `user`/`session` already populated by an upstream middleware (e.g.
+ * a session middleware or a test harness) and only defaults them to null when
+ * nothing set them. This keeps the "auth disabled" behavior while letting
+ * upstream session resolution survive the guard.
  */
 export const authGuard: MiddlewareHandler<HonoEnv> = async (c, next) => {
-  c.set('user', null)
-  c.set('session', null)
+  if (!c.get('user'))
+    c.set('user', null)
+  if (!c.get('session'))
+    c.set('session', null)
   await next()
 }

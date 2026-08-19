@@ -11,6 +11,7 @@ import type {
 } from '../features/static-assets'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
+import { mkdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
@@ -38,10 +39,20 @@ const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 // NOTICE:
 // Plugins are loaded into the main process (see plugin-sdk node/fs loader), so
 // granting a permission is equivalent to trusting a plugin with host privileges.
-// Only the non-privileged `kitsune:plugin-sdk:apis:protocol:*` namespace is
-// auto-approved; everything else is denied. This matches the devtools sample
-// plugin and the built-in local extensions, which only need protocol discovery.
-const SAFE_PROTOCOL_PERMISSION_PREFIX = 'kitsune:plugin-sdk:apis:protocol:'
+// Auto-approved permission namespaces:
+// 1. `kitsune:plugin-sdk:apis:protocol:*` — protocol discovery (devtools sample plugin)
+// 2. `kitsune:plugin-sdk:apis:kits:*` — built-in kit APIs (gamelet, widget)
+// 3. `kitsune:plugin-sdk:resources:kits:*` — built-in kit resources (widget bindings)
+// Everything else is denied. This keeps built-in local extensions and kits working
+// while denying arbitrary plugin permission escalation.
+const SAFE_PROTOCOL_PERMISSION_PREFIXES = [
+  'kitsune:plugin-sdk:apis:protocol:',
+  'kitsune:plugin-sdk:apis:kits:',
+  'kitsune:plugin-sdk:resources:kits:',
+  // Built-in kit permissions (gamelet, widget) use short keys like 'kit.gamelet' or 'kit.gamelet.runtime'
+  'kit.gamelet',
+  'kit.widget',
+]
 
 interface PermissionScopeEntry {
   key: string
@@ -49,7 +60,7 @@ interface PermissionScopeEntry {
 }
 
 function isSafeProtocolScope(scope: { key: string }): boolean {
-  return scope.key.startsWith(SAFE_PROTOCOL_PERMISSION_PREFIX)
+  return SAFE_PROTOCOL_PERMISSION_PREFIXES.some(prefix => scope.key.startsWith(prefix))
 }
 
 function narrowScopes<T extends PermissionScopeEntry>(scopes: T[] | undefined): T[] | undefined {
@@ -292,6 +303,10 @@ export async function setupExtensionHostServiceInternal(
   const extensionsRoot = app.isPackaged
     ? join(app.getPath('userData'), 'extensions', 'v1')
     : resolve(join(app.getAppPath(), '..', '..', 'plugins', profile))
+
+  // NOTICE: 确保插件目录存在，否则 list() 返回空且无法安装插件。
+  // 生产路径 userData/extensions/v1 首次启动时不存在，需主动创建。
+  await mkdir(extensionsRoot, { recursive: true })
 
   // Auto-enable built-in local plugins in development only on the very first
   // run (empty config). Once the user toggles enablement, their choice sticks.

@@ -911,11 +911,18 @@ async function checkPlugins(pluginHost: ExtensionHostService | null): Promise<Do
   if (list.loading)
     return [{ category: 'plugins', level: 'INFO', detail: 'Plugins still loading' }]
 
-  if (!list.plugins.length)
-    return [{ category: 'plugins', level: 'INFO', detail: 'No plugins installed' }]
+  if (!list.plugins.length) {
+    return [
+      { category: 'plugins', level: 'INFO', detail: 'No plugins installed' },
+      { category: 'plugins', level: 'INFO', detail: `插件目录: ${list.root}`, suggestion: '将 .petplugin 文件放入此目录即可安装' },
+    ]
+  }
 
   const loadedCount = list.plugins.filter(p => p.loaded).length
-  return [{ category: 'plugins', level: 'PASS', detail: `${list.plugins.length} plugins discovered, ${loadedCount} loaded` }]
+  return [
+    { category: 'plugins', level: 'PASS', detail: `${list.plugins.length} plugins discovered, ${loadedCount} loaded` },
+    { category: 'plugins', level: 'INFO', detail: `插件目录: ${list.root}` },
+  ]
 }
 
 // ---- 14. 桌面自动化系统能力 ----
@@ -930,98 +937,79 @@ async function checkPlugins(pluginHost: ExtensionHostService | null): Promise<Do
  * Returns WARN/FAIL when dependencies are missing, PASS when all OK.
  */
 async function checkDesktopAutomation(): Promise<DoctorResult[]> {
-  if (platform() !== 'win32')
-    return [{ category: 'desktop', level: 'INFO', detail: 'desktop automation only supported on Windows' }]
-
   const results: DoctorResult[] = []
   const execAsync = promisify(execFile)
 
-  // 1. PowerShell 可用性
-  try {
-    const { stdout } = await execAsync('powershell', ['-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()'], { timeout: 5000 })
-    results.push({ category: 'desktop', level: 'PASS', detail: `PowerShell ${stdout.trim()}` })
+  if (platform() === 'win32') {
+    // ── Windows：桌面自动化已改用 koffi FFI 直接调用 Win32 API，不再依赖 PowerShell/.NET/COM ──
+    // 只需验证 user32.dll/kernel32.dll 可被 koffi 加载（说明 FFI 环境正常）
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const koffi = require('koffi')
+      koffi.load('user32.dll')
+      koffi.load('kernel32.dll')
+      results.push({ category: 'desktop', level: 'PASS', detail: 'Win32 API (koffi FFI) accessible' })
+    }
+    catch (e) {
+      results.push({
+        category: 'desktop',
+        level: 'FAIL',
+        detail: `koffi FFI 加载失败: ${errorMessageFrom(e) ?? 'unknown'}`,
+        suggestion: '确保 koffi 原生模块安装正确（pnpm install 重建）',
+      })
+    }
   }
-  catch (e) {
-    results.push({
-      category: 'desktop',
-      level: 'FAIL',
-      detail: `PowerShell not available: ${errorMessageFrom(e) ?? 'unknown'}`,
-      suggestion: 'install PowerShell or enable Windows PowerShell',
-    })
-    return results // PowerShell 不可用则后续检查无意义
+  else if (platform() === 'darwin') {
+    // ── macOS：桌面自动化需要 Accessibility 权限允许辅助功能控制本机 ──
+    // 通过 osascript 尝试读取辅助功能权限状态；无权限时全部鼠标键盘操作会失败
+    try {
+      const { stdout } = await execAsync('osascript', [
+        '-e', 'tell application "System Events" to get UI elements enabled',
+      ], { timeout: 5000 })
+      const enabled = stdout.trim().toLowerCase() === 'true'
+      results.push({
+        category: 'desktop',
+        level: enabled ? 'PASS' : 'WARN',
+        detail: enabled ? 'macOS Accessibility 权限已授予' : 'macOS Accessibility 权限未授予',
+        suggestion: enabled ? undefined : '系统设置 → 隐私与安全性 → 辅助功能 → 勾选 Kitsune',
+      })
+    }
+    catch (e) {
+      results.push({
+        category: 'desktop',
+        level: 'WARN',
+        detail: `macOS Accessibility 权限检测失败: ${errorMessageFrom(e) ?? 'unknown'}`,
+        suggestion: '系统设置 → 隐私与安全性 → 辅助功能 → 确保 Kitsune 已勾选',
+      })
+    }
   }
-
-  // 2. Win32 API — 通过 user32.dll 的 GetSystemMetrics 检测
-  // 注意：不能用 @"..." here-string，execFile 会将多行参数压平导致 PowerShell 解析失败
-  // 改用 -TypeDefinition + 单引号包裹 C# 代码
-  try {
-    await execAsync('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;public class DocTest{[DllImport(\"user32.dll\")]public static extern int GetSystemMetrics(int n);}'; [DocTest]::GetSystemMetrics(0)",
-    ], { timeout: 5000 })
-    results.push({ category: 'desktop', level: 'PASS', detail: 'Win32 API (user32.dll) accessible' })
+  else if (platform() === 'linux') {
+    // ── Linux：依赖 xdotool/wmctrl（X11）；Wayland 下不可用，需 wtype/ydotool ──
+    const xdotool = await execAsync('xdotool', ['--version'], { timeout: 5000 }).then(() => true, () => false)
+    const wmctrl = await execAsync('wmctrl', ['--version'], { timeout: 5000 }).then(() => true, () => false)
+    const sessionType = env.XDG_SESSION_TYPE
+    if (sessionType === 'wayland') {
+      results.push({
+        category: 'desktop',
+        level: 'WARN',
+        detail: 'Linux Wayland 环境下 xdotool 不可用',
+        suggestion: '安装 wtype/ydotool 以支持 Wayland 桌面自动化',
+      })
+    }
+    else if (xdotool && wmctrl) {
+      results.push({ category: 'desktop', level: 'PASS', detail: 'xdotool + wmctrl 可用' })
+    }
+    else {
+      results.push({
+        category: 'desktop',
+        level: 'WARN',
+        detail: `Linux 自动化依赖缺失（xdotool=${xdotool} wmctrl=${wmctrl}）`,
+        suggestion: 'sudo apt install xdotool wmctrl',
+      })
+    }
   }
-  catch (e) {
-    results.push({
-      category: 'desktop',
-      level: 'WARN',
-      detail: `Win32 API check failed: ${errorMessageFrom(e) ?? 'unknown'}`,
-      suggestion: 'mouse_event simulation may not work',
-    })
-  }
-
-  // 3. System.Windows.Forms 程序集
-  try {
-    await execAsync('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position.ToString()',
-    ], { timeout: 5000 })
-    results.push({ category: 'desktop', level: 'PASS', detail: '.NET System.Windows.Forms accessible' })
-  }
-  catch (e) {
-    results.push({
-      category: 'desktop',
-      level: 'WARN',
-      detail: `System.Windows.Forms not available: ${errorMessageFrom(e) ?? 'unknown'}`,
-      suggestion: 'cursor position read/write may not work',
-    })
-  }
-
-  // 4. WScript.Shell COM 对象
-  try {
-    await execAsync('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      '(New-Object -ComObject WScript.Shell).SendKeys("")',
-    ], { timeout: 5000 })
-    results.push({ category: 'desktop', level: 'PASS', detail: 'WScript.Shell COM available' })
-  }
-  catch (e) {
-    results.push({
-      category: 'desktop',
-      level: 'WARN',
-      detail: `WScript.Shell COM unavailable: ${errorMessageFrom(e) ?? 'unknown'}`,
-      suggestion: 'keyboard simulation may not work',
-    })
-  }
-
-  // 5. 屏幕分辨率
-  try {
-    const { stdout } = await execAsync('powershell', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen.Bounds',
-    ], { timeout: 5000 })
-    const match = stdout.match(/Width\s*[:=]\s*(\d+).*Height\s*[:=]\s*(\d+)/s)
-    if (match)
-      results.push({ category: 'desktop', level: 'PASS', detail: `screen: ${match[1]}x${match[2]}` })
-    else
-      results.push({ category: 'desktop', level: 'INFO', detail: `screen info: ${stdout.trim().substring(0, 100)}` })
-  }
-  catch (e) {
-    results.push({
-      category: 'desktop',
-      level: 'INFO',
-      detail: `screen query failed: ${errorMessageFrom(e) ?? 'unknown'}`,
-    })
+  else {
+    return [{ category: 'desktop', level: 'INFO', detail: 'desktop automation not supported on this platform' }]
   }
 
   return results

@@ -42,8 +42,18 @@ export function rateLimiter(opts: RateLimitOptions) {
 
       // NOTICE: prefer hono conninfo (uses underlying socket address) over
       // x-forwarded-for which can be spoofed. Falls back to header then 'anonymous'.
-      const info = getConnInfo(c)
-      return info.remote?.address ?? c.req.header('x-forwarded-for') ?? 'anonymous'
+      //
+      // NOTICE: `getConnInfo` reads `c.env.incoming.socket`, which only exists
+      // under the real node server. Under `app.fetch()` (tests, some edge
+      // runtimes) the socket is absent and it throws TypeError. Guard so the
+      // limiter still works in those contexts.
+      try {
+        const info = getConnInfo(c)
+        return info.remote?.address ?? c.req.header('x-forwarded-for') ?? 'anonymous'
+      }
+      catch {
+        return c.req.header('x-forwarded-for') ?? 'anonymous'
+      }
     })
 
   return createRateLimiter<HonoEnv>({

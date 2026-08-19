@@ -68,9 +68,10 @@ describe('verification: admin-flux-grants', () => {
       expect(granted1?.fluxTransactionId).toBeTruthy()
 
       // NOTICE:
-      // issuedByUserId is 'system' because this project does not have a user
-      // authentication system. The authGuard middleware is disabled and user is
-      // always undefined, so we fallback to 'system'.
+      // issuedByUserId is the authenticated admin caller. The harness injects
+      // a session via `setSessionUser` (resolved through `auth.api.getSession`)
+      // and authGuard preserves it, so the ledger records `admin-1` as the
+      // issuer. The 'system' fallback only applies when no session user exists.
       const rec1Ledger = await ctx.db.query.fluxTransaction.findMany({
         where: eq(ctx.schema.fluxTransaction.userId, 'recipient-1'),
       })
@@ -81,7 +82,7 @@ describe('verification: admin-flux-grants', () => {
       expect(rec1Ledger[0].balanceAfter).toBe(100)
       expect(rec1Ledger[0].description).toBe('integration-test grant')
       const meta = rec1Ledger[0].metadata as { issuedByUserId?: string }
-      expect(meta?.issuedByUserId).toBe('system')
+      expect(meta?.issuedByUserId).toBe('admin-1')
     })
   })
 
@@ -129,9 +130,10 @@ describe('verification: admin-flux-grants', () => {
   })
 
   // NOTICE:
-  // Path 3 (adminGuard rejects) is skipped because this project does not have
-  // a user authentication system. The authGuard middleware is disabled and
-  // always sets user/session to null.
+  // Path 3 (adminGuard rejects) is skipped because adminGuard is a no-op
+  // passthrough in this project (user login/OIDC flows have been removed), so
+  // it never rejects 401/403. authGuard now preserves injected sessions, but
+  // that only feeds the ledger issuer — authorization is still not enforced.
   describe.skip('path 3: adminGuard rejects unauthorized callers', () => {
     it('returns 401 when no session is attached', async () => {
       ctx.setSessionUser(null)

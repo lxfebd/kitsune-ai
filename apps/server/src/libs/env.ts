@@ -115,10 +115,12 @@ const EnvSchema = object({
   // all existing sessions and forces users to re-login.
   BETTER_AUTH_SECRET: pipe(string(), nonEmpty('BETTER_AUTH_SECRET is required')),
 
-  AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
-  AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
-  AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
-  AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
+  // 可选：auth middleware 在未配置时降级为 allow-all（见 middlewares/auth.ts）。
+  // 留空时 server 仍可启动，只是 OAuth 登录不可用。
+  AUTH_GOOGLE_CLIENT_ID: optional(string(), ''),
+  AUTH_GOOGLE_CLIENT_SECRET: optional(string(), ''),
+  AUTH_GITHUB_CLIENT_ID: optional(string(), ''),
+  AUTH_GITHUB_CLIENT_SECRET: optional(string(), ''),
 
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below

@@ -226,19 +226,37 @@ export async function startComfyUI(sidecarService: SidecarService): Promise<{ su
  * 不识别 JSON-RPC，shutdown 通知会被丢弃；超时后 SidecarService 仅 kill
  * 主 python 进程，其派生的子进程可能残留为孤儿。这里用 taskkill /T 兜底。
  */
-function killComfyuiTree(pid: number): void {
+function killComfyuiTree(pid: number): Promise<void> {
   if (platform() === 'win32') {
     // /T 递归终止子进程树，/F 强制终止，避免 Python 子进程残留为孤儿
-    spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    return new Promise((resolve) => {
+      const child = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' })
+      // 等待 taskkill 结束再 resolve，避免主进程退出时 kill 尚未完成、
+      // 残余 Python 子进程成为孤儿。超时 5s 兜底，防止 taskkill 自身挂起。
+      const timer = setTimeout(() => {
+        child.kill()
+        resolve()
+      }, 5000)
+      child.once('exit', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+      child.once('error', (error) => {
+        clearTimeout(timer)
+        log.warn(`taskkill 失败: ${errorMessageFrom(error) ?? 'unknown'}`)
+        resolve()
+      })
+    })
   }
-  else {
+  // Unix 直接 SIGTERM 主进程，Python 子进程由 ComfyUI 自身处理
+  return Promise.resolve().then(() => {
     try {
       process.kill(pid, 'SIGTERM')
     }
     catch (error) {
       log.warn(`kill ComfyUI 进程失败: ${errorMessageFrom(error) ?? 'unknown'}`)
     }
-  }
+  })
 }
 
 export async function stopComfyUI(sidecarService: SidecarService): Promise<{ success: boolean, message: string }> {
@@ -256,7 +274,7 @@ export async function stopComfyUI(sidecarService: SidecarService): Promise<{ suc
     // ComfyUI 不识别 JSON-RPC shutdown，SidecarService.stop 的优雅关闭对其无效；
     // 用 taskkill /T 确保整个 Python 进程树被清理
     if (pid) {
-      killComfyuiTree(pid)
+      await killComfyuiTree(pid)
     }
     log.log('ComfyUI 服务器已停止')
     return { success: true, message: 'ComfyUI 服务器已停止' }
@@ -264,7 +282,7 @@ export async function stopComfyUI(sidecarService: SidecarService): Promise<{ suc
   catch (error) {
     // 即使 sidecar stop 报错也尝试 taskkill 兜底，避免进程残留
     if (pid) {
-      killComfyuiTree(pid)
+      await killComfyuiTree(pid)
     }
     const msg = `停止 ComfyUI 时出错: ${errorMessageFrom(error) ?? 'unknown'}`
     log.error(msg)

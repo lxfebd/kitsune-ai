@@ -199,8 +199,36 @@ export function createFrameWriter(stream: Writable): FrameWriter {
         // 返回 Promise 在 drain 后 resolve，背压由 await 自动处理
         const ok = stream.write(chunk)
         if (!ok)
-          await new Promise<void>(resolve => stream.once('drain', () => resolve()))
+          await waitForDrainOrClose(stream)
       }
+    })
+  }
+
+  function waitForDrainOrClose(stream: Writable): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // 同时监听 close/error：若子进程已退出或 stdin 已销毁，
+      // 'drain' 永远不会触发，会在 close/error 时 resolve/reject，避免死锁。
+      // error 事件监听器在 Promise settled 后移除，避免重复触发 unhandled error。
+      const onClose = () => {
+        cleanup()
+        resolve()
+      }
+      const onError = (err: unknown) => {
+        cleanup()
+        reject(err)
+      }
+      const onDrain = () => {
+        cleanup()
+        resolve()
+      }
+      const cleanup = () => {
+        stream.removeListener('close', onClose)
+        stream.removeListener('error', onError)
+        stream.removeListener('drain', onDrain)
+      }
+      stream.once('close', onClose)
+      stream.once('error', onError)
+      stream.once('drain', onDrain)
     })
   }
 

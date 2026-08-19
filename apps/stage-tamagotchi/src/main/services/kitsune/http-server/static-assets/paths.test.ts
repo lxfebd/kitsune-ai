@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -74,7 +75,8 @@ describe('static asset paths', () => {
     await mkdir(join(root, 'dist', 'ui'), { recursive: true })
     await writeFile(join(root, 'dist', 'ui', 'index.html'), '<html></html>')
 
-    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toContain('dist/ui/index.html')
+    const expectedPath = `dist${sep}ui${sep}index.html`
+    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toContain(expectedPath)
     await expect(resolveStaticAssetFilePath(root, '../outside.txt')).resolves.toBeUndefined()
   })
 
@@ -85,6 +87,10 @@ describe('static asset paths', () => {
 
     const outsideFile = join(outsideRoot, 'secret.txt')
     await writeFile(outsideFile, 'secret')
+    // Windows 上 symlink 需要管理员权限，跳过
+    if (process.platform === 'win32') {
+      return
+    }
     await symlink(outsideFile, join(root, 'link-name'))
 
     await expect(resolveStaticAssetFilePath(root, 'link-name')).resolves.toBeUndefined()

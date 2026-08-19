@@ -153,9 +153,14 @@ async function writeEntrypoint(params: { dir: string, name: string, contents: st
 
 async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@kitsune/plugin-sdk' | '@kitsune/plugin-sdk-tamagotchi') {
   const packageDirName = packageName.replace('@kitsune/', '')
-  const packageDir = join(pluginDir, 'node_modules', '@proj-airi', packageDirName)
+  // 链接到 @kitsune/ 下（而非 @proj-airi/），因为插件源码 import 的是 '@kitsune/plugin-sdk'。
+  // 之前放在 @proj-airi/ 下导致 "Cannot find package '@kitsune/plugin-sdk'" 报错。
+  const packageDir = join(pluginDir, 'node_modules', '@kitsune', packageDirName)
   await mkdir(packageDir, { recursive: true })
-  await symlink(resolve(repoRoot, 'packages', packageDirName, 'src'), join(packageDir, 'src'), 'dir')
+  // Windows 上使用 junction（不需要管理员权限）替代 symlink('dir')
+  // 非 Windows 使用标准目录符号链接
+  const linkType = process.platform === 'win32' ? 'junction' as const : 'dir' as const
+  await symlink(resolve(repoRoot, 'packages', packageDirName, 'src'), join(packageDir, 'src'), linkType)
 
   const exports = packageName === '@kitsune/plugin-sdk'
     ? {
