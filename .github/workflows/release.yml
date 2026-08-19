@@ -20,7 +20,6 @@ on:
         options:
           - win
           - linux
-          - mac
           - all
 
 concurrency:
@@ -45,15 +44,7 @@ jobs:
             script: build:linux
 
     # macOS 需要 Apple Developer 证书签名 + 公证（CSC_LINK、CSC_KEY_PASSWORD、APPLE_ID 等 secrets）。
-    # 未配置相关 secrets 时该作业会失败；配置后去掉下方注释即可启用 mac 安装包与公证。
-    # - target: mac
-    #   os: macos-latest
-    #   script: build:mac
-
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      inputs.target == 'all' ||
-      inputs.target == matrix.target
+    # 未配置相关 secrets 时该作业会失败；配置后去掉下方注释并补回 mac 矩阵项即可启用。
 
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -91,16 +82,30 @@ jobs:
       - name: Build packages
         run: pnpm run build:packages
 
+      # tag/手动共同决定本次是否应构建当前矩阵平台。
+      # 注意：job 级 if 无法引用 matrix 上下文（GitHub 在创建 job 前求值），
+      # 因此平台过滤下放到 step 级 if，这里可以安全访问 matrix.target 与 github.event.inputs。
+      - name: Decide run
+        id: decide
+        run: |
+          TARGET_RAW="${{ github.event.inputs.target || '' }}"
+          echo "target_raw=$TARGET_RAW"
+          echo "matrix=${{ matrix.target }}"
+
       # tag 触发时 electron-builder 通过 publish.provider=github 自动上传产物与
       # latest-*.yml 更新 feed；手动触发则仅构建（发布由 --publish never 显式关闭）。
       - name: Build App (${{ matrix.target }}) — tag
-        if: runner.os != 'Windows' && startsWith(github.ref, 'refs/tags/v')
+        if: |
+          startsWith(github.ref, 'refs/tags/v') &&
+          runner.os != 'Windows'
         run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build App (${{ matrix.target }}) — tag (Windows)
-        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v')
+        if: |
+          startsWith(github.ref, 'refs/tags/v') &&
+          runner.os == 'Windows'
         run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }} -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -108,7 +113,21 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build App (${{ matrix.target }}) — manual
-        if: startsWith(github.ref, 'refs/tags/v') != true
+        id: build_manual
+        if: |
+          startsWith(github.ref, 'refs/tags/v') != true &&
+          (github.event.inputs.target == 'all' || github.event.inputs.target == matrix.target || github.event.inputs.target == '')
         run: pnpm -F @kitsune/stage-tamagotchi run ${{ matrix.script }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 手动触发时把安装包传到 Artifacts 供下载校验，不发布到 Release。
+      # 正式发布仍由"打 tag"触发（上面的 tag 步骤 electron-builder --publish always 自动上传 Release）。
+      - name: Upload artifacts (${{ matrix.target }}) — manual
+        if: steps.build_manual.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitsune-ai-${{ matrix.target }}-${{ github.run_id }}
+          if-no-files-found: warn
+          path: |
+            apps/stage-tamagotchi/dist/*
