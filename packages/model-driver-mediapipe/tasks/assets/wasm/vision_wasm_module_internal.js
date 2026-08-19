@@ -1017,7 +1017,7 @@ var ___cxa_throw = (ptr, type, destructor) => {
 var PATH = {
   isAbs: path => path.charAt(0) === "/",
   splitPath: filename => {
-    var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^/]+?|)(\.[^./]*|))(?:[/]*)$/;
+    var splitPathRe = /^(\/?|)([\s\S]*?)((?:\.{1,2}|[^\/]+?|)(\.[^.\/]*|))(?:[\/]*)$/;
     return splitPathRe.exec(filename).slice(1);
   },
   normalizeArray: (parts, allowAboveRoot) => {
@@ -1067,7 +1067,7 @@ var PATH = {
     }
     return root + dir;
   },
-  basename: path => path && path.match(/([^/]+|\/)\/*$/)[1],
+  basename: path => path && path.match(/([^\/]+|\/)\/*$/)[1],
   join: (...paths) => PATH.normalize(paths.join("/")),
   join2: (l, r) => PATH.normalize(l + "/" + r)
 };

@@ -1,4 +1,4 @@
-﻿import { defineInvoke } from '@moeru/eventa'
+import { defineInvoke } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@kitsune/electron-eventa'
 import { ref } from 'vue'
 
@@ -17,7 +17,17 @@ function initializeWindowBoundsTracking() {
   }
 
   initialized = true
-  const context = getElectronEventaContext()
+
+  let context: ReturnType<typeof getElectronEventaContext> | undefined
+  try {
+    context = getElectronEventaContext()
+  }
+  catch (error) {
+    // NOTICE: In non-Electron environments (browser preview / tests) there is no
+    // ipcRenderer; window bounds simply stay at their initial defaults.
+    console.warn('[electron-vueuse] IPC bridge unavailable, window bounds tracking disabled.', error)
+    return
+  }
 
   context.on(bounds, (event) => {
     if (!event || !event.body)

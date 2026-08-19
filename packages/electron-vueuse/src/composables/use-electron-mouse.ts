@@ -1,4 +1,4 @@
-﻿import type { UseMouseOptions } from '@vueuse/core'
+import type { UseMouseOptions } from '@vueuse/core'
 
 import { defineInvoke } from '@moeru/eventa'
 import { cursorScreenPoint, startLoopGetCursorScreenPoint } from '@kitsune/electron-eventa'
@@ -11,7 +11,18 @@ let sharedEventTarget: EventTarget | undefined
 let startedTracking = false
 
 export function useElectronMouseEventTarget() {
-  const context = getElectronEventaContext()
+  let context: ReturnType<typeof getElectronEventaContext> | undefined
+  try {
+    context = getElectronEventaContext()
+  }
+  catch (error) {
+    // NOTICE: In non-Electron environments (browser preview / tests) there is no
+    // ipcRenderer. Return a bare EventTarget so useMouse still works; cursor
+    // events simply never arrive from the main process.
+    console.warn('[electron-vueuse] IPC bridge unavailable, cursor tracking disabled.', error)
+    sharedEventTarget ??= new EventTarget()
+    return ref(sharedEventTarget)
+  }
 
   if (!sharedEventTarget) {
     sharedEventTarget = new EventTarget()

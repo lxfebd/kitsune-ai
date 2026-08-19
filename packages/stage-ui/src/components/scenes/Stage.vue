@@ -90,6 +90,94 @@ const {
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
+
+// 流式播放器 — 用于 GPT-SoVITS 逐 chunk 解码播放。
+// key = `${intentId}:${segmentId}`，tts() 推入 chunk，playFunction 启动播放。
+interface StreamingPlayer {
+  start: () => void
+  push: (buf: AudioBuffer) => void
+  finish: () => void
+  done: Promise<void>
+  stop: () => void
+}
+
+function createStreamingPlayer(signal: AbortSignal): StreamingPlayer {
+  const queue: AudioBuffer[] = []
+  const scheduledSources = new Set<AudioBufferSourceNode>()
+  let started = false
+  let ended = false
+  let nextStartTime = 0
+  let lastSource: AudioBufferSourceNode | null = null
+  let resolveDone!: () => void
+  const done = new Promise<void>((r) => { resolveDone = r })
+
+  function connectSource(source: AudioBufferSourceNode) {
+    source.connect(audioContext!.destination)
+    if (audioAnalyser.value)
+      source.connect(audioAnalyser.value)
+    if (lipSyncNode.value)
+      source.connect(lipSyncNode.value)
+  }
+
+  function stop() {
+    for (const s of scheduledSources) {
+      try { s.stop(); s.disconnect() } catch {}
+    }
+    scheduledSources.clear()
+    queue.length = 0
+    if (!ended) { ended = true; resolveDone() }
+  }
+
+  signal.addEventListener('abort', stop, { once: true })
+
+  /** 预调度队列中所有 chunk — 用精确的 start(when) 消除 onended 链式间隙。 */
+  function scheduleAll() {
+    if (signal.aborted) { stop(); return }
+    while (queue.length > 0) {
+      const buf = queue.shift()!
+      const source = audioContext!.createBufferSource()
+      source.buffer = buf
+      connectSource(source)
+
+      // 精确调度：nextStartTime 逐块累加，块与块零间隙衔接。
+      const when = Math.max(nextStartTime, audioContext!.currentTime + 0.01)
+      source.start(when)
+      nextStartTime = when + buf.duration
+
+      scheduledSources.add(source)
+      lastSource = source
+      source.onended = () => {
+        scheduledSources.delete(source)
+        if (currentAudioSource.value === source) currentAudioSource.value = undefined
+        if (ended && source === lastSource) resolveDone()
+      }
+      currentAudioSource.value = source
+    }
+  }
+
+  return {
+    start() {
+      if (started) return
+      started = true
+      if (audioContext!.state === 'suspended') audioContext!.resume().catch(() => {})
+      nextStartTime = audioContext!.currentTime + 0.01
+      scheduleAll()
+    },
+    push(buf: AudioBuffer) {
+      queue.push(buf)
+      if (started) scheduleAll()
+    },
+    finish() {
+      ended = true
+      // 若尚无任何 chunk 被调度（空段），直接完成。
+      if (started && !lastSource) resolveDone()
+    },
+    done,
+    stop,
+  }
+}
+
+const streamingPlayers = new Map<string, StreamingPlayer>()
 const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
@@ -263,6 +351,29 @@ async function playSpecialToken(
 const lipSyncNode = ref<AudioNode>()
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
+  // 流式播放器检测：GPT-SoVITS 逐 chunk 播放优先。
+  // tts() 已通过 streamingPlayers 推送了该 segment 的音频 chunk，
+  // playFunction 在此启动播放器并等待所有 chunk 播完。
+  const playerKey = `${item.intentId}:${item.segmentId}`
+  const streamingPlayer = streamingPlayers.get(playerKey)
+  if (streamingPlayer) {
+    streamingPlayers.delete(playerKey)
+    setupAnalyser()
+    await setupLipSync()
+    streamingPlayer.start()
+    // 播放管理器 signal 与 intent signal 是两个独立控制器：
+    // 监听前者，播放器在 overflow/steal 中断时也能停止。
+    const onPlaybackAbort = () => streamingPlayer.stop()
+    signal.addEventListener('abort', onPlaybackAbort, { once: true })
+    try {
+      await streamingPlayer.done
+    }
+    finally {
+      signal.removeEventListener('abort', onPlaybackAbort)
+    }
+    return
+  }
+
   if (!audioContext || !item.audio)
     return
 
@@ -459,6 +570,102 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         supportsSSML: speechStore.supportsSSML,
         supportsAdapterProsody: false,
       })
+
+      // GPT-SoVITS 在 Electron 下走流式 IPC：逐 OGG chunk decodeAudioData 并推入
+      // 流式播放器，实现边合成边播放（首包延迟意义上）。非 Electron 环境回退 HTTP REST。
+      if (activeSpeechProvider.value === 'gpt-sovits' && (window as Window & { electron?: object }).electron) {
+        try {
+          const { createContext } = await import('@moeru/eventa/adapters/electron/renderer')
+          const { defineStreamInvoke } = await import('@moeru/eventa')
+          const { electronTtsStream } = await import('@kitsune/stage-shared')
+          const ipcRenderer = (window as Window & { electron?: { ipcRenderer?: unknown } }).electron?.ipcRenderer
+          if (ipcRenderer) {
+            const { context } = createContext(ipcRenderer as Parameters<typeof createContext>[0])
+            const streamInvoke = defineStreamInvoke(context, electronTtsStream)
+            const stream = streamInvoke({ text: speechRequest.input, voice: voice.id })
+
+            // 每个 segment 一个流式播放器；playFunction 收到该 segment 时启动播放。
+            const playerKey = `${request.intentId}:${request.segmentId}`
+            const player = createStreamingPlayer(signal)
+            streamingPlayers.set(playerKey, player)
+
+            const reader = stream.getReader()
+            // 后台持续读取 chunk → 并行解码 → 按序推入播放器
+            void (async () => {
+              try {
+                // 并行解码缓冲区：key=sequence，value=正在解码的 Promise
+                // 解码完成后按序 push，避免 OGG decodeAudioData 乱序问题
+                const pending = new Map<number, Promise<AudioBuffer>>()
+                let seq = 0
+                let nextPush = 0
+
+                async function flushOrdered() {
+                  while (pending.has(nextPush)) {
+                    const p = pending.get(nextPush)!
+                    pending.delete(nextPush)
+                    if (!signal.aborted) {
+                      const buf = await p
+                      player.push(buf)
+                    }
+                    nextPush++
+                  }
+                }
+
+                while (true) {
+                  const { done, value } = await reader.read()
+                  if (done) break
+                  if (value.type === 'chunk') {
+                    const idx = seq++
+                    if (value.format === 'pcm-int16') {
+                      // raw PCM 直通：int16 → float32 → AudioBuffer（同步，零开销）
+                      const decodePromise = Promise.resolve().then(() => {
+                        const int16 = new Int16Array(value.data)
+                        const float32 = new Float32Array(int16.length)
+                        for (let i = 0; i < int16.length; i++)
+                          float32[i] = int16[i] / 32768
+                        const buf = audioContext.createBuffer(1, float32.length, value.sampleRate)
+                        buf.getChannelData(0).set(float32)
+                        return buf
+                      })
+                      pending.set(idx, decodePromise)
+                    }
+                    else {
+                      // OGG 格式：decodeAudioData 异步解码
+                      const d = value.data
+                      pending.set(idx, audioContext.decodeAudioData(d))
+                    }
+                    await flushOrdered()
+                  }
+                  if (value.type === 'end') break
+                }
+                // 等待剩余的解码任务完成，按序推入
+                while (nextPush < seq) {
+                  await flushOrdered()
+                  if (pending.size === 0) break
+                  // 等待下一个解码完成
+                  const p = pending.get(nextPush)
+                  if (p) { const buf = await p; if (!signal.aborted) player.push(buf); nextPush++ }
+                  else { await new Promise(r => setTimeout(r, 5)) }
+                }
+                player.finish()
+              }
+              catch (e) {
+                console.warn('[Speech Pipeline] 流式解码失败', e)
+                player.finish()
+              }
+            })()
+
+            // 返回占位 AudioBuffer（1 样本静音），让 pipeline 走正常 timeline 调度，
+            // playFunction 检测到 streamingPlayers 后改为等待流式播放器播放完成。
+            const placeholder = audioContext.createBuffer(1, 1, 32000)
+            return placeholder
+          }
+        }
+        catch (e) {
+          console.warn('[Speech Pipeline] 流式 IPC 回退到 HTTP REST', e)
+        }
+        // 流式 IPC 不可用时回退到 HTTP REST
+      }
 
       const res = await generateSpeech({
         ...provider.speech(model, speechRequest.providerConfig),

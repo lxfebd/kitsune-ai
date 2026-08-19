@@ -1,6 +1,6 @@
 import localforage from 'localforage'
 
-import { isStageTamagotchi } from '@kitsune/stage-shared'
+import { isElectronWindow, isStageTamagotchi } from '@kitsune/stage-shared'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
@@ -26,7 +26,12 @@ export type DisplayModel
 const LIVE2D_FILE_SERVER_PORT = 19527
 
 function live2dModelUrl(fileName: string): string {
-  if (import.meta.env.DEV && isStageTamagotchi()) {
+  // NOTICE: Only route through the on-demand file server when running inside a
+  // real Electron window (where the main process can start it on first model
+  // request via IPC). In browser preview there is no ipcRenderer, so the server
+  // never starts and fetching http://127.0.0.1:19527 fails with ECONNREFUSED;
+  // fall back to the Vite-served asset URL instead.
+  if (import.meta.env.DEV && isStageTamagotchi() && isElectronWindow(window)) {
     return `http://127.0.0.1:${LIVE2D_FILE_SERVER_PORT}/live2d/models/${fileName}`
   }
   return new URL(`../assets/live2d/models/${fileName}`, import.meta.url).href

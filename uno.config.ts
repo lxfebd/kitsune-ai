@@ -135,6 +135,17 @@ export function sharedUnoConfig() {
         collections: {
           ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
           ...createExternalPackageIconLoader('@proj-airi/iconify-meteocons'),
+          // 本地 Iconify 集合：离线打包，避免运行时依赖在线 API(api.iconify.design)。
+          // 这些集合已作为 @kitsune/stage-tamagotchi 依赖安装(见 apps/stage-tamagotchi/package.json)。
+          ...createExternalPackageIconLoader('@iconify-json/solar'),
+          ...createExternalPackageIconLoader('@iconify-json/ph'),
+          ...createExternalPackageIconLoader('@iconify-json/simple-icons'),
+          ...createExternalPackageIconLoader('@iconify-json/vscode-icons'),
+          ...createExternalPackageIconLoader('@iconify-json/carbon'),
+          ...createExternalPackageIconLoader('@iconify-json/eos-icons'),
+          ...createExternalPackageIconLoader('@iconify-json/lucide'),
+          ...createExternalPackageIconLoader('@iconify-json/mingcute'),
+          ...createExternalPackageIconLoader('@iconify-json/svg-spinners'),
         },
       }),
       presetScrollbar(),
