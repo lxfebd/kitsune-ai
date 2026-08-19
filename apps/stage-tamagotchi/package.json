@@ -8,7 +8,7 @@
     "name": "Kitsune Project",
     "email": "kitsune-ai@users.noreply.github.com"
   },
-  "homepage": "",
+  "homepage": "https://github.com/lxfebd/kitsune-ai",
   "main": "./out/main/index.js",
   "scripts": {
     "lint": "eslint --cache .",

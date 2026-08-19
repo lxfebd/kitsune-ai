@@ -8,6 +8,14 @@
   "author": {
     "name": "Kitsune Project"
   },
+  "homepage": "https://github.com/lxfebd/kitsune-ai",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lxfebd/kitsune-ai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lxfebd/kitsune-ai/issues"
+  },
   "license": "MIT",
   "scripts": {
     "postinstall": "pnpm exec simple-git-hooks && pnpm run build:packages",

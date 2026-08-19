@@ -119,8 +119,8 @@ export default {
   extraMetadata: {
     name: 'ai.kitsune.desktop',
     main: 'out/main/index.js',
-    homepage: '',
-    repository: '',
+    homepage: 'https://github.com/lxfebd/kitsune-ai',
+    repository: 'https://github.com/lxfebd/kitsune-ai',
     license: 'MIT',
   },
   win: {
