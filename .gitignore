@@ -96,3 +96,6 @@ capture_screen.ps1
 .ai-memory/sessions/
 .ai-memory/issues/
 .ai-memory/tmp/
+
+# 内部开发文档（含计划/进度/隐私信息，不入仓）
+docs/

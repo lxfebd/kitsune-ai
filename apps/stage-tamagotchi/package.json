@@ -132,7 +132,7 @@
     "web-haptics": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:",
-    "electron-updater": "catalog:",
+    "electron-updater": "^6.8.3",
     "mkcert": "catalog:",
     "yauzl": "catalog:"
   },
