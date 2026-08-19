@@ -1,8 +1,0 @@
-`chat-sync.ts` 中有几个类型安全问题需要修复：
-已修复类型安全问题：
-
-1. **第 433 行**：`toolsetRegistry` 的返回类型从 `Promise<any[]>` 改为 `Promise<Array<Record<string, unknown>>>`
-2. **第 753 行**：`attachChannel` 中的 `handleMessage as EventListener` 改为 `handleMessage as unknown as EventListener`（更明确的双重类型转换）
-3. **第 760 行**：`detachChannel` 中的 `handleMessage as EventListener` 改为 `handleMessage as unknown as EventListener`
-
-**P020 已完成** — 类型安全问题已修复。

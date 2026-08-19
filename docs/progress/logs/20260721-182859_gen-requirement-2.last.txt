@@ -1,2 +1,0 @@
-Let me check the spec files and key source files to understand the scope before generating the plan.
-Now let me check the key source files for the code-level issues to understand the scope:

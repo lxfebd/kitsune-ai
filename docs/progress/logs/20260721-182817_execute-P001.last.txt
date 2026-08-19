@@ -1,1 +1,0 @@
-Now I need to find and read the preload/shared.ts file to understand what needs to be fixed.

@@ -1,9 +1,0 @@
-`auto-updater.ts` 中有几个 `any` 类型需要修复：
-已修复类型安全问题：
-
-1. **第 224 行**：`on` 方法的 `listener` 参数从 `(...args: any[]) => void` 改为 `(...args: unknown[]) => void`，返回类型改为 `AppUpdaterLike`
-2. **第 225 行**：`checkForUpdates` 返回类型从 `Promise<any>` 改为 `Promise<unknown>`
-3. **第 226 行**：`downloadUpdate` 返回类型从 `Promise<any>` 改为 `Promise<unknown>`
-4. **第 229 行**：`logger` 从 `any` 改为具体类型 `{ info, warn, error, debug }`
-
-**P021 已完成** — 所有 `as any` 类型断言已移除，类型安全性已提升。
