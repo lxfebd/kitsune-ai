@@ -168,8 +168,18 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
           const found = await desktopAutomation.findElement(task.params.elementDescription)
           // findElement 返回 { found, elements[] }，坐标在首个匹配元素上
           const pos = found.found ? found.elements[0] : undefined
-          if (!pos)
-            return { taskId: task.id, ok: false, error: '未找到匹配元素', durationMs: Date.now() - start }
+          if (!pos) {
+            fileLogger.warn('[taskRunner] findElement failed, try keyboard fallback for AI input')
+            // 视觉定位失败时，尝试 Ctrl+Shift+I（VS Code 系 AI 聊天快捷键）作为 fallback。
+            // 如果仍失败，返回错误不阻塞整体流程。
+            try {
+              await desktopAutomation.pressKey('CONTROL+SHIFT+I')
+              return { taskId: task.id, ok: true, durationMs: Date.now() - start }
+            }
+            catch {
+              return { taskId: task.id, ok: false, error: '未找到匹配元素，且键盘快捷键 fallback 失败', durationMs: Date.now() - start }
+            }
+          }
           await desktopAutomation.moveTo(pos.x, pos.y)
           await desktopAutomation.click(task.params.button)
           break

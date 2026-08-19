@@ -131,6 +131,7 @@ interface OverseerConfig {
 // 配置缺失时的内置降级清单 — 监控 Claude Code / Trae / Cursor / Codex
 const DEFAULT_TOOLS: ToolConfig[] = [
   { id: 'claude_code', name: 'Claude Code', type: 'process', detect: { processName: 'claude' }, events: ['permission_request', 'task_end', 'task_failed', 'compile_failed', 'test_failed'], enabled: true },
+  { id: 'opencode', name: 'Opencode', type: 'process', detect: { processName: 'opencode' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
   { id: 'trae', name: 'Trae', type: 'process', detect: { processName: 'trae' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
   { id: 'cursor', name: 'Cursor', type: 'process', detect: { processName: 'cursor' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
   { id: 'codex', name: 'OpenAI Codex', type: 'process', detect: { processName: 'codex' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
@@ -503,11 +504,12 @@ export function createOverseerService(params: { context: MainContext, config: Ov
    * - mode 'desktop'：来源是 GUI 编辑器（trae / cursor），无公开 CLI 协议，
    *                   走桌面自动化（聚焦窗口 → 视觉定位输入框 → 粘贴指令 → 回车）
    */
-  const AUTO_FIX_ROUTE: Record<string, { mode: 'cli', provider: 'claude' | 'codex' } | { mode: 'desktop', processName: string }> = {
+  const AUTO_FIX_ROUTE: Record<string, { mode: 'cli', provider: 'claude' | 'codex' | 'aider' | 'opencode' } | { mode: 'connector', connectorId: string } | { mode: 'desktop', processName: string }> = {
     claude_code: { mode: 'cli', provider: 'claude' },
     codex: { mode: 'cli', provider: 'codex' },
-    trae: { mode: 'desktop', processName: 'trae' },
-    cursor: { mode: 'desktop', processName: 'cursor' },
+    opencode: { mode: 'cli', provider: 'opencode' },
+    trae: { mode: 'connector', connectorId: 'trae' },
+    cursor: { mode: 'connector', connectorId: 'cursor' },
   }
 
   /** 正在自动修复中的来源集合，防止重复触发 */
@@ -563,6 +565,13 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     }
 
     if (route.mode === 'cli') {
+      // 检查 CLI 二进制是否在 PATH 中，避免 spawn 失败
+      const availability = taskPusher.probeToolAvailability()
+      if (!availability[route.provider]) {
+        fileLogger.warn('[overseer] autoFix: CLI 工具不可用，跳过自动修复', { source: event.source, provider: route.provider })
+        autoFixActive.delete(event.source)
+        return
+      }
       plan.tasks.push({
         id: taskId,
         type: 'cli' as const,
@@ -575,8 +584,27 @@ ${errorText}`,
         critical: false,
       })
     }
+    else if (route.mode === 'connector') {
+      // IDE 连接器：通过 WebSocket 向已注册的 IDE 连接器发送 task:execute
+      const conn = connectors.getStatus(route.connectorId)
+      if (conn) {
+        const instruction = `以下是运行过程中出现的失败，请分析并修复：\n${errorText}`
+        const sent = connectors.sendTask(route.connectorId, { type: 'prompt', payload: { text: instruction } })
+        if (!sent.ok) {
+          fileLogger.warn('[overseer] autoFix: 连接器发送任务失败', { source: event.source, connectorId: route.connectorId, error: sent.error })
+          autoFixActive.delete(event.source)
+          return
+        }
+        fileLogger.info('[overseer] autoFix: 通过连接器发送修复指令', { source: event.source, connectorId: route.connectorId })
+      }
+      else {
+        fileLogger.warn('[overseer] autoFix: 连接器未在线，跳过自动修复', { source: event.source, connectorId: route.connectorId })
+        autoFixActive.delete(event.source)
+        return
+      }
+    }
     else {
-      // GUI 工具：桌面自动化注入（无 CLI 控制协议）
+      // GUI 工具：桌面自动化注入（无 CLI 控制协议，且无连接器在线时降级）
       if (!desktopAutomation) {
         fileLogger.warn('[overseer] autoFix: 缺少 desktopAutomation 服务，跳过 GUI 修复', { source: event.source })
         autoFixActive.delete(event.source)
@@ -584,7 +612,7 @@ ${errorText}`,
       }
       // 前置：把目标 AI 工具窗口拉到前台，确保后续视觉定位/输入落在正确窗口
       try {
-        await desktopAutomation.focusWindow(undefined, route.processName)
+        await desktopAutomation.focusWindow(undefined, 'trae')
       }
       catch (err) {
         fileLogger.warn('[overseer] autoFix: focusWindow 失败，继续尝试', { source: event.source, error: (err as Error)?.message })
@@ -597,7 +625,7 @@ ${errorText}`,
         {
           id: clickId,
           type: 'desktop' as const,
-          title: `定位 ${route.processName} 聊天输入框`,
+          title: `定位 ${event.source} 聊天输入框`,
           action: 'findAndClick',
           params: { elementDescription: 'AI 聊天输入框，用于输入指令并发送给 AI' },
           critical: false,

@@ -9,7 +9,7 @@ export interface CliTask {
   id: string
   type: 'cli'
   title: string
-  provider: 'claude' | 'codex' | 'aider'
+  provider: 'claude' | 'codex' | 'aider' | 'opencode'
   prompt: string
   cwd: string
   timeoutMs?: number
