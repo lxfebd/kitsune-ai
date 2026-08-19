@@ -5,7 +5,8 @@
   "private": true,
   "description": "Kitsune AI - 智能桌面宠物助手",
   "author": {
-    "name": "Kitsune Project"
+    "name": "Kitsune Project",
+    "email": "kitsune-ai@users.noreply.github.com"
   },
   "homepage": "",
   "main": "./out/main/index.js",
