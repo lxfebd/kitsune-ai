@@ -27,10 +27,57 @@ import { optional, object, string, number, integer, minValue, maxValue, pipe, un
 import { getEngineSidecarId, getDefaultEngineId } from '@kitsune/tts-hybrid'
 
 import { createConfig } from '../../../libs/electron/persistence'
+import { installRuntimePlugin, resolvePluginRoot, type RuntimePluginProgress } from '../runtime-plugins'
 
 const log = useLogg('tts-service').useGlobalConfig()
 
 const DEFAULT_GPT_SOVITS_PORT = 9880
+
+// ---------------------------------------------------------------------------
+// 运行时插件（GPT-SoVITS 引擎按需下载）
+// ---------------------------------------------------------------------------
+
+/**
+ * 安装进度转发器 — 由主进程 setup 注入，把 runtime-plugin 的进度原样
+ * 转发为 `electronTtsInstallProgress` 事件（渲染层 settings/sidecar/tts-section.vue
+ * 监听展示）。未注入时静默，避免 tts 模块与 eventa 强耦合。
+ */
+let installProgressForwarder: ((progress: RuntimePluginProgress) => void) | null = null
+
+/** 注入安装进度转发器（主进程设置时调用，返回取消函数）。 */
+export function setGptSovitsInstallProgressReporter(
+  reporter: (progress: RuntimePluginProgress) => void,
+): () => void {
+  installProgressForwarder = reporter
+  return () => {
+    installProgressForwarder = null
+  }
+}
+
+/**
+ * 返回已安装的 GPT-SoVITS 运行时插件根目录；未安装返回 null。
+ * 该目录含自带 Python runtime，故任何机器解压后即可运行，无需系统装 Python。
+ */
+function resolveInstalledGptSovitsPluginDir(): string | null {
+  return resolvePluginRoot('tts-gptsovits')
+}
+
+/**
+ * 触发并等待 GPT-SoVITS 运行时插件下载安装（含进度转发）。
+ * 已安装时可跳过；安装失败抛错由调用方捕获。
+ *
+ * @returns 安装后的引擎根目录
+ */
+async function ensureGptSovitsPluginInstalled(): Promise<string> {
+  if (resolveInstalledGptSovitsPluginDir()) {
+    log.log('[tts] 运行时插件已安装，跳过下载')
+    return resolveInstalledGptSovitsPluginDir()!
+  }
+  log.log('[tts] 首次使用 TTS，开始按需下载运行时插件（GPT-SoVITS + Python runtime）...')
+  return installRuntimePlugin('tts-gptsovits', (p) => {
+    installProgressForwarder?.(p)
+  })
+}
 
 // 持久化配置 schema：dir 为 GPT-SoVITS 安装目录，port 为 HTTP 监听端口（1024-65535），device 为推理设备模式
 const gptSovitsConfigSchema = object({
@@ -85,7 +132,15 @@ export function resolveGptSovitsDir(): string | null {
     return configDir
   }
 
-  // 3. 项目内资源目录
+  // 3. 运行时插件：已下载安装的 GPT-SoVITS 引擎（含自带 Python runtime）
+  //    打包不内置 gpt-sovits（体积庞大），首次启动通过按需下载获得；命中即返回。
+  const pluginRoot = resolveInstalledGptSovitsPluginDir()
+  if (pluginRoot) {
+    log.log(`[resolveGptSovitsDir] found runtime plugin: ${pluginRoot}`)
+    return pluginRoot
+  }
+
+  // 4. 项目内资源目录
   // NOTICE:
   // 开发模式下 app.getAppPath() 返回 apps/stage-tamagotchi
   // 打包后返回 app.asar 路径
@@ -330,11 +385,25 @@ function probeCudaAvailability(pythonExe: string, cwd: string): Promise<boolean>
  * @returns `{ success, message }` — 目录未找到、spawn 异常均返回 `success: false`
  */
 export async function startGptSovits(sidecarService: SidecarService): Promise<{ success: boolean, message: string }> {
-  const dir = resolveGptSovitsDir()
-  // 路径未配置或不存在时不抛错，避免阻塞调用方；返回明确的引导信息
+  let dir = resolveGptSovitsDir()
+
+  // 路径未配置且未内置时：按需下载运行时插件（仅打包后生效；开发可用
+  // KITSUNE_SKIP_RUNTIME_PLUGIN 跳过判断，本地已放置模型时避免误触下载）。
+  // 首次使用才触发，安装过程通过进度事件转发给渲染层 UI 展示。
   if (!dir) {
-    log.warn('GPT-SoVITS 数据目录未找到')
-    return { success: false, message: 'GPT-SoVITS 数据目录未找到，请在设置中配置数据目录路径' }
+    log.log('[tts] 未找到 GPT-SoVITS 目录，尝试按需下载运行时插件')
+    try {
+      dir = await ensureGptSovitsPluginInstalled()
+    }
+    catch (error) {
+      const msg = `GPT-SoVITS 运行时插件下载失败: ${errorMessageFrom(error)}`
+      log.error(msg)
+      return { success: false, message: msg }
+    }
+    if (!dir) {
+      log.warn('GPT-SoVITS 数据目录未找到')
+      return { success: false, message: 'GPT-SoVITS 数据目录未找到，请在设置中配置数据目录路径' }
+    }
   }
 
   const pythonExe = resolveGptSovitsPython(dir)

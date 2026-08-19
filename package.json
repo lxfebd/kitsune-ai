@@ -50,7 +50,8 @@
     "knip": "knip",
     "dev:yachiyo": "pnpm -rF @kitsune/stage-tamagotchi run dev",
     "dev:tts-sidecar": "cd packages/tts-local/sidecar && python gateway.py",
-    "dev:gpt-sovits": "cd apps/stage-tamagotchi/resources/gpt-sovits && python api.py"
+    "dev:gpt-sovits": "cd apps/stage-tamagotchi/resources/gpt-sovits && python api.py",
+    "package:runtime-plugins": "tsx scripts/package-runtime-plugins.ts"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",

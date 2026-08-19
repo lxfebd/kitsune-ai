@@ -77,6 +77,7 @@ import {
   electronTtsSynthesize,
   electronTtsStream,
   electronTtsGetConfig,
+  electronTtsInstallProgress,
 } from '../shared/eventa'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -592,6 +593,13 @@ app.whenReady().then(async () => {
       })
       // GPT-SoVITS 启停与配置 — 参照 electronComfyuiStart/Stop/SetConfig 模式，
       // 进程由 SidecarService 管理，adapter 层负责解析安装目录、Python 路径与端口。
+      // 注入运行时插件安装进度转发：GPT-SoVITS 未内置时按需下载，进度实时推给渲染层。
+      {
+        const { setGptSovitsInstallProgressReporter } = await import('./services/kitsune/tts')
+        setGptSovitsInstallProgressReporter((progress) => {
+          context.emit(electronTtsInstallProgress, { message: progress.detail || progress.phase })
+        })
+      }
       defineInvokeHandler(context, electronTtsStart, async () => {
         if (!sidecarServiceRef)
           throw new Error('sidecarService not ready')

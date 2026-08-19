@@ -80,6 +80,11 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // NOTICE: Exclude the GPT-SoVITS engine from the install payload. The full engine
+    // (incl. bundled Python runtime) is ~6.6GB and would balloon the installer; instead it
+    // ships as a runtime plugin downloaded on demand from the GitHub Release to
+    // userData/runtime-plugins/tts-gptsovits (see services/kitsune/runtime-plugins).
+    '!resources/gpt-sovits{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
@@ -103,13 +108,8 @@ export default {
       to: 'godot-stage',
       filter: ['**/*'],
     },
-    {
-      from: 'resources/gpt-sovits',
-      to: 'gpt-sovits',
-      filter: ['**/*', '!pretrained_models/**', '!__pycache__/**', '!*.pyc', '!_tier*_backup/**'],
-    },
-    // ASR 模型：SenseVoice-Small + Paraformer-Small
-    // 首次使用前需运行 scripts/download-asr-models.ps1 下载
+    // NOTICE: 原 `resources/gpt-sovits` (GPT-SoVITS + Python runtime, ~6.6GB) 已从安装包移除，
+    // 改为运行时插件按需下载（userData/runtime-plugins/tts-gptsovits），见 services/kitsune/runtime-plugins。
     {
       from: '../../resources/models/sherpa-onnx',
       to: 'models/sherpa-onnx',
