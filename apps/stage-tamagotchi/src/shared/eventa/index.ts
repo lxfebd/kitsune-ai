@@ -701,7 +701,7 @@ export interface TtsEngineInfo {
 export const electronTtsGetEngines = defineInvokeEventa<TtsEngineInfo[]>('eventa:invoke:electron:tts:get-engines')
 export const electronTtsSetEngine = defineInvokeEventa<void, { engine: TtsEngine }>('eventa:invoke:electron:tts:set-engine')
 export const electronTtsCurrentEngine = defineInvokeEventa<TtsEngine>('eventa:invoke:electron:tts:current-engine')
-export { electronTtsListVoices, electronTtsImportVoicePack, electronTtsDeleteVoice } from '@kitsune/stage-shared'
+export { electronTtsListVoices, electronTtsImportVoicePack, electronTtsDeleteVoice, electronTtsStream } from '@kitsune/stage-shared'
 export const electronTtsStart = defineInvokeEventa<{ success: boolean, message: string }>('eventa:invoke:electron:tts:start')
 export const electronTtsStop = defineInvokeEventa<{ success: boolean, message: string }>('eventa:invoke:electron:tts:stop')
 // NOTE: the main-process handler returns `getGptSovitsConfig()`, whose data

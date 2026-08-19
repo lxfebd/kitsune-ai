@@ -13,7 +13,7 @@ import messages from '@kitsune/i18n/locales'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { defineInvokeHandler } from '@moeru/eventa'
+import { defineInvokeHandler, defineStreamInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForMain } from '@kitsune/electron-screen-capture/main'
 import { app, dialog, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
@@ -75,6 +75,7 @@ import {
   electronTtsStart,
   electronTtsStop,
   electronTtsSynthesize,
+  electronTtsStream,
   electronTtsGetConfig,
 } from '../shared/eventa'
 
@@ -647,6 +648,38 @@ app.whenReady().then(async () => {
           return { success: false, error: errorMessageFrom(error) ?? 'GPT-SoVITS synthesis failed' }
         }
       })
+      // GPT-SoVITS 流式语音合成 — 基于 api.py `-sm normal` 流式模式，
+      // 主进程逐 OGG chunk 转发至渲染进程，前端逐块 decodeAudioData 播放。
+      // 与 synthesize handler 不同：不等待整段合成完成，边合成边 yield chunk。
+      defineStreamInvokeHandler(context, electronTtsStream, async function* (payload) {
+        if (!payload?.text)
+          throw new Error('tts stream requires text')
+        if (!sidecarServiceRef)
+          throw new Error('sidecarService not ready')
+
+        const { getEngineSidecarId } = await import('@kitsune/tts-hybrid')
+        const sidecarId = getEngineSidecarId('gpt-sovits')
+        if (sidecarId && sidecarServiceRef.getStatus(sidecarId)?.state !== 'running') {
+          const { startGptSovits } = await import('./services/kitsune/tts')
+          const result = await startGptSovits(sidecarServiceRef)
+          if (!result.success)
+            throw new Error(result.message)
+        }
+
+        const { synthesizeGptSovitsStream } = await import('./services/kitsune/tts')
+        const speed = (payload as { speed?: number }).speed
+        let totalBytes = 0
+
+        for await (const chunk of synthesizeGptSovitsStream(sidecarServiceRef, payload.text, {
+          voice: payload.voice,
+          speed,
+        })) {
+          totalBytes += chunk.data.byteLength
+          yield { type: 'chunk' as const, data: chunk.data.buffer.slice(chunk.data.byteOffset, chunk.data.byteOffset + chunk.data.byteLength) as ArrayBuffer, sampleRate: chunk.sampleRate, format: chunk.format }
+        }
+
+        yield { type: 'end' as const, bytes: totalBytes }
+      })
       // TTS 克隆声线 — 上传音频 + 文本标注，调用 sidecar set_reference_audio 注册自定义角色。
       // 克隆角色复用同语言预定义角色的 ONNX 模型作为推理引擎，但用用户上传的参考音频替换声音特征。
       defineInvokeHandler(context, electronTtsCloneVoice, async (payload) => {
@@ -679,7 +712,6 @@ app.whenReady().then(async () => {
         if (!dir)
           return { success: false, error: 'GPT-SoVITS 目录未配置' }
         try {
-          const { dialog } = require('electron')
           const zipPath = payload?.zipPath ?? (await dialog.showOpenDialog({
             title: '选择声线包 (.zip)',
             filters: [{ name: 'ZIP Archive', extensions: ['zip'] }],
@@ -688,9 +720,9 @@ app.whenReady().then(async () => {
           if (!zipPath)
             return { success: false, error: '未选择文件' }
 
-          const fs = require('node:fs')
-          const path = require('node:path')
-          const yauzl = require('yauzl')
+          const { default: yauzl } = await import('yauzl')
+          const fs = await import('node:fs')
+          const path = await import('node:path')
 
           const voicesDir = path.join(dir, 'voices')
           const tmpDir = path.join(voicesDir, '.import-tmp')

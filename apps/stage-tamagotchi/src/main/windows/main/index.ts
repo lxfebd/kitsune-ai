@@ -22,7 +22,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@kitsune/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, screen, shell } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
@@ -47,6 +47,56 @@ const appConfigSchema = object({
 })
 
 type AppConfig = InferOutput<typeof appConfigSchema>
+
+// NOTICE:
+// Main window may restore a size/position larger than the display's work area
+// (e.g. a previous oversized session persisted into app config.json). When the
+// window is taller than the visible work area, the bottom controls island is
+// pushed off-screen and becomes unreachable.
+//
+// Why we measure from the renderer instead of `screen.getDisplayMatching(bounds)`:
+// on Windows with DPI scaling, `screen.workArea` is reported in physical pixels
+// while `BrowserWindow.getBounds()` is in DIP (CSS) pixels. Comparing them
+// directly (min() no-ops) let an oversized 815px window survive, cutting off the
+// whole controls island. Querying `window.screen.availHeight` (physical) and
+// `devicePixelRatio` from the renderer and dividing gives the DIP work area in
+// the same unit as getBounds(), making the clamp reliable.
+// Removal condition: When main-window sizing is changed to always fit the display.
+async function clampWindowToWorkArea(window: BrowserWindow): Promise<void> {
+  if (window.isDestroyed())
+    return
+  const bounds = window.getBounds()
+  if (bounds.width === 0 || bounds.height === 0)
+    return
+
+  let maxWidth = bounds.width
+  let maxHeight = bounds.height
+  try {
+    const view = await window.webContents.executeJavaScript(
+      `({ availW: window.screen.availWidth, availH: window.screen.availHeight, dpr: window.devicePixelRatio })`,
+      true,
+    ) as { availW: number, availH: number, dpr: number }
+    // Physical -> DIP so it is comparable with getBounds() units.
+    maxWidth = Math.round(view.availW / view.dpr)
+    maxHeight = Math.round(view.availH / view.dpr)
+  }
+  catch (err) {
+    // Renderer not ready yet; fall back to a DIP approximation of the work area.
+    console.warn('[main-window] clamp fallback to screen module:', err)
+    const area = screen.getDisplayMatching(bounds).workArea
+    maxWidth = area.width
+    maxHeight = area.height
+  }
+
+  const width = Math.min(bounds.width, maxWidth)
+  const height = Math.min(bounds.height, maxHeight)
+  const area = screen.getDisplayMatching(bounds).workArea
+  const x = Math.min(Math.max(bounds.x, area.x), area.x + area.width - width)
+  const y = Math.min(Math.max(bounds.y, area.y), area.y + area.height - height)
+  if (x === bounds.x && y === bounds.y && width === bounds.width && height === bounds.height)
+    return
+  window.setBounds({ x, y, width, height })
+}
 
 export async function setupMainWindow(params: {
   settingsWindow: SettingsWindowManager
@@ -154,6 +204,14 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
+  // NOTICE: Defends against the renderer (or a restored oversized session) growing
+  // the window past the work area after it is already shown. Debounced so it does
+  // not fight ongoing user drag-resize gestures. Only ever shrinks, never enlarges.
+  let clampTimer: NodeJS.Timeout | undefined
+  window.on('resize', () => {
+    clearTimeout(clampTimer)
+    clampTimer = setTimeout(() => { clampWindowToWorkArea(window) }, 500)
+  })
   window.on('close', (event) => {
     if (allowClose) {
       return
@@ -174,7 +232,10 @@ export async function setupMainWindow(params: {
     window.setWindowButtonVisibility(false)
   }
 
-  window.on('ready-to-show', () => window!.show())
+  window.on('ready-to-show', () => {
+    clampWindowToWorkArea(window).then(() => window!.show())
+    window!.show()
+  })
   window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -209,9 +270,9 @@ export async function setupMainWindow(params: {
   }
 
   window.webContents.once('did-finish-load', () => {
+    clampWindowToWorkArea(window)
     /**
      * This is a know issue (or expected behavior maybe) to Electron.
-     * We don't use this approach on Linux because it's not working.
      *
      * Discussion: https://github.com/electron/electron/issues/37789
      * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
