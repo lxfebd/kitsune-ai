@@ -6,8 +6,8 @@
 
 import type { PlatformAutomation, PlatformOptions } from './index'
 
+import { WindowsKoffiAutomation } from './windows-koffi'
 import { MacAutomation } from './macos'
-import { WindowsAutomation } from './windows'
 
 export type PlatformType = 'win32' | 'darwin' | 'linux'
 
@@ -24,7 +24,7 @@ export async function createPlatformAutomation(
 ): Promise<PlatformAutomation> {
   switch (platform) {
     case 'win32':
-      return new WindowsAutomation(options)
+      return new WindowsKoffiAutomation(options)
     case 'darwin':
       return new MacAutomation(options)
     case 'linux': {
