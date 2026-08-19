@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
       projects: [
         {
           extends: true,
+          plugins: [
+            Vue(),
+          ],
           test: {
             name: 'node',
             include: ['src/**/*.test.ts'],

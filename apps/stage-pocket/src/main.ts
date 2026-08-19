@@ -54,6 +54,8 @@ window.addEventListener('unhandledrejection', (event) => {
 installDeepLinks(router)
 
 const app = createApp(App)
+
+app
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
@@ -61,7 +63,8 @@ const app = createApp(App)
   .use(pinia)
   .use(i18n)
   .use(Tres)
-  .mount('#app')
+
+app.mount('#app')
 
 // Install Capacitor lifecycle integration for native platforms
 installCapacitorLifecycle(app)

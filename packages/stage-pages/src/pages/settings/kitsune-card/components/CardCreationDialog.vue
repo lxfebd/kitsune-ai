@@ -557,7 +557,7 @@ const cardVersion = makeComputed('version')
 const cardSystemPrompt = makeComputed('systemPrompt')
 const cardPostHistoryInstructions = makeComputed('postHistoryInstructions')
 
-const personaModeOptions = computed(() => [
+const personaModeOptions = computed<{ label: string, value: 'rational' | 'idol' | 'hybrid' | 'strict' }[]>(() => [
   { label: t('settings.pages.card.creation.persona-tab.modes.rational'), value: 'rational' },
   { label: t('settings.pages.card.creation.persona-tab.modes.idol'), value: 'idol' },
   { label: t('settings.pages.card.creation.persona-tab.modes.hybrid'), value: 'hybrid' },

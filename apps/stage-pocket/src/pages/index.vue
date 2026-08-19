@@ -21,7 +21,7 @@ import { useProvidersStore } from '@kitsune/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@kitsune/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
@@ -46,7 +46,7 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { startRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const providersStore = useProvidersStore()

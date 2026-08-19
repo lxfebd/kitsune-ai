@@ -1,5 +1,5 @@
-﻿<script setup lang="ts">
-import type { LlmRoutingCondition, LlmRoutingRule } from '@kitsune/stage-ui/stores/settings/llm-routing'
+<script setup lang="ts">
+import type { LlmRoutingRule } from '@kitsune/stage-ui/stores/settings/llm-routing'
 
 import { useSettingsLlmRouting } from '@kitsune/stage-ui/stores/settings'
 import { Button } from '@kitsune/ui'

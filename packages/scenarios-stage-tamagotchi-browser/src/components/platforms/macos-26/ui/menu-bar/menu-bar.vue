@@ -1,9 +1,5 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-
 import { Apple, Switch2_0, Wifi } from '../../icons/sf-symbol-like'
-
-const { t } = useI18n()
 </script>
 
 <template>
@@ -22,22 +18,22 @@ const { t } = useI18n()
         <span>AIRI</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.file') }}</span>
+        <span>File</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.edit') }}</span>
+        <span>Edit</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.selection') }}</span>
+        <span>Selection</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.view') }}</span>
+        <span>View</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.window') }}</span>
+        <span>Window</span>
       </div>
       <div :class="['text-xs']">
-        <span>{{ t('menu-bar.help') }}</span>
+        <span>Help</span>
       </div>
       <div class="w-full flex-1" />
       <Wifi />

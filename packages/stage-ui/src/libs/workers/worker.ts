@@ -148,7 +148,13 @@ class AutomaticSpeechRecognitionPipeline {
     //   without a discrete GPU.
     // Each branch ends in an fp32 fallback so a quantization/loading failure
     // never blocks transcription entirely.
-    const dtypeAttempts
+    // 显式 union 字面量类型，避免对象字面量值被拓宽成 string 而无法赋给
+    // transformers.js 的 dtype 参数（其接受 Record<string, dtype-union>）。
+    type WhisperDtypeAttempt = {
+      encoder_model: 'q8' | 'q4' | 'fp32'
+      decoder_model_merged: 'q4' | 'q8' | 'fp32'
+    }
+    const dtypeAttempts: WhisperDtypeAttempt[]
       = actualDevice === 'webgpu'
         ? [
             { encoder_model: 'q8', decoder_model_merged: 'q4' },

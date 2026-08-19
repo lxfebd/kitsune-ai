@@ -2,6 +2,8 @@ node_modules
 dist
 out
 .turbo
+.eslintcache
+apps/stage-web/.cache/
 
 # 构建日志
 *.log

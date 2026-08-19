@@ -246,9 +246,7 @@ async function generateTestSpeech() {
               setTimeout(() => ctx.close().catch(() => {}), 500)
               resolve()
             }
-            const playErr = source.start(0)
-            if (playErr instanceof Promise)
-              playErr.catch(reject)
+            source.start(0)
           })
         }
         catch (playError) {
@@ -638,7 +636,7 @@ function handleDeleteProvider(providerId: string) {
 
         <div v-if="isStageTamagotchi() && activeSpeechProvider === GENIE_TTS_PROVIDER_ID" class="flex gap-2 mt-2">
           <Button
-            variant="outline"
+            variant="secondary-muted"
             size="sm"
             :disabled="isImportingVoice"
             @click="importVoicePack"

@@ -1,11 +1,11 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@kitsune/stage-shared'
 import { ChatSessionsDrawer } from '@kitsune/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@kitsune/stage-ui/components/scenarios/dialogs/audio-input/index'
-import { useAudioAnalyzer, useRouterStatus } from '@kitsune/stage-ui/composables'
+import { useAudioAnalyzer } from '@kitsune/stage-ui/composables'
 import { useAudioContext } from '@kitsune/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@kitsune/stage-ui/stores/chat'
 import { useChatSessionStore } from '@kitsune/stage-ui/stores/chat/session-store'
@@ -38,7 +38,6 @@ const lastEnterTime = ref(0)
 
 const providersStore = useProvidersStore()
 const llmRouter = useLlmRouter()
-const { routerStatusMessage, routerStatusVisible } = useRouterStatus()
 const { activeProvider, activeModel } = storeToRefs(useActiveModelStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
