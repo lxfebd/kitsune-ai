@@ -54,9 +54,11 @@ patchidx.cjs
 
 # 内部/配置目录（最终决定提交）
 # .agents/  -> 提交（技能定义）
-# .ai-memory/ -> 提交（会话记忆模板）
 # .github/ -> 提交（CI/CD）
 # config/ -> 提交（配置模板）
+
+# AI 开发记忆/计划/审计文档（不入仓）
+.ai-memory/
 
 # 其他工作目录（不需提交）
 kimik3/
@@ -91,11 +93,6 @@ diag-*.mjs
 *_check.png
 *_capture.png
 capture_screen.ps1
-
-# .ai-memory：提交长期价值文档，忽略运行时会话态
-.ai-memory/sessions/
-.ai-memory/issues/
-.ai-memory/tmp/
 
 # 内部开发文档（含计划/进度/隐私信息，不入仓）
 docs/
