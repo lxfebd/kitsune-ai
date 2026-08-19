@@ -22,6 +22,11 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # uiohook-napi 等原生模块在 Linux 编译需 X11 开发头文件
+      - name: Install native build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev pkg-config build-essential
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
 
@@ -55,6 +60,11 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # uiohook-napi 等原生模块在 Linux 编译需 X11 开发头文件
+      - name: Install native build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev pkg-config build-essential
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
 
@@ -82,6 +92,11 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # uiohook-napi 等原生模块在 Linux 编译需 X11 开发头文件
+      - name: Install native build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev pkg-config build-essential
+
       - run: pnpm install --frozen-lockfile
 
       - name: Setup Playwright
@@ -102,6 +117,11 @@ jobs:
         with:
           node-version: lts/*
           cache: pnpm
+
+      # uiohook-napi 等原生模块在 Linux 编译需 X11 开发头文件
+      - name: Install native build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev pkg-config build-essential
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck

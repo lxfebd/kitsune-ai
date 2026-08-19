@@ -75,6 +75,11 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
+      # Linux 需要 X11 头文件编译 uiohook-napi 等原生模块
+      - name: Install native build deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev pkg-config build-essential
+
       - name: Install deps
         run: pnpm install --no-frozen-lockfile
 
