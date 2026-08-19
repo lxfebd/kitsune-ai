@@ -41,13 +41,11 @@
 | @kitsune/i18n | packages/i18n | 国际化资源与工具 | 活跃 |
 | @kitsune/emotion-mapper | packages/kitsune-emotion-mapper | 语义情绪映射 emotion -> expression + parameters | 活跃 |
 | @kitsune/mcp-bridge | packages/kitsune-mcp-bridge | MCP 协议桥接（已弃用，无引用方） | 弃用 |
-| @kitsune/overseer | packages/kitsune-overseer | 监工系统（已弃用，无入口文件） | 弃用 |
+| @kitsune/overseer | packages/kitsune-overseer | 监工系统（已弃用，无入口文件；JS 已移至根 `_dead_overseer_js_2026-08-07/`） | 弃用 |
 | @kitsune/persona | packages/kitsune-persona | 八千代人格系统（SOUL.md / IDENTITY.md / persona.yaml） | 活跃 |
 | @kitsune/screenshot | packages/kitsune-screenshot | 截图编排 CLI | 活跃 |
 | @kitsune/skills-system | packages/kitsune-skills-system | 技能系统（已弃用，无入口文件） | 弃用 |
 | @kitsune/tts-hybrid | packages/kitsune-tts-hybrid | 混合 TTS：云端 + 本地 GPU | 活跃 |
-| @kitsune/settings-ui | packages/kitsune-ui | UI 组件库（对话框、设置页面等） | 活跃 |
-| @kitsune/memory-pgvector | packages/memory-pgvector | 基于 pgvector 的长期记忆 | 活跃 |
 | @kitsune/model-driver-lipsync | packages/model-driver-lipsync | 口型同步模型驱动 | 活跃 |
 | @kitsune/model-driver-mediapipe | packages/model-driver-mediapipe | MediaPipe 动作捕捉实验 | 活跃 |
 | @kitsune/pipelines-audio | packages/pipelines-audio | 音频 pipeline：采集、VAD、编码、流式 | 活跃 |
@@ -79,18 +77,28 @@
 
 ## Services
 
+> 本备份（`agentpet-backup`）中 `services/` 实际仅含以下 3 个。下方「文档历史记录」一栏列出 `module-reference.md` 早期版本（2026-07-02 读取各包 package.json 整理时）还记载、但当前目录中不存在的服务，待与线上仓库核实是服务被移除还是备份不全。
+
 | 包名 | 路径 | 描述 |
 |------|------|------|
 | @kitsune/computer-use-mcp | services/computer-use-mcp | macOS 桌面编排 MCP 服务（观察、截图、控制、终端、浏览器 DOM） |
 | @kitsune/discord-bot | services/discord-bot | Discord 机器人 |
 | @kitsune/minecraft-bot | services/minecraft | 基于 Mineflayer 的 Minecraft 智能体（计划迁移至 Fabric mod） |
+
+文档历史记录、本备份中缺失的服务（待核实）：
+
+| 历史包名 | 历史路径 | 说明 |
+|------|------|------|
 | @kitsune/satori-bot | services/satori-bot | Satori 协议适配器，连接多聊天平台 |
 | @kitsune/telegram-bot | services/telegram-bot | Telegram 机器人 |
 | @kitsune/twitter-services | services/twitter-services | Twitter MCP 服务 |
+| @kitsune/ai-hub | services/ai-hub | AI 服务聚合（仅 knowledge-framework.md 提及） |
 
 ## Plugins
 
-| 插件 | 路径 | 描述 |
+> 本备份中 `plugins/` 下仅 `plugins/default/` 与 `plugins/yachiyo/` 两个**空目录**（git 未跟踪任何插件，全仓库无 `plugin.yaml` / `.petplugin`）。早期版本（2026-07-02）记载的下表插件在本备份中均不存在，待与线上仓库核实。
+
+| 历史插件 | 历史路径 | 描述 |
 |------|------|------|
 | comfyui | plugins/yachiyo/comfyui | ComfyUI 集成插件 |
 | tts | plugins/yachiyo/tts | TTS sidecar 插件 |
@@ -120,11 +128,13 @@
 | @moeru/eventa | IPC/RPC |
 | OpenTelemetry | 可观测性 |
 
-## 已弃用模块
+## 已弃用 / 缺失模块
 
 以下模块在 package.json 中标记为无引用方或缺少入口文件，后续改造时优先排查：
 
-- `@kitsune/mcp-bridge`（packages/kitsune-mcp-bridge）
-- `@kitsune/overseer`（packages/kitsune-overseer）
-- `@kitsune/skills-system`（packages/kitsune-skills-system）
-- `services/minecraft` 的 Mineflayer 运行时（计划迁移到 Fabric mod）
+- `@kitsune/mcp-bridge`（packages/kitsune-mcp-bridge）—— 无引用方
+- `@kitsune/overseer`（packages/kitsune-overseer）—— 无入口文件，运行时 JS 已于 2026-08-07 移至根 `_dead_overseer_js_2026-08-07/`（对应 commit `c51e17c`）
+- `@kitsune/skills-system`（packages/kitsune-skills-system）—— 无入口文件
+- `services/minecraft` 的 Mineflayer 运行时—— 计划迁移到 Fabric mod
+
+> 2026-08-10 核对补充：`packages/` 实有 **51** 个目录（早期版本称 48）。早期表格曾列出 `@kitsune/settings-ui`（packages/kitsune-ui）与 `@kitsune/memory-pgvector`（packages/memory-pgvector）两个包，但本备份中两者均**不存在**，已从上表移除——待与线上仓库核实是已被删/改名还是备份不全。

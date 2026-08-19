@@ -1,181 +1,193 @@
-# Kitsune AI / yachiyo-airi 知识框架
+# 知识库框架（Knowledge Framework）
 
-> 本文档是项目知识库的主入口，汇总全局认知、顶层架构、核心数据流、关键模块与阅读优先级。详细信息见同目录下其他分册。
+> 本文档是 Kitsune 项目的 AI 记忆库主索引与知识框架。  
+> 最后更新：2026-07-02
 
 ## 一、项目定位
 
-**Kitsune AI（灵狐）** 是全栈 AI 桌宠 / 角色对话平台，命名空间为 `@kitsune/*`（由 `@proj-airi/*` 迁移而来）。
+**Kitsune AI**（狐）是一个 AI 虚拟角色 / 桌面宠物 / 多端应用框架，命名空间为 `@kitsune/*`（由 `@yachiyo/*` 迁移而来）。
 
-核心围绕「角色卡（Character Card + Kitsune 扩展）」构建，支持：
-- Web 主入口（`apps/stage-web`）
-- Capacitor 移动端（`apps/stage-pocket`）
-- Electron 桌面宠物（`apps/stage-tamagotchi`）
-- Hono 后端服务（`apps/server`）
-- 多平台机器人服务（`services/*`）
-- MCP 服务与插件生态（`services/computer-use-mcp`、`plugins/*`）
+核心目标：以「角色卡（Character Card）」为中心，构建可运行在 Web / 移动端 / 桌面端 / 机器人平台 / 游戏引擎（Live2D / Spine / Godot）之上的 AI 角色系统。
 
 ## 二、顶层架构
 
 ```
-用户入口层
-├── apps/stage-web        Web SPA
-├── apps/stage-pocket     Capacitor 移动端
-├── apps/stage-tamagotchi Electron 桌面宠物
-├── apps/ui-admin         管理后台
-└── apps/component-calling Realtime audio
-
-前端共享层
-└── packages/stage-ui     Pinia stores + Vue 组件 + composables + providers
-
-运行时 / 通信层
-├── packages/core-agent   平台无关聊天编排运行时
-├── packages/server-sdk   前端访问后端 SDK
-├── packages/server-sdk-shared 共享事件契约
-├── packages/server-runtime     多环境服务端运行时
-├── packages/server-shared      服务端共享类型
-├── packages/better-ws    可靠 WebSocket 原语
-└── packages/stream-kit   队列与流式工具
-
-后端服务层
-└── apps/server           Hono + PostgreSQL + Redis + LLM/TTS 网关
-
-机器人服务层
-└── services/*            Discord / Satori / Telegram / Minecraft / Twitter / computer-use-mcp
-
-通用能力模块
-└── extracted-modules/    意识 / 语音 / 听觉 / 视觉 / 图像创作 / 角色卡 / Discord / Twitter / MCP
-
-插件生态
-└── plugins/*             TTS / ComfyUI / local-llm / weather / cli-anything / ai-monitor
+apps/
+├── stage-web          Web 前端（Vue 3 + Vite + UnoCSS）
+├── stage-pocket       Capacitor 移动端
+├── stage-tamagotchi   Electron 桌面宠物
+├── ui-admin           管理后台
+└── server             Hono 后端（LLM/TTS/Flux 网关）
 ```
 
-## 三、核心数据流
-
-用户输入 → `stage-ui/stores/chat.ts` → `core-agent/chat-orchestrator-runtime.ts` → `stage-ui/stores/llm.ts`（xsai）→ 外部 LLM Provider → 流式解析 → UI 更新 → 历史持久化。
-
-后端路径：`stage-ui` → `server-sdk` → `apps/server` → `services/domain/llm-router/` → 上游供应商。
-
-详见：[data-flow-and-runtime.md](data-flow-and-runtime.md)
-
-## 四、关键模块速览
-
-| 模块 | 路径 | 核心职责 |
-|------|------|----------|
-| 聊天运行时 | `packages/core-agent/src/runtime/` | 消息队列、上下文注入、工具调用、流式响应处理 |
-| 前端状态 | `packages/stage-ui/src/stores/` | chat / llm / auth / providers / consciousness / speech / hearing / kitsune-card |
-| 后端服务 | `apps/server/src/` | Hono 路由、Drizzle ORM、LLM/TTS 网关、认证、Flux 计费 |
-| 桌面端 | `apps/stage-tamagotchi/src/main/` | Electron 主进程、窗口管理、插件系统、MCP 管理器 |
-| 角色卡 | `packages/ccc/` + `extracted-modules/airi-card.ts` | Character Card V2/V3 + Airi 扩展 |
-| 人格 | `packages/kitsune-persona/SOUL.md` | 八千代人格设定 |
-
-## 五、模块完整参考
-
-工作区共 6 个 apps、48 个 packages、6 个 services、9 个 plugins。
-
-详见：[module-reference.md](module-reference.md)
-
-## 六、配置与技能规范
-
-- `config/yachiyo/providers.yaml`：AI 模型提供商与路由
-- `config/yachiyo/tools.yaml`：可用工具白名单与 schema
-- `config/yachiyo/mcp.yaml`：MCP 服务器列表
-- `config/yachiyo/voice-policy.yaml`：语音回复策略
-- `.agents/skills/`：Vue / xsai / pnpm / unocss / eventa AI 技能规范
-
-详见：[config-system.md](config-system.md)
-
-## 七、技术栈
-
-| 层级 | 技术 |
-|------|------|
-| 前端框架 | Vue 3 + Vite + TypeScript |
-| 状态管理 | Pinia + Pinia Colada + VueUse |
-| 样式 | UnoCSS（baseHue=345 粉色主题） |
-| 路由 | vue-router + unplugin-vue-router |
-| 桌面端 | Electron + electron-vite + injeca 依赖注入 |
-| IPC/RPC | `@moeru/eventa` |
-| 后端 | Hono + Drizzle ORM + PostgreSQL + Redis |
-| 认证 | better-auth |
-| AI 运行时 | `@kitsune/core-agent` + xsai 模型抽象 |
-| 可观测性 | OpenTelemetry + `@hono/otel` |
-| 包管理 | pnpm workspace + Turborepo |
-
-## 八、常用命令
-
-```bash
-pnpm dev:web          # 启动 Web
-pnpm dev:tamagotchi   # 启动桌面端
-pnpm dev:server       # 启动后端
-pnpm dev:ui           # 启动 UI 组件库 story
-pnpm build            # 构建 packages + apps
-pnpm typecheck        # 全仓库类型检查
-pnpm lint             # 全仓库 lint
-pnpm test:run         # 全仓库测试
+```
+packages/
+├── core-agent          AI 聊天编排核心（平台无关）
+├── stage-ui            UI 组件 + stores + composables
+├── stage-ui-live2d     Live2D 渲染
+├── stage-ui-spine      Spine 渲染
+├── server-sdk          前端访问后端 SDK
+├── server-sdk-shared    服务端共享类型
+├── server-runtime      服务端运行时
+├── server-schema       服务端数据库 schema
+├── stream-kit          流式工具
+├── i18n                国际化
+├── fonts-*             字体包
+├── plugin-sdk-*        插件 SDK
+└── ... 等
 ```
 
-## 九、关键认知与注意事项
+## 二、核心数据流
 
-- 项目采用 monorepo，大量使用 workspace 依赖，修改一个 package 后需要联动检查引用方
-- 前端三端（web / pocket / tamagotchi）共享 `stage-ui`，但 tamagotchi 额外依赖 live2d/spine/three 渲染包
-- `core-agent` 是平台无关的运行时，通过 Port 与 UI/存储/LLM 解耦
-- `tools.yaml` 定义了非常丰富的工具能力：文件、Shell、语音、Live2D、桌面捕获、浏览器、MCP 管理、IDE 集成、监工、CLI-Anything
-- 同源代码库中同时包含：前端 SPA、Electron 桌面宠物、Capacitor 移动端、Hono 后端、多个独立机器人服务、MCP 服务、插件生态
-- 开发时需要注意模块边界，避免循环依赖
-- 大量 packages 中已有 3 个弃用包（mcp-bridge、overseer、skills-system），改造前先确认状态
+### 2.1 完整请求链路
 
-## 十、阅读优先级
+```
+用户输入
+  │
+  ▼
+UI 组件（apps/stage-web/src/components/chat/）
+  │
+  ▼
+chat store（packages/stage-ui/src/stores/chat.ts）
+  │  useChatOrchestratorStore.ingest()
+  │  ├─ 创建 sessionId
+  │  ├─ 写入 user message
+  │  └─ 调用 orchestrator.streamChat()
+  ▼
+core-agent（packages/core-agent/src/runtime/chat-orchestrator-runtime.ts）
+  │  ├─ sendQueue 串行队列
+  │  ├─ performSend()
+  │  │  ├─ buildProviderMessages()
+  │  │  ├─ ingestContexts() ← contextProviders
+  │  │  ├─ buildSystemPrompt()
+  │  │  └─ streamChat()
+  │  ├─ 流式响应 → 解析 → 工具调用 → 继续对话
+  │  └─ 错误处理 / 重试 / 回退
+  ▼
+LLM Provider（小米 MiMo / 本地 llamafile / NVIDIA NIM / 阿里云 DashScope 等）
+  ▼
+stream-kit 流式解析
+  ▼
+UI 渲染（chat store → 组件）
+```
 
-### 10.1 必读（建立全局认知）
+## 二、核心数据流
 
-1. `README.md` — 项目定位与快速开始
-2. `AGENTS.md` — AI 代理协作规范
-3. `PROJECT-MAP.md` — 项目地图（非常大，建议先看目录）
-4. `.ai-memory/architecture/knowledge-framework.md` — 本文件
+### 2.1 聊天消息流
+1. 用户输入 → `useChatOrchestratorStore.ingest()`
+2. 运行时组装 system prompt + 上下文 + 工具定义
+3. `coreLLM.streamText()` → Provider API
+4. 流式响应 → `response-categoriser.ts` 分类
+5. 分类结果 → `useChatStreamStore` 更新 UI
+6. 工具调用 → `useLlmToolsStore` 执行 → 结果回填 → 继续对话
 
-### 10.2 理解前端入口
+### 2.2 角色卡（Character Card）加载
+1. `useKitsuneCardStore` 加载 `kitsune-card.json` / `kitsune-card.yaml`
+2. 解析 `persona` / `scenario` / `first_mes` / `mes_example`
+3. 注入 system prompt
+4. 与 `usePersonaStore` 联动
 
-1. `apps/stage-web/src/main.ts`
-2. `apps/stage-web/src/App.vue`
-3. `apps/stage-tamagotchi/src/main/index.ts`
-4. `apps/stage-tamagotchi/src/renderer/main.ts`
+### 2.3 语音/听觉
+- `useSpeechStore` → TTS 队列 → `speech.ts` 播放
+- `useHearingStore` → ASR 识别 → 文本注入聊天
+- 语音策略：`voice-policy.yaml`
 
-### 10.3 理解状态与运行时
+### 2.4 意识（Consciousness）
+- `useConsciousnessStore` → 周期性心跳 + 状态更新
+- 支持 `idle` / `active` / `sleeping` 等状态
 
-1. `packages/stage-ui/src/stores/chat.ts`
-2. `packages/stage-ui/src/stores/llm.ts`
-3. `packages/stage-ui/src/stores/providers.ts`
-4. `packages/core-agent/src/runtime/chat-orchestrator-runtime.ts`
-5. `packages/core-agent/src/runtime/llm-service.ts`
+### 2.5 角色卡（Character Card）
+- `packages/ccc`：V2/V3 角色卡解析（Character Card 标准处理）
+- `packages/kitsune-persona`：人格 / 角色定义
+- 支持导入/导出 PNG、JSON、Markdown
 
-### 10.4 理解后端
+### 2.6 插件系统
+- `packages/plugin-sdk`：通用插件 SDK
+- `packages/plugin-sdk-tamagotchi`：Tamagotchi 专用插件 SDK 辅助
+- `plugins/`：内置插件（TTS、ComfyUI、local-llm、weather-adapter 等）
 
-1. `apps/server/src/app.ts`
-2. `apps/server/src/services/domain/llm-router/index.ts`
-3. `apps/server/src/services/domain/llm-router/router.ts`
-4. `apps/server/src/schemas/index.ts`
+### 2.7 服务（services/）
 
-### 10.5 理解配置与扩展
+> 2026-08-10 核对：本备份 `services/` 实际仅含 `computer-use-mcp`、`discord-bot`、`minecraft` 三个；下方"历史记录"中 `telegram-bot` / `twitter-bot` / `ai-hub` / `satori-bot` 在本备份中不存在，待与线上仓库核实。
 
-1. `config/yachiyo/providers.yaml`
-2. `config/yachiyo/tools.yaml`
-3. `config/yachiyo/mcp.yaml`
-4. `extracted-modules/README.md`
-5. `packages/kitsune-persona/SOUL.md`
+- `services/computer-use-mcp`：macOS 桌面编排 MCP 服务
+- `services/discord-bot`：Discord 机器人
+- `services/minecraft`：Minecraft 机器人（计划迁移至 Fabric mod）
 
-## 十一、知识库文件索引
+历史记录（本备份缺失，待核实）：`telegram-bot`、`twitter-bot`、`ai-hub`、`satori-bot`。
 
-| 文件 | 内容 |
-|------|------|
-| `.ai-memory/README.md` | 记忆库使用规范 |
-| `.ai-memory/architecture/knowledge-framework.md` | 本文件：综合知识框架 |
-| `.ai-memory/architecture/module-reference.md` | 所有 apps/packages/services/plugins 完整参考 |
-| `.ai-memory/architecture/data-flow-and-runtime.md` | 数据流、运行时、状态管理、执行路径 |
-| `.ai-memory/architecture/config-system.md` | 配置文件、AI 技能、插件、开发规范 |
-| `.ai-memory/sessions/*.md` | 每次会话摘要 |
-| `.ai-memory/changes/*.md` | 改动日志 |
-| `.ai-memory/decisions/*.md` | 架构/设计决策记录 |
-| `.ai-memory/issues/*.md` | 问题与解决方案 |
+### 2.8 工具（tools/）
+- `tools/`：开发工具与脚本
 
----
+## 三、核心架构
 
-_本知识库会随着后续会话持续更新。最新一次更新：2026-07-02。_
+### 3.1 分层架构
+
+```
+┌─────────────────────────────────────────────────┐
+│  UI 层 (apps/stage-web, apps/stage-pocket,      │
+│       apps/stage-tamagotchi, apps/ui-admin)      │
+├─────────────────────────────────────────────────┤
+│  状态层 (packages/stage-ui)                      │
+│  - stores/chat.ts 聊天编排                    │
+│  - stores/llm.ts LLM 调用                     │
+│  - stores/providers.ts 提供商配置              │
+│  - stores/consciousness.ts 意识/人格            │
+│  - stores/voice.ts 语音                        │
+│  - stores/hearing.ts 听觉                      │
+│  - stores/kitsune-card.ts 角色卡               │
+│  - stores/artifacts.ts 产物                   │
+│  - stores/modules/* 模块系统                  │
+├── 核心运行时 (packages/core-agent)
+│  ├── chat-orchestrator-runtime.ts  聊天编排
+│  ├── context-registry.ts          上下文注入
+│  ├── llm-service.ts               LLM 流式服务
+│  ├── agent-hooks.ts               Hook 系统
+│  └── tool-registry.ts             工具注册
+│
+├── 后端 (apps/server)
+│  ├── src/app.ts                  Hono 应用
+│  ├── src/routes/                  REST 路由
+│  ├── src/services/domain/llm-router/  LLM 路由
+│  ├── src/services/domain/chat/      聊天服务
+│  ├── src/services/domain/characters/ 角色服务
+│  ├── src/services/domain/voice-packs/ 语音包
+│  └── src/services/domain/flux/       Flux 计费
+│
+├── 桌面端 (apps/stage-tamagotchi)
+│  ├── src/main/                    Electron 主进程
+│  │   ├── services/kitsune/plugins/    插件加载
+│  │   ├── services/kitsune/mcp-servers/ MCP 服务器
+│  │   ├── services/kitsune/http-server/ HTTP 服务
+│  │   ├── services/kitsune/channel-server/ WebSocket 服务
+│  │   └── services/kitsune/godot-stage/  Godot 舞台
+│  ├── src/preload/                预加载脚本
+│  └── src/renderer/               UI 渲染层
+│  └── src/shared/                 共享类型/常量
+│
+│  └── src/main/                    Electron 主进程
+│      ├── index.ts                # 入口
+│      ├── windows/               # 窗口管理
+│      ├── services/              # 服务层
+│      └── shared/                # 共享模块
+│
+│  └── src/renderer/              # 渲染进程
+│      ├── src/                   # 渲染进程源码
+│      └── index.html             # 入口 HTML
+│
+│  └── src/shared/               # 主/渲染进程共享
+│      ├── constants.ts
+│      └── types.ts
+│
+│  └── src/main/                  # Electron 主进程
+│      ├── index.ts
+│      ├── services/
+│      │   ├── kitsune/           # 核心服务
+│      │   │   ├── plugins/       # 插件系统
+│      │   │   ├── mcp-servers/   # MCP 服务器
+│      │   │   ├── http-server/   # HTTP 服务
+│      │   │   ├── channel-server/ # WebSocket 服务
+│      │   │   └── godot-stage/   # Godot 舞台
+│      │   └── ...
+│      └── ...
+```

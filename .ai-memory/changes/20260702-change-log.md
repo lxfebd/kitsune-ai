@@ -2,6 +2,26 @@
 
 ## 日期
 
+2026-08-10
+
+## 改动列表
+
+| 时间 | 文件 | 改动类型 | 改动说明 | 关联会话 |
+|------|------|----------|----------|----------|
+| 会话期间 | `.ai-memory/architecture/module-reference.md` | 修改 | Packages 表删除本备份不存在的 settings-ui / memory-pgvector；overseer 行补充 JS 已移至 `_dead_overseer_js_2026-08-07/`；Services 表改为"实际 3 + 历史待核实"；Plugins 表标注为空目录；已弃用章节补充 packages 数量修正 | 20260810-memory-kb-sync |
+| 会话期间 | `.ai-memory/architecture/knowledge-framework.md` | 修改 | 2.7 节 services 列表同步修正为"实际 3 + 历史待核实" | 20260810-memory-kb-sync |
+| 会话期间 | `.ai-memory/sessions/20260810-memory-kb-sync.md` | 新增 | 记录本次对齐外部记忆/知识库 + 文档修正的会话摘要 | 20260810-memory-kb-sync |
+| 会话期间 | `.ai-memory/issues/20260810-backup-vs-doc-stale-references.md` | 新增 | 记录备份与文档的过期引用不一致问题，待线上核实 | 20260810-memory-kb-sync |
+
+## 备注
+
+- 本次为文档对齐，**未触碰任何项目源码**。
+- 所有"文档记载但备份不存在"的项均降级为"历史记录待核实"，未删除原始信息。
+
+---
+
+## 日期
+
 2026-07-02
 
 ## 改动列表

@@ -131,7 +131,7 @@
 
 - `packages/ccc`：Character Card V2/V3 + Kitsune 扩展
 - 支持导入/导出 PNG、JSON、Markdown、APNG
-- `extracted-modules/airi-card.ts`：Airi 扩展模块定义
+- `extracted-modules/airi-card.ts`（2026-07-02 会话期间的临时提取目录，当前仓库已不存在）：Airi 扩展模块定义
 
 ### 4.2 八千代人格
 
