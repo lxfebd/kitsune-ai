@@ -17,14 +17,9 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
-import { Download } from '@proj-airi/unplugin-fetch/vite'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
-
-const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
-const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
@@ -220,12 +215,14 @@ export default defineConfig({
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
 
-    DownloadLive2DSDK(),
+    // 这些模型资源已随 packages/stage-ui/src/assets 入库，无需构建期再远程下载；
+    // assets.kitsune.ai 是上游占位域名（解析 ENOTFOUND），开启会在 CI 直接令构建失败。
+    // DownloadLive2DSDK(),
     // TODO: 待资源源确定后更新
-    Download('https://assets.kitsune.ai/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    // Download('https://assets.kitsune.ai/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { ... }),
+    // Download('https://assets.kitsune.ai/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { ... }),
+    // Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { ... }),
+    // Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { ... }),
 
     // HuggingFace Spaces
     LFS({ root: cwd(), extraGlobs: [
