@@ -49,13 +49,10 @@ const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProvidersStore()
 const activeModelStore = useActiveModelStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(activeModelStore)
 const chatStore = useChatOrchestratorStore()
-
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
   init: initVAD,
@@ -100,9 +97,8 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
-  if (shouldUseStreamInput.value && stream.value) {
-    // Use both callbacks to support incremental updates and final transcript replacement.
-    // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
+  // transcribeForMediaStream 内部处理流式 vs VAD 分段批处理
+  if (stream.value) {
     await transcribeForMediaStream(stream.value, {
       onSentenceEnd: (delta) => {
         const finalText = delta
@@ -131,12 +127,7 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
-  if (shouldUseStreamInput.value) {
-    // Keep streaming session alive; idle timer in pipeline will handle teardown.
-    return
-  }
-
-  stopRecord()
+  // transcribeForMediaStream 内部处理句尾转写，外部 VAD 不再触发录音
 }
 
 function stopAudioInteraction() {

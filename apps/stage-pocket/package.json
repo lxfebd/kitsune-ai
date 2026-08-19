@@ -24,6 +24,8 @@
     "@capacitor/core": "catalog:",
     "@capacitor/ios": "catalog:",
     "@capacitor/local-notifications": "catalog:",
+    "@capacitor/splash-screen": "catalog:",
+    "@capacitor/status-bar": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/nunito": "catalog:",
     "@formkit/auto-animate": "catalog:",

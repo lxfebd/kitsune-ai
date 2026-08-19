@@ -454,13 +454,6 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
-    '/settings/providers/speech/kokoro-local': RouteRecordInfo<
-      '/settings/providers/speech/kokoro-local',
-      '/settings/providers/speech/kokoro-local',
-      Record<never, never>,
-      Record<never, never>,
-      | never
-    >,
     '/settings/providers/speech/microsoft-speech': RouteRecordInfo<
       '/settings/providers/speech/microsoft-speech',
       '/settings/providers/speech/microsoft-speech',
@@ -1067,12 +1060,6 @@ declare module 'vue-router/auto-routes' {
     '../../packages/stage-pages/src/pages/settings/providers/speech/index-tts-vllm.vue': {
       routes:
         | '/settings/providers/speech/index-tts-vllm'
-      views:
-        | never
-    }
-    '../../packages/stage-pages/src/pages/settings/providers/speech/kokoro-local.vue': {
-      routes:
-        | '/settings/providers/speech/kokoro-local'
       views:
         | never
     }
