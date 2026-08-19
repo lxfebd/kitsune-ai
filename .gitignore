@@ -63,7 +63,9 @@ kimik3/
 open/
 
 # 二进制模型和资源（太大，应该用 LFS 或外部下载）
-resources/
+# 仅忽略仓库根的 resources 与桌面端模型目录；包内 src/resources 源码需提交，不在此规则内
+/resources/
+apps/stage-tamagotchi/resources/
 
 # 环境变量/密钥（禁止入仓；保留 *.example 作为模板）
 .env
