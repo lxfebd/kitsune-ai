@@ -80,7 +80,9 @@ jobs:
         with:
           name: dist-win
           if-no-files-found: error
-          path: apps/stage-tamagotchi/dist/*
+          path: |
+            apps/stage-tamagotchi/dist/*-setup.exe
+            apps/stage-tamagotchi/dist/*.blockmap
 
   build-linux:
     name: Build Linux
@@ -122,7 +124,9 @@ jobs:
         with:
           name: dist-linux
           if-no-files-found: error
-          path: apps/stage-tamagotchi/dist/*
+          path: |
+            apps/stage-tamagotchi/dist/*.deb
+            apps/stage-tamagotchi/dist/*.rpm
 
   publish:
     name: Publish Release
@@ -150,32 +154,33 @@ jobs:
           path: ./artifacts
 
       - name: Generate update feeds
-        # electron-builder 在 --publish never 下不写 latest-*.yml，这里按产物生成，
+        # electron-builder 在 --publish never 下不写 latest-*.yml，这里按产物动态生成，
         # 供 electron-updater 解析（Windows: latest-x64.yml；Linux: latest-x64-linux.yml）。
         run: |
           node -e '
           const fs=require("fs"),crypto=require("crypto"),path=require("path");
           const dir="./artifacts";
+          const ver=String(process.env.VERSION).replace(/^v/,"");
           const sha=p=>crypto.createHash("sha512").update(fs.readFileSync(p)).digest("base64");
-          function feed(name,file){
-            const p=path.join(dir,file);
-            if(!fs.existsSync(p)){ console.error("MISSING "+p); return; }
-            const s=sha(p),size=fs.statSync(p).size;
-            const body=`version: ${String(process.env.VERSION).replace(/^v/,'')}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
-            fs.writeFileSync(path.join(dir,name),body);
-            console.log("wrote "+name+" for "+file);
+          for(const file of fs.readdirSync(dir)){
+            const ext=path.extname(file);
+            if(ext===".exe"||ext===".deb"||ext===".rpm"){
+              const p=path.join(dir,file);
+              const s=sha(p),size=fs.statSync(p).size;
+              const name=ext===".exe"?"latest-x64.yml":"latest-x64-linux.yml";
+              const body=`version: ${ver}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
+              fs.writeFileSync(path.join(dir,name),body);
+              console.log("wrote "+name+" for "+file.replace(/\n/g," "));
+            }
           }
-          feed("latest-x64.yml","Kitsune-AI-0.10.3-windows-x64-setup.exe");
-          feed("latest-x64-linux.yml","Kitsune-AI-0.10.3-linux-amd64.deb");
           '
 
-      - name: Remove existing Release for tag (idempotent)
-        run: gh release delete "${{ github.ref_name }}" --yes --cleanup-tag 2>/dev/null || true
-
       - name: Create and upload Release
+        # 产物文件名含空格（Kitsune AI-0.10.3-…），shell 展开 ./* 会拆成多参数导致失败，
+        # 因此用 gh release create 的 --files-from-stdin 或逐个上传。这里用 find -print0 |
+        # xargs -0 传参，规避空格问题。
         run: |
-          cd ./artifacts
-          gh release create "${{ github.ref_name }}" ./* --title "${{ github.ref_name }}" --generate-notes
+          find ./artifacts -type f -print0 | xargs -0 gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
 
       - name: Verify Release
         run: |
