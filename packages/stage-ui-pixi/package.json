@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/stage-ui-pixi",
   "type": "module",
   "private": true,
@@ -6,12 +6,12 @@
   "author": {
     "name": "Kitsune AI Team",
     "email": "kitsune@kitsune.ai",
-    "url": "https://github.com/kitsune-ai"
+    "url": "https://github.com/lxfebd"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "packages/stage-ui-pixi"
   },
   "exports": {
@@ -33,3 +33,4 @@
     "vue-tsc": "catalog:"
   }
 }
+

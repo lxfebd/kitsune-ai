@@ -919,7 +919,7 @@ pages:
             search_voices_placeholder: Search voices...
             search_voices_results: Found {count} of {total} voices
             unsupported_voice_warning_title: No supported voices
-            unsupported_voice_warning_content: Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/kitsune-ai/kitsune-ai/issues.
+            unsupported_voice_warning_content: Try a different model or provider. We are working on supporting all the voice for this model as quickly as possible. If you need it urgently, please let us know on GitHub at https://github.com/lxfebd/kitsune-ai/issues.
             show_less: Show less
             show_more: Show more
             title: Provider
@@ -2106,3 +2106,4 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+

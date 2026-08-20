@@ -902,7 +902,7 @@ pages:
             search_voices_placeholder: 搜尋聲線...
             search_voices_results: 找到 {count} / {total} 個聲線
             unsupported_voice_warning_title: 沒有支援的聲線
-            unsupported_voice_warning_content: 我們正在盡快支援該模型的所有音色，如果你迫切希望支援該模型音色，請在 GitHub 上聯絡我們 https://github.com/kitsune-ai/kitsune-ai/issues
+            unsupported_voice_warning_content: 我們正在盡快支援該模型的所有音色，如果你迫切希望支援該模型音色，請在 GitHub 上聯絡我們 https://github.com/lxfebd/kitsune-ai/issues
             show_less: 顯示更少
             show_more: 顯示更多
             title: 選擇語音合成服務來源
@@ -2104,3 +2104,4 @@ godot:
   camera-yaw: 相機偏航
   camera-pitch: 相機俯仰
   camera-fov: 相機視野
+

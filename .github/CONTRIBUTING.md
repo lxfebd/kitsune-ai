@@ -1,4 +1,4 @@
-# Start contributing to Kitsune AI
+﻿# Start contributing to Kitsune AI
 
 Hello! Thank you for your interest in contributing to this project. This guide will help you get started.
 
@@ -304,7 +304,7 @@ You should be able to browse the branch on your fork repository.
 > If this is your first time contributing to this project, you need to add the upstream repository too:
 >
 > ```shell
-> git remote add upstream https://github.com/kitsune-ai/yachiyo-airi.git
+> git remote add upstream https://github.com/lxfebd/kitsune-ai.git
 > ```
 
 ## Creating Pull Request
@@ -316,3 +316,4 @@ Review the changes, and click on the **Create pull request** button.
 ## Whooo-ya! You made it!
 
 Congratulations! You made your first contribution to this project. You can now wait for the maintainers to review your pull request.
+

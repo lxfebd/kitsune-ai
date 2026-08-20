@@ -35,9 +35,9 @@ function getReleaseChannelName() {
   return process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 }
 
-const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/kitsune-ai/kitsune-ai/releases?per_page=100'
-const GITHUB_RELEASES_ATOM_URL = 'https://github.com/kitsune-ai/kitsune-ai/releases.atom'
-const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/kitsune-ai/kitsune-ai/releases/download'
+const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/lxfebd/kitsune-ai/releases?per_page=100'
+const GITHUB_RELEASES_ATOM_URL = 'https://github.com/lxfebd/kitsune-ai/releases.atom'
+const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/lxfebd/kitsune-ai/releases/download'
 const UPDATE_CHANNEL_ENV_KEY = 'KITSUNE_UPDATE_CHANNEL'
 
 function getCacheRoot() {
@@ -181,15 +181,15 @@ function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLan
  * Extract release tags from GitHub releases Atom feed without adding XML-parser dependencies.
  *
  * The current feed contains entries like:
- * `<entry><link rel="alternate" type="text/html" href="https://github.com/kitsune-ai/kitsune-ai/releases/tag/v0.9.0-beta.6"/></entry>`
+ * `<entry><link rel="alternate" type="text/html" href="https://github.com/lxfebd/kitsune-ai/releases/tag/v0.9.0-beta.6"/></entry>`
  * and
  * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
  *
- * We intentionally scan for `/kitsune-ai/kitsune-ai/releases/tag/` so we only consume actual release tag links.
+ * We intentionally scan for `/lxfebd/kitsune-ai/releases/tag/` so we only consume actual release tag links.
  */
 function extractReleaseTagsFromAtom(atom: string) {
   const tags: string[] = []
-  const marker = '/kitsune-ai/kitsune-ai/releases/tag/'
+  const marker = '/lxfebd/kitsune-ai/releases/tag/'
   let offset = 0
 
   while (offset < atom.length) {
@@ -579,3 +579,4 @@ export function createAutoUpdaterService(params: { context: MainContext, window:
   window.on('closed', cleanup)
   return cleanup
 }
+

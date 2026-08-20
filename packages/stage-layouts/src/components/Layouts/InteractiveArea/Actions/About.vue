@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { isStageCapacitor, isStageTamagotchi } from '@kitsune/stage-shared'
 import { AboutContent, AboutDialog } from '@kitsune/stage-ui/components'
 import { useBuildInfo } from '@kitsune/stage-ui/composables'
@@ -16,7 +16,7 @@ const aboutLinks = [
   // TODO:
   { label: 'Documentations', href: 'https://kitsune.ai/docs', icon: 'i-solar:document-add-outline' },
   // TODO: 待仓库地址确认
-  { label: 'GitHub', href: 'https://github.com/kitsune-ai/kitsune-ai', icon: 'i-simple-icons:github' },
+  { label: 'GitHub', href: 'https://github.com/lxfebd/kitsune-ai', icon: 'i-simple-icons:github' },
 ]
 
 const edition = isStageTamagotchi()
@@ -45,3 +45,4 @@ const edition = isStageTamagotchi()
     <AboutContent :subtitle="edition" :build-info="buildInfo" :links="aboutLinks" />
   </AboutDialog>
 </template>
+

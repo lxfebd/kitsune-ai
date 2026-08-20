@@ -1,4 +1,4 @@
-{
+﻿{
   lib,
   stdenvNoCC,
   fetchPnpmDeps,
@@ -80,8 +80,8 @@ stdenvNoCC.mkDerivation (final: {
       multi-model dialogue, and voice synthesis. It can be run in browser or on desktop.
       This is the desktop version.
     '';
-    homepage = "https://github.com/kitsune-ai/yachiyo-airi";
-    changelog = "https://github.com/kitsune-ai/yachiyo-airi/releases/tag/v${final.version}";
+    homepage = "https://github.com/lxfebd/kitsune-ai";
+    changelog = "https://github.com/lxfebd/kitsune-ai/releases/tag/v${final.version}";
     # While Kitsune AI itself is licensed under MIT, it uses the nonfree Cubism SDK. Whether it's
     # redistributable remains a question, so we say it's not.
     license = lib.licenses.unfree;
@@ -95,3 +95,4 @@ stdenvNoCC.mkDerivation (final: {
     maintainers = with lib.maintainers; [ ];
   };
 })
+

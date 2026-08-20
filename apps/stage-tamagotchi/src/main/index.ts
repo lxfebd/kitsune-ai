@@ -1,4 +1,4 @@
-import type { BrowserWindow } from 'electron'
+﻿import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
@@ -131,7 +131,7 @@ if (isLinux) {
   // NOTICE: we need UseOzonePlatform, WaylandWindowDecorations for working on Wayland.
   // Partially related to https://github.com/electron/electron/issues/41551, since X11 is deprecating now,
   // we can safely remove the feature flags for Electron once they made it default supported.
-  // Fixes: https://github.com/kitsune-ai/kitsune-ai/issues/757
+  // Fixes: https://github.com/lxfebd/kitsune-ai/issues/757
   // Ref: https://github.com/mmaura/poe2linuxcompanion/blob/90664607a147ea5ccea28df6139bd95fb0ebab0e/electron/main/index.ts#L28-L46
   if (env.XDG_SESSION_TYPE === 'wayland') {
     app.commandLine.appendSwitch('enable-features', 'GlobalShortcutsPortal')
@@ -1032,3 +1032,4 @@ app.on('before-quit', (event) => {
   event.preventDefault()
   handleAppExit()
 })
+

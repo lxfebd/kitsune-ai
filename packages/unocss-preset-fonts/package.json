@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/unocss-preset-fonts",
   "type": "module",
   "version": "0.10.2",
@@ -6,13 +6,13 @@
   "author": {
     "name": "Kitsune AI Team",
     "email": "kitsune@kitsune.ai",
-    "url": "https://github.com/kitsune-ai"
+    "url": "https://github.com/lxfebd"
   },
   "license": "MIT",
-  "homepage": "https://github.com/kitsune-ai/kitsune-ai",
+  "homepage": "https://github.com/lxfebd/kitsune-ai",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "packages/unocss-preset-fonts"
   },
   "exports": {
@@ -35,3 +35,4 @@
     "@kitsune/font-xiaolai": "workspace:^"
   }
 }
+

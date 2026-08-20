@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { Callout } from '@kitsune/ui'
 </script>
 
@@ -39,7 +39,7 @@ import { Callout } from '@kitsune/ui'
           </div>
           <div>
             Kitsune AI is open sourced at <!-- TODO: 待仓库地址确认 --> <div inline-flex translate-y-1 items-center gap-1>
-              <div i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/kitsune-ai/kitsune-ai" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <div i-simple-icons:github inline-block /><a decoration-underline decoration-dashed href="https://github.com/lxfebd/kitsune-ai" target="_blank" rel="noopener noreferrer">GitHub</a>
             </div>, if you want to check how we handle your credentials, feel free to inspect our code.
           </div>
         </div>
@@ -79,3 +79,4 @@ import { Callout } from '@kitsune/ui'
     </Variant>
   </Story>
 </template>
+

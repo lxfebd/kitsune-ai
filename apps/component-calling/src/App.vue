@@ -16,7 +16,7 @@ const { isDark, toggleDark } = useTheme()
           <div v-if="isDark" i-solar:moon-stars-bold-duotone />
           <div v-else i-solar:sun-bold />
         </button>
-        <a href="https://github.com/kitsune-ai/kitsune-ai/tree/main/apps/component-calling">
+        <a href="https://github.com/lxfebd/kitsune-ai/tree/main/apps/component-calling">
           <div i-simple-icons:github />
         </a>
       </div>
@@ -53,3 +53,4 @@ html.dark {
   color-scheme: dark;
 }
 </style>
+

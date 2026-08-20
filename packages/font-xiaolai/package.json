@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/font-xiaolai",
   "type": "module",
   "version": "0.10.2",
@@ -12,7 +12,7 @@
   "homepage": "https://github.com/lxgw/kose-font",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "packages/font-xiaolai"
   },
   "exports": {
@@ -28,3 +28,4 @@
     "build": "tsdown"
   }
 }
+

@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/font-chillroundm",
   "type": "module",
   "version": "0.10.2",
@@ -12,7 +12,7 @@
   "homepage": "https://github.com/Warren2060/ChillRound",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "packages/font-chillroundm"
   },
   "exports": {
@@ -29,3 +29,4 @@
     "build": "tsdown"
   }
 }
+

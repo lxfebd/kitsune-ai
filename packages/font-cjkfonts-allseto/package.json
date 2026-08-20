@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/font-cjkfonts-allseto",
   "type": "module",
   "version": "0.10.2",
@@ -11,7 +11,7 @@
   "homepage": "https://cjkfonts.io/blog/cjkfonts_allseto",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/kitsune-ai.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "packages/font-cjkfonts-allseto"
   },
   "exports": {
@@ -27,3 +27,4 @@
     "build": "tsdown"
   }
 }
+

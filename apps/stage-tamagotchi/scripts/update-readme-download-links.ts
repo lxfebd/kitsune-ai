@@ -1,4 +1,4 @@
-import process from 'node:process'
+﻿import process from 'node:process'
 
 import { readdir, readFile, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
@@ -44,10 +44,10 @@ async function main() {
   // TODO: 待仓库地址确认
   function updateContent(content: string): string {
     return content
-      .replace(GITHUB_WINDOWS_RE, `https://github.com/kitsune-ai/kitsune-ai/releases/download/v${cleanVersion}/${windowsExe}`)
-      .replace(GITHUB_MACOS_RE, `https://github.com/kitsune-ai/kitsune-ai/releases/download/v${cleanVersion}/${macosDmg}`)
-      .replace(OSS_WINDOWS_RE, `https://github.com/kitsune-ai/kitsune-ai/releases/download/v${cleanVersion}/${windowsExe}`)
-      .replace(OSS_MACOS_RE, `https://github.com/kitsune-ai/kitsune-ai/releases/download/v${cleanVersion}/${macosDmg}`)
+      .replace(GITHUB_WINDOWS_RE, `https://github.com/lxfebd/kitsune-ai/releases/download/v${cleanVersion}/${windowsExe}`)
+      .replace(GITHUB_MACOS_RE, `https://github.com/lxfebd/kitsune-ai/releases/download/v${cleanVersion}/${macosDmg}`)
+      .replace(OSS_WINDOWS_RE, `https://github.com/lxfebd/kitsune-ai/releases/download/v${cleanVersion}/${windowsExe}`)
+      .replace(OSS_MACOS_RE, `https://github.com/lxfebd/kitsune-ai/releases/download/v${cleanVersion}/${macosDmg}`)
   }
 
   const readmeFiles: string[] = [
@@ -82,3 +82,4 @@ main().catch((error) => {
   console.error('Error:', error)
   process.exit(1)
 })
+

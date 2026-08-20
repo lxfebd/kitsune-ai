@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@kitsune/minecraft-bot",
   "type": "module",
   "private": true,
@@ -6,12 +6,12 @@
   "author": {
     "name": "Kitsune Project",
     "email": "contact@kitsune.build",
-    "url": "https://github.com/kitsune-ai"
+    "url": "https://github.com/lxfebd"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kitsune-ai/yachiyo-airi.git",
+    "url": "https://github.com/lxfebd/kitsune-ai.git",
     "directory": "services/minecraft"
   },
   "scripts": {
@@ -47,3 +47,4 @@
     "vitest": "catalog:vitest"
   }
 }
+
