@@ -97,6 +97,11 @@ export default {
     '**/node_modules/.pnpm/ms*/node_modules/ms/**/*',
     '**/node_modules/debug/**/*',
     '**/node_modules/ms/**/*',
+    // NOTICE: koffi 的原生模块（@koromix/koffi-win32-x64）是 koffi 的 optionalDependency，
+    // electron-builder 在 pnpm 下不会自动收集 optionalDep，导致运行时 `Cannot find native Koffi`。
+    // 显式 include 其 .node 文件并作为 asarUnpack 解压。
+    '**/node_modules/.pnpm/@koromix+koffi*/node_modules/@koromix/**/*',
+    '**/node_modules/@koromix/**/*',
     '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
@@ -108,6 +113,10 @@ export default {
   asar: true,
   asarUnpack: [
     '**/*.node',
+    // NOTICE: koffi 的原生模块（@koromix/koffi-win32-x64）在 pnpm 布局下 electron-builder
+    // 不会自动收集 optional dependency，需要显式 include 其 .node 文件才能避免
+    // `Cannot find the native Koffi module` 错误。
+    '**/node_modules/.pnpm/@koromix+koffi*/node_modules/@koromix/koffi*/**/*.node',
   ],
   extraResources: [
     {
