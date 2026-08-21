@@ -102,6 +102,9 @@ export default {
     // 显式 include 其 .node 文件并作为 asarUnpack 解压。
     '**/node_modules/.pnpm/@koromix+koffi*/node_modules/@koromix/**/*',
     '**/node_modules/@koromix/**/*',
+    // NOTICE: zod-to-json-schema 是 ESM-only 包，electron-builder 在 pnpm 下漏收集。
+    // 显式 include 其 node_modules 目录让 electron-builder 跟随 symlink 打包。
+    '**/node_modules/zod-to-json-schema/**/*',
     '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
