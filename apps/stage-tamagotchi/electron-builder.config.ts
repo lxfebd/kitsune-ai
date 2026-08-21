@@ -88,8 +88,15 @@ export default {
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
-    '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
+    // NOTICE: electron-updater -> builder-util-runtime 依赖 debug，而 debug@4 的入口在 src/ 目录下。
+    // 下面的 src 排除规则会误伤它，导致运行时 `Cannot find module 'ms'`/`Cannot find module 'debug'`。
+    // 因此显式保留 debug 与 ms 两个模块的 src/，避免安装后启动崩溃。
+    '!**/node_modules/**/{.turbo,test,__tests__,tests,example,examples}',
+    // debug/ms 在 pnpm 虚拟存储（.pnpm/）下，常规路径匹配不到，需显式按 pnpm 真实路径 include
+    '**/node_modules/.pnpm/debug*/node_modules/debug/**/*',
+    '**/node_modules/.pnpm/ms*/node_modules/ms/**/*',
     '**/node_modules/debug/**/*',
+    '**/node_modules/ms/**/*',
     '**/node_modules/superjson/**/*',
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
