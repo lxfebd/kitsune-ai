@@ -744,7 +744,6 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(waitParams) as JsonSchema),
       execute: async (input) => {
         const { description, timeout = 10000, interval = 1000 } = input as { description: string, timeout?: number, interval?: number }
-        const invoker = resolveDesktopInvoker()
         const startTime = Date.now()
         let attempts = 0
 

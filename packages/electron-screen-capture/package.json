@@ -30,7 +30,7 @@
   ],
   "scripts": {
     "dev": "pnpm run build",
-    "build": "tsdown",
+    "build": "tsdown && tsc --emitDeclarationOnly --declaration --rootDir src --outDir dist --moduleResolution bundler --module ESNext --target ESNext --skipLibCheck",
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
