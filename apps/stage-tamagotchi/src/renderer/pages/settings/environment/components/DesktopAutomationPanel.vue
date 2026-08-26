@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { Button, Callout, FieldInput } from '@kitsune/ui'
 import { ref } from 'vue'
 
-import { electronDesktopAutomationInvoke } from '../../../../../shared/eventa'
+import type { ElectronDesktopAutomationInvokePayload, ElectronDesktopAutomationResult } from '../../../../../shared/eventa'
 import { useEnvironmentI18n } from './use-environment-i18n'
 
+// NOTICE: 设置页桌面自动化绕开 eventa invoke，改用 ipcRenderer.invoke + JSON 字符串传输。
+// eventa 的 ctx.emit 偶发 "conversion failure from {}"（V8 structuredClone 对 sendEvent
+// payload 序列化失败），与桌面工具的 IPC 错误同根。用我们已验证可用的 JSON 字符串通道
+// 避免该问题，并保持与 renderer/stores/tools/builtin/desktop-automation.ts 一致。
+async function invokeDesktopAutomation(payload: ElectronDesktopAutomationInvokePayload): Promise<ElectronDesktopAutomationResult | null> {
+  const ipcRenderer = window.electron?.ipcRenderer
+  if (!ipcRenderer)
+    return { ok: false, error: 'ipcRenderer not available' }
+  const raw = await ipcRenderer.invoke('desktop-automation:invoke', JSON.stringify(payload))
+  return JSON.parse(raw as string) as ElectronDesktopAutomationResult
+}
+
 const { tn } = useEnvironmentI18n()
-const invokeDesktopAutomation = useElectronEventaInvoke(electronDesktopAutomationInvoke)
 
 const PANEL = 'settings-panel'
 

@@ -1791,6 +1791,20 @@ pages:
       cleared: 白名單已清空。
       removed: 條目已刪除。
 
+    overseer:
+      title: 監工
+      description: 監工系統自動監聽任務並分發給已連接的工具執行。
+      error-title: 監工錯誤
+      enable-label: 啟用監工
+      enable: 啟用
+      disable: 禁用
+      status:
+        running: 運行中
+        stopped: 已停止
+      tools-title: 監聽工具
+      tool-running: 運行中
+      tool-idle: 空閒
+
     executor:
       title: 自主執行
       description: 將需求拆解為 CLI/IDE 混合任務列表並自動逐個執行。需先配置 API key（參考 providers.yaml 中 active_provider 對應的 api_key_env）。
@@ -2104,4 +2118,38 @@ godot:
   camera-yaw: 相機偏航
   camera-pitch: 相機俯仰
   camera-fov: 相機視野
+
+tts:
+  device_confirm:
+    title_switch: "切換推理裝置"
+    title_threads: "調整 CPU 執行緒數"
+    current: "目前"
+    target: "切換為"
+    restart_hint: "切換將重啟 TTS 服務，首次載入模型可能較慢"
+    cancel: "取消"
+    confirm: "確認切換"
+    cpu:
+      - "不載入 CUDA 執行階段庫，釋放視訊記憶體"
+      - "推理速度取決於 CPU 效能與核心數"
+      - "無 GPU 相依性，相容性更好"
+    cuda_half:
+      - "使用 GPU 半精度推理，兼顧速度與視訊記憶體"
+      - "需要 NVIDIA GPU 及 CUDA 執行階段庫"
+      - "推理速度取決於 GPU 型號與視訊記憶體頻寬"
+    cuda:
+      - "使用 GPU 全精度推理，音質上限更高"
+      - "視訊記憶體使用量高於半精度模式"
+      - "推理速度取決於 GPU 型號"
+    auto:
+      - "由 GPT-SoVITS 自動選擇最佳裝置"
+      - "有可用 GPU 時傾向使用 GPU"
+      - "推理速度與資源使用量取決於實際選擇的裝置"
+  device_options:
+    cpu: "CPU 推理（推薦，預設）"
+    auto: "自動（由系統選擇）"
+    cuda_half: "GPU 半精度（硬體加速）"
+    cuda: "GPU 全精度（高音質）"
+  low_spec_warning: "本機配置偏低，本地 TTS 資源消耗較大，建議使用雲端 TTS 或謹慎啟用。"
+  threads_label: "CPU 核心數"
+  machine_info: "本機配置"
 

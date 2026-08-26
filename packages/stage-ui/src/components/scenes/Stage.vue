@@ -616,24 +616,37 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
                   if (done) break
                   if (value.type === 'chunk') {
                     const idx = seq++
-                    if (value.format === 'pcm-int16') {
-                      // raw PCM 直通：int16 → float32 → AudioBuffer（同步，零开销）
-                      const decodePromise = Promise.resolve().then(() => {
-                        const int16 = new Int16Array(value.data)
+                    // NOTICE: 主进程流式合成固定返回 OGG 帧（pack_ogg），但前端
+                    // 自适应解码：先尝试 decodeAudioData（OGG），失败回退 PCM int16。
+                    // 默认走 OGG 分支，但若 IPC 传输导致 chunk 边界不对齐或 OGG 帧
+                    // 不完整，decodeAudioData 会 reject 并回退到 PCM 解码。
+                    const data = value.data
+                    // NOTICE: 合约声明 `data: ArrayBuffer`，但经 IPC 结构化克隆后
+                    // 实际是 Uint8Array（带 backing buffer 偏移）。统一归一化到
+                    // 纯净字节副本再取 .buffer，避免 TS 类型收窄 never。
+                    const rawBytes = data instanceof ArrayBuffer
+                      ? new Uint8Array(data)
+                      : new Uint8Array(
+                        (data as { buffer: ArrayBuffer, byteOffset: number, byteLength: number }).buffer,
+                        (data as { buffer: ArrayBuffer, byteOffset: number, byteLength: number }).byteOffset,
+                        (data as { buffer: ArrayBuffer, byteOffset: number, byteLength: number }).byteLength,
+                      )
+                    const arrayBuf = rawBytes.slice(0).buffer as ArrayBuffer
+                    const decodePromise = (async () => {
+                      try {
+                        return await audioContext.decodeAudioData(arrayBuf)
+                      }
+                      catch {
+                        const int16 = new Int16Array(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength / 2)
                         const float32 = new Float32Array(int16.length)
                         for (let i = 0; i < int16.length; i++)
                           float32[i] = int16[i] / 32768
                         const buf = audioContext.createBuffer(1, float32.length, value.sampleRate)
                         buf.getChannelData(0).set(float32)
                         return buf
-                      })
-                      pending.set(idx, decodePromise)
-                    }
-                    else {
-                      // OGG 格式：decodeAudioData 异步解码
-                      const d = value.data
-                      pending.set(idx, audioContext.decodeAudioData(d))
-                    }
+                      }
+                    })()
+                    pending.set(idx, decodePromise)
                     await flushOrdered()
                   }
                   if (value.type === 'end') break

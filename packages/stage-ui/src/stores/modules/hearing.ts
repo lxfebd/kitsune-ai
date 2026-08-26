@@ -467,7 +467,12 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
    * 这不是真 partial（不会边喂边出字），但比"完全不能持续监听"好得多。
    */
   const VAD_ENERGY_THRESHOLD = 0.025
-  const VAD_SILENCE_FRAMES = 30   // ~0.96s 静音 = 句尾（30 × 512 samples / 16000Hz）
+  // NOTICE: Praised speech often contains natural mid-sentence pauses (thinking,
+  // breathing) that can exceed the old 0.96s threshold (30 frames). With a small
+  // threshold the segment was finalized mid-sentence and the transcribed partial
+  // text got auto-sent before the speaker finished. 45 frames keeps ~1.44s of
+  // silence tolerance, so only a deliberate sentence end triggers flush.
+  const VAD_SILENCE_FRAMES = 45   // ~1.44s 静音 = 句尾（45 × 512 samples / 16000Hz）
   const VAD_MIN_SEGMENT_SAMPLES = 8000  // 500ms @16kHz 最小语音段
 
   async function transcribeWithVadBatch(

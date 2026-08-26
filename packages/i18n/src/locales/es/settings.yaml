@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: Supervisor
+      description: El sistema supervisor monitorea automáticamente tareas y las distribuye a las herramientas conectadas.
+      error-title: Error de Supervisor
+      enable-label: Activar Supervisor
+      enable: Activar
+      disable: Desactivar
+      status:
+        running: En ejecución
+        stopped: Detenido
+      tools-title: Herramientas de escucha
+      tool-running: En ejecución
+      tool-idle: Inactivo
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "Cambiar dispositivo de inferencia"
+    title_threads: "Ajustar el número de hilos de CPU"
+    current: "Actual"
+    target: "Cambiar a"
+    restart_hint: "El cambio reiniciará el servicio TTS; la primera carga del modelo puede ser lenta"
+    cancel: "Cancelar"
+    confirm: "Confirmar cambio"
+    cpu:
+      - "Sin carga de la biblioteca CUDA, libera VRAM"
+      - "La velocidad de inferencia depende de la CPU y del número de núcleos"
+      - "Sin dependencia de GPU, mejor compatibilidad"
+    cuda_half:
+      - "Inferencia GPU de semiprecisión, equilibra velocidad y VRAM"
+      - "Requiere GPU NVIDIA y biblioteca CUDA"
+      - "La velocidad depende del modelo de GPU y del ancho de banda de VRAM"
+    cuda:
+      - "Inferencia GPU de precisión completa, mayor techo de calidad de audio"
+      - "Uso de VRAM mayor que en semiprecisión"
+      - "La velocidad depende del modelo de GPU"
+    auto:
+      - "Dejar que GPT-SoVITS elija el dispositivo óptimo"
+      - "Prefiere GPU cuando está disponible"
+      - "La velocidad y el uso de recursos dependen del dispositivo elegido"
+  device_options:
+    cpu: "Inferencia CPU (recomendado, predeterminado)"
+    auto: "Automático (selección del sistema)"
+    cuda_half: "GPU semiprecisión (aceleración por hardware)"
+    cuda: "GPU precisión completa (alta calidad)"
+  low_spec_warning: "Esta máquina es de bajas prestaciones; el TTS local consume muchos recursos. Considere el TTS en la nube o actívelo con precaución."
+  threads_label: "Número de hilos de CPU"
+  machine_info: "Configuración de la máquina"
 

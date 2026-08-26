@@ -706,9 +706,48 @@ export const electronTtsStart = defineInvokeEventa<{ success: boolean, message: 
 export const electronTtsStop = defineInvokeEventa<{ success: boolean, message: string }>('eventa:invoke:electron:tts:stop')
 // NOTE: the main-process handler returns `getGptSovitsConfig()`, whose data
 // directory field is named `dir` (not `dataDir`) — keep the contract aligned.
-export const electronTtsGetConfig = defineInvokeEventa<{ dir: string | null, port: number | undefined, device: string | undefined }>('eventa:invoke:electron:tts:get-config')
-export const electronTtsSetConfig = defineInvokeEventa<{ needsRestart: boolean }, { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half' }>('eventa:invoke:electron:tts:set-config')
+export const electronTtsGetConfig = defineInvokeEventa<{
+  dir: string | null
+  port: number | undefined
+  device: string | undefined
+  threads: number | undefined
+}>('eventa:invoke:electron:tts:get-config')
+export const electronTtsSetConfig = defineInvokeEventa<
+  { needsRestart: boolean },
+  { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number }
+>('eventa:invoke:electron:tts:set-config')
+
+// 应用配置并自动热加载：停止当前实例 → 用新配置重启 → 轮询就绪 → 返回成功/回滚。
+// 与 set-config 的分工：set-config 仅落盘配置并返回 needsRestart 由调用方决定重启时机，
+// apply-config 由主进程内部完成整套停止/启动/就绪轮询/失败回滚，仅返回成功与否与诊断消息。
+export const electronTtsApplyConfig = defineInvokeEventa<
+  { success: boolean, message: string },
+  { device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number }
+>('eventa:invoke:electron:tts:apply-config')
+
+// 本机能力探测契约 — eventa 为唯一类型所有方，main/system-capabilities.ts 实现 import 此类型，
+// renderer 与 main 均通过 shared/eventa 消费，避免重复定义导致字段漂移。
+export interface SystemCapabilities {
+  cpuModel: string
+  physicalCores: number
+  logicalCores: number
+  totalMemoryGB: number
+  gpu: { vendor: string, model: string, vramMB: number } | null
+  isLowSpec: boolean
+}
+export const electronGetSystemCapabilities = defineInvokeEventa<SystemCapabilities>(
+  'eventa:invoke:electron:get-system-capabilities',
+)
 export const electronTtsInstallProgress = defineEventa<{ message: string }>('eventa:event:electron:tts:install-progress')
+/** 从本地已解压的引擎目录导入运行时插件（绕过网络下载，支持离线安装）。 */
+export const electronTtsInstallPluginFromLocal = defineInvokeEventa<{ success: boolean, message: string, dir?: string }, { sourceDir: string }>('eventa:invoke:electron:tts:install-plugin-from-local')
+/** 从本地 ZIP 分卷文件安装运行时插件（绕过网络下载，支持离线安装）。 */
+export const electronTtsInstallPluginFromLocalZips = defineInvokeEventa<{ success: boolean, message: string, dir?: string }, { volumesDir: string }>('eventa:invoke:electron:tts:install-plugin-from-local-zips')
+
+/** 获取运行时插件存储根目录（用于设置页展示）。 */
+export const electronGetRuntimePluginsDir = defineInvokeEventa<string>('eventa:invoke:electron:runtime-plugins:get-dir')
+/** 设置运行时插件存储根目录，自动迁移已安装的插件到新位置。 */
+export const electronSetRuntimePluginsDir = defineInvokeEventa<{ ok: boolean, message: string, movedPlugins?: string[] }, { dir: string }>('eventa:invoke:electron:runtime-plugins:set-dir')
 
 // ============================================================================
 // ASR — 本地语音识别（sherpa-onnx，SenseVoice/Paraformer/Whisper）
@@ -1054,6 +1093,25 @@ export interface ExecutorEventPayload {
 }
 export const electronExecutorEvent = defineEventa<ExecutorEventPayload>(
   'eventa:event:electron:executor:event',
+)
+
+// ========== Overseer LLM Provider 同步 ==========
+// renderer 将聊天正在用的 provider 配置（含 API key）同步到主进程，
+// 让 overseer executor 与聊天共用同一套 provider，不再读 providers.yaml 查环境变量。
+
+export interface OverseerLlmProviderConfig {
+  /** renderer 侧的 providerId（如 "openai-compatible"、"openai"、"nvidia" 等） */
+  providerId: string
+  /** 当前模型 ID */
+  model: string
+  /** API key 明文（仅在 IPC 通道内传输，不落盘） */
+  apiKey: string
+  /** OpenAI 兼容 base URL */
+  baseUrl: string
+}
+
+export const electronOverseerLlmProvider = defineInvokeEventa<{ ok: boolean }, OverseerLlmProviderConfig>(
+  'eventa:invoke:electron:overseer:llm-provider',
 )
 
 // ========== Desktop Automation 桌面自动化 ==========

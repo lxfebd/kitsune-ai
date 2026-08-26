@@ -14,6 +14,17 @@ import { app, ipcMain } from 'electron'
 
 const ALLOWED_FILES = ['hiyori_pro_zh.zip', 'hiyori_free_zh.zip']
 
+// NOTICE: Vite rewrites static asset URLs with a content hash in production
+// builds (e.g. hiyori_pro_zh-BOkrWUw6.zip). The main process only ships the
+// original file names via extraResources, so normalize the requested name by
+// stripping the `-<hash>` suffix before whitelist validation.
+function normalizeLive2dFileName(fileName: string): string {
+  return fileName.replace(/-\w{8}(?=\.zip$)/, '')
+}
+function isAllowedLive2dFile(fileName: string): boolean {
+  return ALLOWED_FILES.includes(fileName) || ALLOWED_FILES.includes(normalizeLive2dFileName(fileName))
+}
+
 // In electron-vite dev mode, app.getAppPath() = apps/stage-tamagotchi.
 // Models live at monorepo root: packages/stage-ui/src/assets/live2d/models/.
 // So we need to go up 2 levels from app.getAppPath().
@@ -27,7 +38,9 @@ function getModelDir(): string {
     join(appPath, '..', '..', RELATIVE_TO_MODELS),
     // Dev fallback: cwd-based
     join(process.cwd(), '..', '..', RELATIVE_TO_MODELS),
-    // Production: models copied next to the app by live2dModelsPlugin
+    // Production: extraResources -> resources/live2d/models (next to app.asar)
+    join(appPath, '..', 'live2d', 'models'),
+    // Production legacy: models copied next to the app by live2dModelsPlugin
     join(appPath, 'live2d', 'models'),
   ]
 
@@ -60,11 +73,13 @@ export function registerLive2dModelIpc(): void {
     // HTTP server, which only serves the OPFS fetch fallback path.
     ensureLive2dFileServer().catch(err => console.error('[live2d-file-server] Failed to start:', err))
 
-    if (!ALLOWED_FILES.includes(fileName)) {
+    if (!isAllowedLive2dFile(fileName)) {
       throw new Error(`File not allowed: ${fileName}`)
     }
     const modelDir = getModelDir()
-    const filePath = join(modelDir, fileName)
+    // Normalize a possible Vite content-hash suffix back to the original file name.
+    const normalizedName = normalizeLive2dFileName(fileName)
+    const filePath = join(modelDir, normalizedName)
     if (!existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`)
     }
@@ -96,14 +111,16 @@ export function startLive2dFileServer(): Promise<void> {
       }
 
       const fileName = url.slice('/live2d/models/'.length).split('?')[0]
-      if (!ALLOWED_FILES.includes(fileName)) {
+      if (!isAllowedLive2dFile(fileName)) {
         res.writeHead(404)
         res.end()
         return
       }
 
       const modelDir = getModelDir()
-      const filePath = join(modelDir, fileName)
+      // Normalize a possible Vite content-hash suffix back to the original file name.
+      const normalizedName = normalizeLive2dFileName(fileName)
+      const filePath = join(modelDir, normalizedName)
 
       if (!existsSync(filePath)) {
         res.writeHead(404)

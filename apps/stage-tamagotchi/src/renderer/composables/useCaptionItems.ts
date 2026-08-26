@@ -80,9 +80,13 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
       text: event.text,
     }
     items.value = [...items.value, item]
-    expiryTimers.set(item.id, setTimeout(() => {
-      remove(item.id)
-    }, ttlMs))
+    // NOTICE: assistant（AI 回复）不过期，只有 speaker（用户语音输入）才 TTL 过期。
+    // 之前 assistant 也设 10s 过期，导致 AI 回复气泡几秒后自动消失。
+    if (event.type !== 'caption-assistant') {
+      expiryTimers.set(item.id, setTimeout(() => {
+        remove(item.id)
+      }, ttlMs))
+    }
   }
 
   function dispose() {

@@ -1945,6 +1945,20 @@ pages:
       cleared: 白名单已清空。
       removed: 条目已删除。
 
+    overseer:
+      title: 监工
+      description: 监工系统自动监听任务并分发给已连接的工具执行。
+      error-title: 监工错误
+      enable-label: 启用监工
+      enable: 启用
+      disable: 禁用
+      status:
+        running: 运行中
+        stopped: 已停止
+      tools-title: 监听工具
+      tool-running: 运行中
+      tool-idle: 空闲
+
     desktop-automation:
       title: 桌面自动化
       error-title: 桌面自动化错误
@@ -2284,4 +2298,38 @@ godot:
   camera-yaw: 相机偏航
   camera-pitch: 相机俯仰
   camera-fov: 相机视野
+
+tts:
+  device_confirm:
+    title_switch: "切换推理设备"
+    title_threads: "调整 CPU 线程数"
+    current: "当前"
+    target: "切换为"
+    restart_hint: "切换将重启 TTS 服务，首次加载模型可能较慢"
+    cancel: "取消"
+    confirm: "确认切换"
+    cpu:
+      - "不加载 CUDA 运行时库，释放显存"
+      - "推理速度取决于 CPU 性能与核心数"
+      - "无 GPU 依赖，兼容性更好"
+    cuda_half:
+      - "使用 GPU 半精度推理，兼顾速度与显存"
+      - "需要 NVIDIA GPU 及 CUDA 运行时库"
+      - "推理速度取决于 GPU 型号与显存带宽"
+    cuda:
+      - "使用 GPU 全精度推理，音质上限更高"
+      - "显存占用高于半精度模式"
+      - "推理速度取决于 GPU 型号"
+    auto:
+      - "由 GPT-SoVITS 自动选择最优设备"
+      - "有可用 GPU 时倾向使用 GPU"
+      - "推理速度与资源占用取决于实际选择的设备"
+  device_options:
+    cpu: "CPU 推理（推荐，默认）"
+    auto: "自动（由系统选择）"
+    cuda_half: "GPU 半精度（硬件加速）"
+    cuda: "GPU 全精度（高音质）"
+  low_spec_warning: "本机配置偏低，本地 TTS 资源消耗较大，建议使用云端 TTS 或谨慎启用。"
+  threads_label: "CPU 核心数"
+  machine_info: "本机配置"
 

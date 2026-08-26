@@ -17,7 +17,7 @@ export function baseUrl(
   parentOfIndexHtml: string,
   filename?: string,
 ): { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions } {
-  const devUrl = env.ELECTRON_RENDERER_URL || 'http://localhost:5173'
+  const devUrl = env.ELECTRON_RENDERER_URL
   if (devUrl) {
     if (!filename) {
       return { url: devUrl }

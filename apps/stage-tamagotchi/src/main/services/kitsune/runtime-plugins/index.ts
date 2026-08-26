@@ -15,16 +15,35 @@
  * 大小与 sha512，下载后逐卷校验，任一失败即整包失败并回滚，不做半安装状态。
  */
 import { createHash } from 'node:crypto'
-import { createReadStream, createWriteStream, existsSync, mkdirSync, readFileSync } from 'node:fs'
-import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import {
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from 'node:fs'
+import { copyFile, mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
+import { env } from 'node:process'
 
 import { app } from 'electron'
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
+import { object, optional, string } from 'valibot'
+
+import { createConfig } from '../../../libs/electron/persistence'
 
 const log = useLogg('runtime-plugins').useGlobalConfig()
+
+/** 运行时插件根目录的持久化配置（用户可通过设置页指定目录，避免占满 C 盘）。 */
+const pluginRootConfigSchema = object({
+  dir: optional(string()),
+})
+
+const pluginRootConfigStore = createConfig('runtime-plugins', 'config.json', pluginRootConfigSchema)
 
 /** 运行时插件唯一标识。 */
 export type RuntimePluginId = 'tts-gptsovits' | 'asr-sherpa'
@@ -82,8 +101,96 @@ interface InstallMarker {
   installedAt: string
 }
 
+/**
+ * 运行时插件根目录。
+ *
+ * 优先级：设置页持久化配置（`runtime-plugins/config.json`）> 环境变量
+ * `KITSUNE_RUNTIME_PLUGINS_DIR` > 默认 `userData/runtime-plugins`
+ * （Windows 上即 `%APPDATA%/<appName>/runtime-plugins`，会占用系统盘空间）。
+ * 用户可通过设置页「插件存储位置」把 GPT-SoVITS 等 6GB+ 引擎迁到其他磁盘。
+ * 目录不存在时会延迟到安装/下载时再创建。
+ */
 function pluginRootDir(): string {
+  const configured = pluginRootConfigStore.get()?.dir
+  if (configured) {
+    return configured
+  }
+  const override = process.env.KITSUNE_RUNTIME_PLUGINS_DIR
+  if (override) {
+    return override
+  }
   return join(app.getPath('userData'), 'runtime-plugins')
+}
+
+/**
+ * 当前插件存储根目录（用于设置页展示；未设置过时返回默认目录）。
+ */
+export function getRuntimePluginsDir(): string {
+  return pluginRootDir()
+}
+
+/**
+ * 将插件存储根目录迁移到新位置。
+ *
+ * 会先复制所有已安装插件到目标目录，成功后再删除旧目录；任一插件
+ * 复制失败则整体回滚，避免丢失已下载的 GPT-SoVITS 等大体积引擎。
+ *
+ * @param newDir - 目标根目录（须为绝对路径）
+ * @returns 迁移结果；`movedPlugins` 为实际迁移的插件列表
+ */
+export async function setRuntimePluginsDir(newDir: string): Promise<{ ok: boolean, message: string, movedPlugins?: string[] }> {
+  const root = pluginRootDir()
+  const resolved = newDir.trim().replace(/[\\/]+$/, '')
+  if (!resolved) {
+    return { ok: false, message: '目录不能为空' }
+  }
+  if (resolved.toLowerCase() === root.toLowerCase()) {
+    return { ok: true, message: '已是当前目录，无需迁移', movedPlugins: [] }
+  }
+  if (existsSync(resolved)) {
+    const stat = statSync(resolved)
+    if (!stat.isDirectory()) {
+      return { ok: false, message: `目标路径不是目录: ${newDir}` }
+    }
+  }
+
+  const pluginIds = readdirSync(root, { withFileTypes: true })
+    .filter(e => e.isDirectory())
+    .map(e => e.name)
+    .filter(name => existsSync(join(root, name, MARKER_FILE)))
+
+  try {
+    for (const name of pluginIds) {
+      const src = join(root, name)
+      const dest = join(resolved, name)
+      await mkdir(dest, { recursive: true })
+      await copyDirRecursive(src, dest)
+    }
+    // 全部复制成功后才清除旧目录；失败则保留旧目录，下次启动仍可用默认路径。
+    for (const name of pluginIds) {
+      await rm(join(root, name), { recursive: true, force: true })
+    }
+    pluginRootConfigStore.update({ dir: resolved })
+    log.log(`[runtime-plugin] 插件根目录迁移完成: ${root} -> ${resolved} (${pluginIds.length} 个插件)`)
+    return { ok: true, message: `插件目录已迁移到 ${resolved}${pluginIds.length ? `（${pluginIds.length} 个插件已搬移）` : ''}`, movedPlugins: pluginIds }
+  }
+  catch (error) {
+    return { ok: false, message: `迁移失败: ${errorMessageFrom(error)}` }
+  }
+}
+
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  for (const entry of readdirSync(src, { withFileTypes: true })) {
+    const srcPath = join(src, entry.name)
+    const destPath = join(dest, entry.name)
+    if (entry.isDirectory()) {
+      await mkdir(destPath, { recursive: true })
+      await copyDirRecursive(srcPath, destPath)
+    }
+    else if (entry.isFile()) {
+      await copyFile(srcPath, destPath)
+    }
+  }
 }
 
 function pluginInstallDir(id: RuntimePluginId): string {
@@ -104,7 +211,7 @@ function assetUrl(tag: string, assetName: string): string {
  */
 export function isPluginInstalled(id: RuntimePluginId, version?: string): boolean {
   // 开发期开关：本地已放置模型时可用该环境变量跳过插件判断，避免误触下载。
-  if (!app.isPackaged && process.env.KITSUNE_SKIP_RUNTIME_PLUGIN !== undefined) {
+  if (!app.isPackaged && env.KITSUNE_SKIP_RUNTIME_PLUGIN !== undefined) {
     return true
   }
   const markerPath = join(pluginInstallDir(id), MARKER_FILE)
@@ -326,6 +433,156 @@ export async function installRuntimePlugin(
 
     report({ phase: 'done', overall: 1, detail: '安装完成' })
     log.log(`[runtime-plugin] ${id}@${manifest.version} 安装完成 -> ${dir}`)
+    return dir
+  }
+  catch (error) {
+    report({ phase: 'error', overall: 0, detail: '安装失败', error: errorMessageFrom(error) })
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
+    throw error
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 本地导入
+// ---------------------------------------------------------------------------
+
+/**
+ * 从本地已解压好的引擎目录安装运行时插件（绕过网络下载）。
+ *
+ * 适用场景：
+ * - 用户已从 GitHub Release 手动下载分卷并解压好
+ * - 用户从其他机器复制了已安装的插件目录
+ * - 离线环境
+ *
+ * @param id - 插件 ID
+ * @param sourceDir - 本地引擎根目录（源目录，不会被修改）
+ * @param onProgress - 进度回调
+ * @returns 安装后的插件根目录
+ */
+export async function installRuntimePluginFromLocal(
+  id: RuntimePluginId,
+  sourceDir: string,
+  onProgress?: (p: RuntimePluginProgress) => void,
+): Promise<string> {
+  const dir = pluginInstallDir(id)
+  const tmpDir = join(pluginRootDir(), `${id}.tmp-${Date.now()}`)
+
+  const report = (p: Omit<RuntimePluginProgress, 'id'>): void => onProgress?.({ id, ...p })
+
+  report({ phase: 'verify', overall: 0, detail: '验证源目录' })
+  if (!existsSync(sourceDir)) {
+    throw new Error(`源目录不存在: ${sourceDir}`)
+  }
+
+  await mkdir(tmpDir, { recursive: true })
+
+  try {
+    const allFiles: { src: string, rel: string, size: number }[] = []
+    const walk = (dir: string, rootLen: number): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const abs = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walk(abs, rootLen)
+        }
+        else if (entry.isFile()) {
+          allFiles.push({ src: abs, rel: abs.slice(rootLen).replace(/\\/g, '/'), size: statSync(abs).size })
+        }
+      }
+    }
+    walk(sourceDir, sourceDir.length + 1)
+    const totalSize = allFiles.reduce((s, f) => s + f.size, 0)
+    let copiedSize = 0
+
+    report({ phase: 'extract', overall: 0, detail: `复制文件 (${allFiles.length} 个)` })
+    for (const file of allFiles) {
+      const dest = join(tmpDir, file.rel)
+      await mkdir(join(dest, '..'), { recursive: true })
+      await copyFile(file.src, dest)
+      copiedSize += file.size
+      report({ phase: 'extract', overall: copiedSize / totalSize, detail: `复制 ${file.rel}` })
+    }
+
+    const marker: InstallMarker = {
+      id,
+      version: RUNTIME_PLUGIN_VERSIONS[id],
+      installedAt: new Date().toISOString(),
+    }
+    await writeFile(join(tmpDir, MARKER_FILE), JSON.stringify(marker, null, 2), 'utf-8')
+
+    await rm(dir, { recursive: true, force: true })
+    await rename(tmpDir, dir)
+
+    report({ phase: 'done', overall: 1, detail: '安装完成' })
+    log.log(`[runtime-plugin] ${id}@${marker.version} 本地导入完成 -> ${dir}`)
+    return dir
+  }
+  catch (error) {
+    report({ phase: 'error', overall: 0, detail: '安装失败', error: errorMessageFrom(error) })
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
+    throw error
+  }
+}
+
+/**
+ * 从本地 ZIP 分卷文件安装运行时插件（绕过网络下载）。
+ *
+ * 适用场景：
+ * - 用户已从 GitHub Release 手动下载了 ZIP 分卷（如 gpt-sovits.0001.zip ~ 0006.zip）
+ * - 选择存放这些分卷的目录，自动解压并安装
+ *
+ * 分卷文件命名约定：`<installDir>.<4位序号>.zip`，如 `gpt-sovits.0001.zip`。
+ *
+ * @param id - 插件 ID
+ * @param volumesDir - 存放 ZIP 分卷的目录
+ * @param onProgress - 进度回调
+ * @returns 安装后的插件根目录
+ */
+export async function installRuntimePluginFromLocalZips(
+  id: RuntimePluginId,
+  volumesDir: string,
+  onProgress?: (p: RuntimePluginProgress) => void,
+): Promise<string> {
+  const dir = pluginInstallDir(id)
+  const tmpDir = join(pluginRootDir(), `${id}.tmp-${Date.now()}`)
+
+  const report = (p: Omit<RuntimePluginProgress, 'id'>): void => onProgress?.({ id, ...p })
+
+  report({ phase: 'verify', overall: 0, detail: '扫描分卷文件' })
+  if (!existsSync(volumesDir)) {
+    throw new Error(`目录不存在: ${volumesDir}`)
+  }
+
+  const installDir = PLUGIN_SOURCE_META[id].installDir
+  const volFiles = readdirSync(volumesDir)
+    .filter(f => f.startsWith(installDir) && f.endsWith('.zip'))
+    .sort()
+  if (volFiles.length === 0) {
+    throw new Error(`未找到 ${installDir}.*.zip 分卷文件`)
+  }
+
+  await mkdir(tmpDir, { recursive: true })
+
+  try {
+    for (let i = 0; i < volFiles.length; i += 1) {
+      const volPath = join(volumesDir, volFiles[i]!)
+      report({ phase: 'extract', overall: i / volFiles.length, detail: `解压分卷 ${i + 1}/${volFiles.length}` })
+      await extractPart(volPath, tmpDir)
+    }
+
+    await flattenExtractedRoot(tmpDir, installDir)
+
+    const marker: InstallMarker = {
+      id,
+      version: RUNTIME_PLUGIN_VERSIONS[id],
+      installedAt: new Date().toISOString(),
+    }
+    await writeFile(join(tmpDir, MARKER_FILE), JSON.stringify(marker, null, 2), 'utf-8')
+
+    await rm(dir, { recursive: true, force: true })
+    await rename(tmpDir, dir)
+
+    report({ phase: 'done', overall: 1, detail: '安装完成' })
+    log.log(`[runtime-plugin] ${id}@${marker.version} 本地 ZIP 分卷导入完成 -> ${dir}`)
     return dir
   }
   catch (error) {

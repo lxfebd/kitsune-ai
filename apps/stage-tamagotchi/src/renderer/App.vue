@@ -14,6 +14,8 @@ import { useModsServerChannelStore } from '@kitsune/stage-ui/stores/mods/api/cha
 import { useContextBridgeStore } from '@kitsune/stage-ui/stores/mods/api/context-bridge'
 import { usePersonaStore } from '@kitsune/stage-ui/stores/modules/persona'
 import { useArtistryStore } from '@kitsune/stage-ui/stores/modules/artistry'
+import { useActiveModelStore } from '@kitsune/stage-ui/stores/modules/active-model'
+import { useProvidersStore } from '@kitsune/stage-ui/stores/providers'
 import { usePerfTracerBridgeStore } from '@kitsune/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@kitsune/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@kitsune/stage-ui/stores/settings'
@@ -35,6 +37,7 @@ import {
   electronGetServerChannelConfig,
   electronGodotStageGetStatus,
   electronGodotStageStatusChanged,
+  electronOverseerLlmProvider,
   electronSettingsNavigate,
   electronStartTrackMousePosition,
   i18nGetLocale,
@@ -117,6 +120,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+  const syncOverseerLlmProvider = useElectronEventaInvoke(electronOverseerLlmProvider)
   const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat'
   const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
   const isWidgetsWindowRoute = () => route.path === '/widgets'
@@ -201,6 +205,33 @@ function createFullStageRuntime() {
         options: providerOptions.value,
       })
     }
+  }, { deep: true, immediate: true })
+
+  // Sync the chat's active LLM provider config (including API key) to the main process.
+  // This lets the Overseer executor use the exact same provider the user configured in the UI,
+  // instead of reading the static providers.yaml + environment variables.
+  const chatActiveModelStore = useActiveModelStore()
+  const chatProvidersStore = useProvidersStore()
+  const { activeProvider: chatActiveProvider, activeModel: chatActiveModel } = storeToRefs(chatActiveModelStore)
+
+  watch([chatActiveProvider, chatActiveModel, chatProvidersStore.providers], () => {
+    const providerId = chatActiveProvider.value
+    const model = chatActiveModel.value
+    if (!providerId || !model) {
+      void syncOverseerLlmProvider({ providerId: '', model: '', apiKey: '', baseUrl: '' })
+      return
+    }
+    const config = chatProvidersStore.getProviderConfig(providerId) as { apiKey?: string, baseUrl?: string } | undefined
+    if (!config?.apiKey || !config?.baseUrl) {
+      void syncOverseerLlmProvider({ providerId, model, apiKey: '', baseUrl: '' })
+      return
+    }
+    void syncOverseerLlmProvider({
+      providerId,
+      model,
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl,
+    })
   }, { deep: true, immediate: true })
 
   // NOTICE: In non-Electron environments (e.g. browser preview / tests) the

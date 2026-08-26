@@ -1,4 +1,4 @@
-﻿import type { MaybeRefOrGetter, Ref } from 'vue'
+import type { MaybeRefOrGetter, Ref } from 'vue'
 
 import { useHearingSpeechInputPipeline, useHearingStore } from '@kitsune/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@kitsune/stage-ui/stores/providers'
@@ -37,7 +37,6 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   }
   async function debouncedAutoSend() {
-    // Double-check auto-send is enabled before proceeding
     if (!autoSendEnabled.value) {
       clearPendingAutoSend()
       return
@@ -46,12 +45,17 @@ export function useTranscriptions(options: TranscriptionOptions) {
       clearTimeout(autoSendTimeout)
     }
 
+    console.info('Auto-send scheduled', {
+      source: 'useTranscriptions',
+      delay: autoSendDelay.value,
+      autoSendEnabled: autoSendEnabled.value,
+    })
     autoSendTimeout = setTimeout(async () => {
-      // Final check before sending - auto-send might have been disabled while waiting
       if (!autoSendEnabled.value) {
         clearPendingAutoSend()
         return
       }
+      console.info('Auto-send: sending message', { source: 'useTranscriptions' })
       sendMessage()
       autoSendTimeout = undefined
     }, autoSendDelay.value)
@@ -175,8 +179,11 @@ export function useTranscriptions(options: TranscriptionOptions) {
       await transcribeForMediaStream(stream.value, {
         onSentenceEnd: (delta) => {
           if (delta && delta.trim()) {
-            console.info('Received transcription delta:', delta, { source: 'useTranscriptions' })
-            // Append transcribed text to message input
+            console.info('Received transcription delta:', delta, {
+              source: 'useTranscriptions',
+              autoSendEnabled: autoSendEnabled.value,
+              autoSendDelay: autoSendDelay.value,
+            })
             const currentText = messageInput.value.trim()
             messageInput.value = currentText ? `${currentText} ${delta}` : delta
             debouncedAutoSend()

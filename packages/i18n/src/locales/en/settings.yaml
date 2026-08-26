@@ -1841,6 +1841,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: Overseer
+      description: The overseer system automatically monitors tasks and dispatches them to connected tools.
+      error-title: Overseer Error
+      enable-label: Enable Overseer
+      enable: Enable
+      disable: Disable
+      status:
+        running: Running
+        stopped: Stopped
+      tools-title: Listening Tools
+      tool-running: Running
+      tool-idle: Idle
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2154,4 +2168,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "Switch inference device"
+    title_threads: "Adjust CPU thread count"
+    current: "Current"
+    target: "Switch to"
+    restart_hint: "This will restart the TTS service; first model load may be slow"
+    cancel: "Cancel"
+    confirm: "Confirm switch"
+    cpu:
+      - "No CUDA runtime loaded, frees VRAM"
+      - "Inference speed depends on CPU and core count"
+      - "No GPU dependency, better compatibility"
+    cuda_half:
+      - "GPU half-precision, balances speed and VRAM"
+      - "Requires NVIDIA GPU and CUDA runtime"
+      - "Speed depends on GPU model and VRAM bandwidth"
+    cuda:
+      - "GPU full-precision, higher audio quality ceiling"
+      - "Higher VRAM usage than half-precision"
+      - "Speed depends on GPU model"
+    auto:
+      - "Let GPT-SoVITS pick the optimal device"
+      - "Prefers GPU when available"
+      - "Speed and resource usage depend on the chosen device"
+  device_options:
+    cpu: "CPU (recommended, default)"
+    auto: "Auto (system-selected)"
+    cuda_half: "GPU half-precision (hardware accel)"
+    cuda: "GPU full-precision (high quality)"
+  low_spec_warning: "This machine is low-spec; local TTS is resource-heavy. Consider cloud TTS or enable with caution."
+  threads_label: "CPU thread count"
+  machine_info: "Machine"
 

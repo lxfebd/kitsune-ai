@@ -22,7 +22,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@kitsune/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain, screen, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, screen, shell } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
@@ -32,7 +32,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
-import { transparentWindowConfig } from '../shared'
+import { toggleWindowShow, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -104,6 +104,7 @@ export async function setupMainWindow(params: {
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
+  aboutWindow: () => Promise<BrowserWindow>
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
@@ -154,6 +155,34 @@ export async function setupMainWindow(params: {
     params.onWindowCreated(window)
   }
 
+  // 右键菜单：在桌宠上右键提供设置/切换模型/退出等快捷操作
+  window.webContents.on('context-menu', () => {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: '设置',
+        click: () => void params.settingsWindow.openWindow('/settings'),
+      },
+      {
+        label: '切换模型',
+        click: () => void params.settingsWindow.openWindow('/settings/models'),
+      },
+      { type: 'separator' },
+      {
+        label: '关于',
+        click: () => params.aboutWindow().then(w => toggleWindowShow(w)),
+      },
+      { type: 'separator' },
+      {
+        label: '退出',
+        click: () => {
+          allowClose = true
+          app.quit()
+        },
+      },
+    ])
+    contextMenu.popup({ window })
+  })
+
   let allowClose = false
   onAppBeforeQuit(() => {
     allowClose = true
@@ -202,16 +231,25 @@ export async function setupMainWindow(params: {
     updateConfig(config)
   }
 
-  window.on('resize', () => handleNewBounds(window.getBounds()))
-  window.on('move', () => handleNewBounds(window.getBounds()))
-  // NOTICE: Defends against the renderer (or a restored oversized session) growing
-  // the window past the work area after it is already shown. Debounced so it does
-  // not fight ongoing user drag-resize gestures. Only ever shrinks, never enlarges.
-  let clampTimer: NodeJS.Timeout | undefined
+  // NOTICE: Debounce resize so we only persist the final size after the user
+  // finishes dragging, not every intermediate frame. This prevents mid-gesture
+  // bounds from being persisted and avoids fighting with the clamp below.
+  let resizePersistTimer: NodeJS.Timeout | undefined
   window.on('resize', () => {
-    clearTimeout(clampTimer)
-    clampTimer = setTimeout(() => { clampWindowToWorkArea(window) }, 500)
+    clearTimeout(resizePersistTimer)
+    resizePersistTimer = setTimeout(() => handleNewBounds(window.getBounds()), 300)
   })
+  window.on('move', () => {
+    clearTimeout(resizePersistTimer)
+    resizePersistTimer = setTimeout(() => handleNewBounds(window.getBounds()), 300)
+  })
+  // NOTICE: Do NOT clamp on every resize event. `clampWindowToWorkArea` resolves
+  // the DIP work area from the renderer, which has rounding differences vs the
+  // real work area; running it on every resize would call setBounds on slight
+  // discrepancies, which fires resize again and produces an endless
+  // grow/shrink feedback loop (the "pulsing window" symptom). Clamp once on
+  // ready-to-show / did-finish-load (see below) and otherwise trust the user's
+  // manual resize.
   window.on('close', (event) => {
     if (allowClose) {
       return

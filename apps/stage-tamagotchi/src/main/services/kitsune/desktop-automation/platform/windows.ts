@@ -144,7 +144,7 @@ export class WindowsAutomation implements PlatformAutomation {
     const { stdout } = await execAsync('powershell', [
       '-NoProfile', '-NonInteractive', '-Command',
       cmd,
-    ], { timeout: this.timeout })
+    ], { timeout: this.timeout, encoding: 'utf8' })
     return stdout
   }
 

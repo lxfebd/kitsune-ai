@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: 감독자
+      description: 감독자 시스템은 작업을 자동으로 모니터링하고 연결된 도구에 분배합니다.
+      error-title: 감독자 오류
+      enable-label: 감독자 활성화
+      enable: 활성화
+      disable: 비활성화
+      status:
+        running: 실행 중
+        stopped: 중지됨
+      tools-title: 모니터링 도구
+      tool-running: 실행 중
+      tool-idle: 대기 중
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "추론 장치 전환"
+    title_threads: "CPU 스레드 수 조정"
+    current: "현재"
+    target: "전환 대상"
+    restart_hint: "전환 시 TTS 서비스를 다시 시작합니다. 최초 모델 로드는 느릴 수 있습니다"
+    cancel: "취소"
+    confirm: "전환 확인"
+    cpu:
+      - "CUDA 런타임을 로드하지 않아 VRAM 해제"
+      - "추론 속도는 CPU 성능과 코어 수에 따라 달라짐"
+      - "GPU 의존성이 없어 호환성 향상"
+    cuda_half:
+      - "GPU 반정밀도 추론으로 속도와 VRAM 균형"
+      - "NVIDIA GPU 및 CUDA 런타임 필요"
+      - "속도는 GPU 모델과 VRAM 대역폭에 따라 달라짐"
+    cuda:
+      - "GPU 전정밀도 추론으로 음질 상한이 더 높음"
+      - "반정밀도보다 VRAM 사용량이 많음"
+      - "속도는 GPU 모델에 따라 달라짐"
+    auto:
+      - "GPT-SoVITS가 최적의 장치를 자동 선택"
+      - "사용 가능한 GPU가 있으면 GPU 선호"
+      - "속도와 리소스 사용량은 선택된 장치에 따라 달라짐"
+  device_options:
+    cpu: "CPU 추론(권장, 기본)"
+    auto: "자동(시스템 선택)"
+    cuda_half: "GPU 반정밀도(하드웨어 가속)"
+    cuda: "GPU 전정밀도(고음질)"
+  low_spec_warning: "이 머신은 사양이 낮습니다. 로컬 TTS는 리소스를 많이 사용하므로 클라우드 TTS 사용을 고려하거나 신중하게 활성화하세요."
+  threads_label: "CPU 스레드 수"
+  machine_info: "머신 구성"
 

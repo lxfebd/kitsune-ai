@@ -55,7 +55,7 @@ function getModelsDir(): string {
   return candidates[0]
 }
 
-function handleRequest(req: IncomingMessage, res: ServerResponse): void {
+async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   // CORS headers — same pattern as live2d-file-server.ts
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
@@ -82,10 +82,48 @@ function handleRequest(req: IncomingMessage, res: ServerResponse): void {
 
   const filePath = join(getModelsDir(), requestPath)
 
+  // 本地未命中时，代理转发到 HF 镜像，保证 transformers.js 请求（如
+  // onnx-community/silero-vad、whisper）总能拿到模型，无需用户预下载。
+  // 流式转发，保持 Range / Content-Length / Content-Type。
   if (!existsSync(filePath)) {
-    res.writeHead(404)
-    res.end('Not found')
-    return
+    const upstream = `https://hf-mirror.com${url.pathname}`
+    try {
+      const proxyRes = await fetch(upstream, {
+        headers: req.headers.range ? { Range: req.headers.range } : undefined,
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!proxyRes.ok || !proxyRes.body) {
+        res.writeHead(proxyRes.status)
+        res.end()
+        return
+      }
+      const reader = proxyRes.body.getReader()
+      // 流式转发到客户端
+      res.writeHead(proxyRes.status, {
+        'Content-Type': proxyRes.headers.get('content-type') ?? 'application/octet-stream',
+        'Content-Length': proxyRes.headers.get('content-length') ?? undefined,
+        'Accept-Ranges': 'bytes',
+        'Content-Range': proxyRes.headers.get('content-range') ?? undefined,
+        'Cache-Control': 'public, max-age=86400',
+      })
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          res.write(Buffer.from(value))
+        }
+      }
+      finally {
+        reader.releaseLock?.()
+      }
+      res.end()
+      return
+    }
+    catch {
+      res.writeHead(404)
+      res.end('Not found')
+      return
+    }
   }
 
   const stat = statSync(filePath)

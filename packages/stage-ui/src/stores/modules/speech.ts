@@ -145,11 +145,12 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Electron 模式下默认启用 GPT-SoVITS（本地 TTS sidecar 随应用自动启动）
   const defaultSpeechProvider = isStageTamagotchi() ? 'gpt-sovits' : 'speech-noop'
+  const defaultVoiceId = isStageTamagotchi() ? 'ailini' : ''
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', defaultSpeechProvider)
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '')
-  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '')
+  const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', defaultVoiceId)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
 
   // 一次性迁移：Electron 模式下，将旧的 speech-noop 自动升级为 gpt-sovits

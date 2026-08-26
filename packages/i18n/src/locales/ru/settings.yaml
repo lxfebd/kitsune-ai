@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: Надзор
+      description: Система надзора автоматически отслеживает задачи и распределяет их подключенным инструментам.
+      error-title: Ошибка надзора
+      enable-label: Включить надзор
+      enable: Включить
+      disable: Отключить
+      status:
+        running: Работает
+        stopped: Остановлен
+      tools-title: Инструменты наблюдения
+      tool-running: Работает
+      tool-idle: Простой
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "Сменить устройство вывода"
+    title_threads: "Настроить число потоков CPU"
+    current: "Текущее"
+    target: "Переключить на"
+    restart_hint: "Переключение перезапустит службу TTS; первая загрузка модели может быть медленной"
+    cancel: "Отмена"
+    confirm: "Подтвердить переключение"
+    cpu:
+      - "Библиотека CUDA не загружается, VRAM освобождается"
+      - "Скорость вывода зависит от CPU и числа ядер"
+      - "Без зависимости от GPU, лучшая совместимость"
+    cuda_half:
+      - "Вывод на GPU с половинной точностью, баланс скорости и VRAM"
+      - "Требуется GPU NVIDIA и среда CUDA"
+      - "Скорость зависит от модели GPU и пропускной способности VRAM"
+    cuda:
+      - "Вывод на GPU с полной точностью, выше потенциал качества звука"
+      - "Использование VRAM выше, чем при половинной точности"
+      - "Скорость зависит от модели GPU"
+    auto:
+      - "GPT-SoVITS сам выбирает оптимальное устройство"
+      - "Предпочитает GPU при наличии"
+      - "Скорость и расход ресурсов зависят от выбранного устройства"
+  device_options:
+    cpu: "Вывод на CPU (рекомендуется, по умолчанию)"
+    auto: "Авто (выбор системы)"
+    cuda_half: "GPU половинная точность (аппаратное ускорение)"
+    cuda: "GPU полная точность (высокое качество)"
+  low_spec_warning: "У этой машины низкие характеристики; локальный TTS требует много ресурсов. Используйте облачный TTS или включайте с осторожностью."
+  threads_label: "Число потоков CPU"
+  machine_info: "Конфигурация машины"
 

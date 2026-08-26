@@ -7,9 +7,11 @@ import { toJsonSchema } from 'xsschema'
 import { z } from 'zod'
 
 import { electron } from '@kitsune/electron-eventa'
+import { screenCaptureGetSources } from '@kitsune/electron-screen-capture'
 import { getElectronEventaContext } from '@kitsune/electron-vueuse'
 import { normalizeNullableAnyOf } from '@kitsune/stage-shared/json-schema'
 import { electronDesktopAutomationInvoke } from '../../../../shared/eventa'
+import type { ElectronDesktopAutomationInvokePayload, ElectronDesktopAutomationResult } from '../../../../shared/eventa'
 
 // 单个共享 eventa context — 避免创建 5 个冗余 ipcRenderer listeners。
 // 懒加载：模块作用域调用 getElectronEventaContext() 在无 Electron IPC 的
@@ -29,6 +31,7 @@ function createInvokers() {
     windowSetBounds: defineInvoke(context, electron.window.setBounds),
     getAllDisplays: defineInvoke(context, electron.screen.getAllDisplays),
     getCursorScreenPoint: defineInvoke(context, electron.screen.getCursorScreenPoint),
+    getScreenSources: defineInvoke(context, screenCaptureGetSources),
   }
 }
 
@@ -41,8 +44,42 @@ function resolveInvokers(): Invokers {
   return invokeCache
 }
 
+// NOTICE: 之前 eventa defineInvoke 的 ctx.emit 间歇性结构化克隆序列化失败
+// （conversion failure from {} / byte）。改用 ipcRenderer.invoke 后仍有偶发，
+// 根因是 payload 或 response 携带不可结构化克隆的值（Vue Proxy / 函数 / Buffer）。
+// 终极修复：在 IPC 两端都做 JSON round-trip，彻底剥除所有非可克隆属性。
+let desktopInvokerCache: ((payload: ElectronDesktopAutomationInvokePayload) => Promise<ElectronDesktopAutomationResult>) | undefined
+
 function resolveDesktopInvoker() {
-  return resolveInvokers().desktop
+  if (desktopInvokerCache)
+    return desktopInvokerCache
+
+  const ipcRenderer = window.electron?.ipcRenderer
+  if (!ipcRenderer)
+    throw new Error('ipcRenderer not available')
+
+  desktopInvokerCache = async (payload: ElectronDesktopAutomationInvokePayload): Promise<ElectronDesktopAutomationResult> => {
+    // NOTICE: 经 IPC 传 JSON 字符串而非对象。
+    // Electron contextBridge + ipcRenderer.invoke 对纯对象偶发
+    // "Error processing argument at index 0, conversion failure from {}"，
+    // 即使 JSON.parse(JSON.stringify()) round-trip 后仍可能失败。
+    // 字符串是 V8 structuredClone 的原语类型，永远可克隆，彻底消除该类错误。
+    // 主进程侧 ipcMain.handle 同步改为 JSON.parse 入参 + JSON.stringify 出参。
+    const requestBody = JSON.stringify(payload)
+    try {
+      const raw = await ipcRenderer.invoke('desktop-automation:invoke', requestBody)
+      return JSON.parse(raw as string) as ElectronDesktopAutomationResult
+    }
+    catch (error) {
+      console.error('[desktop-automation:invoke] FAILED', {
+        action: payload.action,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      })
+      throw error
+    }
+  }
+  return desktopInvokerCache
 }
 
 function resolveWindowInvoker() {
@@ -61,6 +98,34 @@ function resolveMouseInvoker() {
   return resolveInvokers().getCursorScreenPoint
 }
 
+// NOTICE: 截图不走 resolveDesktopInvoker（自建 ipcRenderer.invoke 通道，间歇性
+// "conversion failure from {}" 结构化克隆失败），而是复用项目已有的
+// @kitsune/electron-screen-capture 截屏系统（走稳定 eventa IPC）。
+// thumbnail 是 Uint8Array JPEG 字节，转 data URL 供视觉模型消费。
+function resolveScreenSourcesInvoker() {
+  return resolveInvokers().getScreenSources
+}
+
+// NOTICE: 统一截图入口，通过 eventa 调用 desktopCapturer.getSources。
+// 与 screen_screenshot / screen_perceive / screen_analyze 共享。
+// 不缓存：每次工具调用都重新截屏，避免视觉分析拿到过期画面。
+async function captureScreenshotViaEventa(): Promise<string> {
+  const invoker = resolveScreenSourcesInvoker()
+  const sources = await invoker({ types: ['screen'] as Electron.SourcesOptions['types'] })
+  if (!sources || sources.length === 0)
+    throw new Error('未找到可用屏幕')
+  const thumbnail = sources[0].thumbnail
+  if (!thumbnail || thumbnail.length === 0)
+    throw new Error('截图数据为空')
+  const bytes = thumbnail instanceof Uint8Array ? thumbnail : new Uint8Array(thumbnail)
+  let binary = ''
+  const chunkSize = 0x8000
+  for (let i = 0; i < bytes.length; i += chunkSize)
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+  const base64 = btoa(binary)
+  return `data:image/jpeg;base64,${base64}`
+}
+
 /**
  * Shape of the `result` payload returned by the `findElement` desktop-automation action.
  * The IPC contract types `result` as `unknown` because it is shared across every action,
@@ -73,6 +138,147 @@ interface FindElementInvokeResult {
 
 function asFindElementResult(value: unknown): FindElementInvokeResult | undefined {
   return value as FindElementInvokeResult | undefined
+}
+
+// NOTICE:
+// desktop_find_element / desktop_find_and_click / desktop_wait / desktop_type_into
+// 原先走主进程 findElement，由主进程再 context.emit 回渲染进程做视觉推理
+// （FindElementBridge.vue）。该 eventa 往返在传输大 base64 截图 payload 时偶发
+// "Error processing argument at index 0, conversion failure from" V8 structuredClone
+// 序列化错误。改为直接在本（渲染）进程内完成 截图 + 视觉推理 + JSON 解析，
+// 完全绕开 IPC 往返，与 screen_perceive 的本地推理链路保持一致。
+
+interface DetectedElement {
+  label: string
+  type: string
+  x: number
+  y: number
+  width: number
+  height: number
+  confidence: number
+}
+
+const FIND_ELEMENT_PROMPT_TEMPLATE = (description: string) => [
+  'You are a precise UI element detector.',
+  `Analyze the screenshot and find all UI elements matching this description: "${description}"`,
+  '',
+  'Return a JSON array of detected elements. Each element must have:',
+  '- label: element text or identifier',
+  '- type: element type (button, input, menu, link, icon, text, tab, checkbox, dropdown, etc.)',
+  '- x: center X coordinate in pixels',
+  '- y: center Y coordinate in pixels',
+  '- width: element width in pixels',
+  '- height: element height in pixels',
+  '- confidence: detection confidence (0.0 to 1.0)',
+  '',
+  'Return ONLY the JSON array, no explanation.',
+  'If no matching elements found, return an empty array: []',
+  'Example: [{"label":"Submit","type":"button","x":450,"y":300,"width":100,"height":40,"confidence":0.95}]',
+].join('\n')
+
+function parseDetectedElements(text: string): DetectedElement[] {
+  const trimmed = text.trim()
+
+  // 尝试多种方式提取 JSON 数组
+  let jsonString = ''
+
+  // 方式1: 直接匹配 JSON 数组
+  const jsonArrayMatch = trimmed.match(/\[[\s\S]*\]/)
+  if (jsonArrayMatch)
+    jsonString = jsonArrayMatch[0]
+
+  // 方式2: 如果有代码块标记，提取代码块内容
+  if (!jsonString) {
+    const codeBlockMatch = trimmed.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/)
+    if (codeBlockMatch) {
+      const content = codeBlockMatch[1].trim()
+      if (content.startsWith('['))
+        jsonString = content
+    }
+  }
+
+  // 方式3: 查找第一个 [ 到最后一个 ] 之间的内容
+  if (!jsonString) {
+    const firstBracket = trimmed.indexOf('[')
+    const lastBracket = trimmed.lastIndexOf(']')
+    if (firstBracket !== -1 && lastBracket > firstBracket)
+      jsonString = trimmed.slice(firstBracket, lastBracket + 1)
+  }
+
+  if (!jsonString)
+    return []
+
+  try {
+    const parsed = JSON.parse(jsonString)
+    if (!Array.isArray(parsed))
+      return []
+
+    return parsed
+      .filter((el: any) =>
+        typeof el === 'object'
+        && el !== null
+        && typeof el.x === 'number'
+        && typeof el.y === 'number',
+      )
+      .map((el: any) => ({
+        label: String(el.label ?? ''),
+        type: String(el.type ?? 'unknown'),
+        x: Math.round(el.x),
+        y: Math.round(el.y),
+        width: Math.round(el.width ?? 50),
+        height: Math.round(el.height ?? 50),
+        confidence: Math.min(1, Math.max(0, Number(el.confidence) || 0.5)),
+      }))
+  }
+  catch {
+    return []
+  }
+}
+
+interface FindElementViaRendererResult {
+  found: boolean
+  elements: DetectedElement[]
+  reason?: string
+}
+
+/**
+ * 渲染进程内完成 UI 元素定位：截图 → 视觉推理 → JSON 解析。
+ * 替代主进程 findElement 的 context.emit 往返，避免大截图 payload 的
+ * structuredClone 序列化失败。
+ */
+async function findElementViaRenderer(description: string): Promise<FindElementViaRendererResult> {
+  const imageDataUrl = await captureScreenshotViaEventa()
+  const { useVisionInference } = await import('@kitsune/stage-ui/composables')
+  const { runVisionInference } = useVisionInference()
+
+  let text: string
+  try {
+    text = await runVisionInference({
+      imageDataUrl,
+      workloadId: 'screen:ui-automation',
+      promptOverride: FIND_ELEMENT_PROMPT_TEMPLATE(description),
+    })
+  }
+  catch (error) {
+    const msg = String(error)
+    if (msg.includes('not configured') || msg.includes('Vision model')) {
+      return {
+        found: false,
+        elements: [],
+        reason: '视觉模型未配置。请在设置 > 模型 > 视觉模型中选择一个支持图像的模型（如 GPT-4o、Gemini、Qwen-VL 等），然后重试。',
+      }
+    }
+    throw error
+  }
+
+  const elements = parseDetectedElements(text)
+  return {
+    found: elements.length > 0,
+    elements,
+    reason: elements.length > 0
+      ? `found ${elements.length} element(s)`
+      : 'no matching elements found',
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -194,11 +400,8 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       description: '截取当前屏幕截图，返回 JPEG 图片的 data URL。用于查看屏幕上正在显示什么内容。',
       parameters: normalizeNullableAnyOf(await toJsonSchema(screenshotParams) as JsonSchema),
       execute: async () => {
-        const invoker = resolveDesktopInvoker()
-        const result = await invoker({ action: 'screenshot', params: {} })
-        if (!result.ok)
-          throw new Error(result.error ?? '截图失败')
-        return { imageDataUrl: result.result as string }
+        const imageDataUrl = await captureScreenshotViaEventa()
+        return { imageDataUrl }
       },
     }))(),
 
@@ -208,16 +411,29 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(perceiveParams) as JsonSchema),
       execute: async (input) => {
         const { question } = input as { question?: string }
-        const invoker = resolveDesktopInvoker()
-        const result = await invoker({ action: 'screenshot', params: {} })
-        if (!result.ok)
-          throw new Error(result.error ?? '截图失败')
-        // 返回截图和问题，让 LLM 自行分析
-        // 如果有视觉模型配置，可以在这里调用 vision orchestrator
-        return {
-          imageDataUrl: result.result as string,
-          question: question ?? '请描述屏幕上的内容',
-          note: '这是一张屏幕截图的 base64 JPEG 图片。请根据图片内容回答用户的问题。',
+        const imageDataUrl = await captureScreenshotViaEventa()
+        const { useVisionOrchestratorStore } = await import('@kitsune/stage-ui/stores/modules/vision')
+        const visionOrchestrator = useVisionOrchestratorStore()
+        try {
+          const visionResult = await visionOrchestrator.processCapture({
+            imageDataUrl,
+            workloadId: 'screen:interpret',
+            publishContext: false,
+          })
+          return {
+            question: question ?? '请描述屏幕上的内容',
+            visionResult: visionResult.text,
+          }
+        }
+        catch (error) {
+          const msg = String(error)
+          if (msg.includes('not configured') || msg.includes('Vision model')) {
+            return {
+              error: '视觉模型未配置。请在设置 > 模型 > 视觉模型中选择一个支持图像的模型（如 GPT-4o、Gemini、Qwen-VL 等），然后重试。',
+              screenshotTaken: true,
+            }
+          }
+          throw error
         }
       },
     }))(),
@@ -484,11 +700,7 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(findElementParams) as JsonSchema),
       execute: async (input) => {
         const { description } = input as { description: string }
-        const invoker = resolveDesktopInvoker()
-        const result = await invoker({ action: 'findElement', params: { description } })
-        if (!result.ok)
-          throw new Error(result.error ?? '视觉定位失败')
-        return result.result
+        return findElementViaRenderer(description)
       },
     }))(),
 
@@ -498,23 +710,19 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(findAndClickParams) as JsonSchema),
       execute: async (input) => {
         const { description, button } = input as { description: string, button?: string }
-        const invoker = resolveDesktopInvoker()
 
-        // 1. 视觉定位元素
-        const findResult = await invoker({ action: 'findElement', params: { description } })
-        if (!findResult.ok)
-          throw new Error(findResult.error ?? '视觉定位失败')
-
-        const { found, elements } = findResult.result as { found: boolean, elements: Array<{ x: number, y: number, confidence: number }> }
-        if (!found || elements.length === 0)
+        // 1. 视觉定位元素（渲染进程内直接推理，不走 IPC 往返）
+        const findResult = await findElementViaRenderer(description)
+        if (!findResult.found || findResult.elements.length === 0)
           return { ok: false, error: `未找到匹配的元素: "${description}"` }
 
         // 2. 选择置信度最高的元素
-        const bestElement = elements.reduce((best, el) =>
+        const bestElement = findResult.elements.reduce((best, el) =>
           el.confidence > best.confidence ? el : best,
         )
 
-        // 3. 点击元素中心
+        // 3. 点击元素中心（走 IPC 的 moveTo + click）
+        const invoker = resolveDesktopInvoker()
         await invoker({ action: 'moveTo', params: { x: bestElement.x, y: bestElement.y } })
         const clickResult = await invoker({ action: 'click', params: { button: (button ?? 'left') as any } })
         if (!clickResult.ok)
@@ -523,7 +731,7 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
         return {
           ok: true,
           element: bestElement,
-          allElements: elements,
+          allElements: findResult.elements,
         }
       },
     }))(),
@@ -543,18 +751,15 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
         while (Date.now() - startTime < timeout) {
           attempts++
 
-          // 视觉定位元素
-          const findResult = await invoker({ action: 'findElement', params: { description } })
-          if (findResult.ok) {
-            const { found, elements } = findResult.result as { found: boolean, elements: any[] }
-            if (found && elements.length > 0) {
-              return {
-                ok: true,
-                found: true,
-                element: elements[0],
-                attempts,
-                elapsed: Date.now() - startTime,
-              }
+          // 视觉定位元素（渲染进程内直接推理）
+          const findResult = await findElementViaRenderer(description)
+          if (findResult.found && findResult.elements.length > 0) {
+            return {
+              ok: true,
+              found: true,
+              element: findResult.elements[0],
+              attempts,
+              elapsed: Date.now() - startTime,
             }
           }
 
@@ -580,23 +785,19 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(typeIntoParams) as JsonSchema),
       execute: async (input) => {
         const { target, text, clear = false } = input as { target: string, text: string, clear?: boolean }
-        const invoker = resolveDesktopInvoker()
 
-        // 1. 视觉定位输入框
-        const findResult = await invoker({ action: 'findElement', params: { description: target } })
-        if (!findResult.ok)
-          throw new Error(findResult.error ?? '视觉定位失败')
-
-        const { found, elements } = findResult.result as { found: boolean, elements: Array<{ x: number, y: number, confidence: number }> }
-        if (!found || elements.length === 0)
+        // 1. 视觉定位输入框（渲染进程内直接推理，不走 IPC 往返）
+        const findResult = await findElementViaRenderer(target)
+        if (!findResult.found || findResult.elements.length === 0)
           return { ok: false, error: `未找到输入框: "${target}"` }
 
         // 2. 选择置信度最高的元素
-        const bestElement = elements.reduce((best, el) =>
+        const bestElement = findResult.elements.reduce((best, el) =>
           el.confidence > best.confidence ? el : best,
         )
 
-        // 3. 点击输入框聚焦
+        // 3. 点击输入框聚焦（走 IPC 的 moveTo + click）
+        const invoker = resolveDesktopInvoker()
         await invoker({ action: 'moveTo', params: { x: bestElement.x, y: bestElement.y } })
         await invoker({ action: 'click', params: { button: 'left' } })
 
@@ -638,17 +839,30 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(analyzeScreenParams) as JsonSchema),
       execute: async (input) => {
         const { question, focus = 'all' } = input as { question: string, focus?: string }
-        const invoker = resolveDesktopInvoker()
-        const result = await invoker({ action: 'screenshot', params: {} })
-        if (!result.ok)
-          throw new Error(result.error ?? '截图失败')
-
-        // 返回截图和分析请求，让 LLM 进行结构化分析
-        return {
-          imageDataUrl: result.result as string,
-          question,
-          focus,
-          note: '这是一张屏幕截图的 base64 JPEG 图片。请根据图片内容进行结构化分析，返回 JSON 格式的结果。',
+        const imageDataUrl = await captureScreenshotViaEventa()
+        const { useVisionOrchestratorStore } = await import('@kitsune/stage-ui/stores/modules/vision')
+        const visionOrchestrator = useVisionOrchestratorStore()
+        try {
+          const visionResult = await visionOrchestrator.processCapture({
+            imageDataUrl,
+            workloadId: 'screen:understand',
+            publishContext: false,
+          })
+          return {
+            question,
+            focus,
+            visionResult: visionResult.text,
+          }
+        }
+        catch (error) {
+          const msg = String(error)
+          if (msg.includes('not configured') || msg.includes('Vision model')) {
+            return {
+              error: '视觉模型未配置。请在设置 > 模型 > 视觉模型中选择一个支持图像的模型（如 GPT-4o、Gemini、Qwen-VL 等），然后重试。',
+              screenshotTaken: true,
+            }
+          }
+          throw error
         }
       },
     }))(),

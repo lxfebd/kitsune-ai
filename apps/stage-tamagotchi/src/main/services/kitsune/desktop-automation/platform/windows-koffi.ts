@@ -82,7 +82,12 @@ function ensureInit(): Win32Automation {
   const getCursorPos = user32.func('GetCursorPos', 'bool', ['int*'])
   const mouseEvent = user32.func('mouse_event', 'void', ['uint', 'uint', 'uint', 'uint', 'int'])
   // 键盘
-  const keybdEvent = user32.func('keybd_event', 'void', ['byte', 'byte', 'uint', 'uint'])
+  // NOTICE: koffi 3.x 不支持 'byte' 类型名（其有效名为 'uint8'/'uint8_t'），
+  // 用 'byte' 会导致 ensureInit() 抛 "Unknown or invalid type name 'byte'"，
+  // 进而使所有依赖 ensureInit() 的操作（moveTo / listWindows / click / type /
+  // pressKey 等）全部失败。Win32 keybd_event 的 bVk/bScan 均为 BYTE(8-bit)，
+  // 对应 koffi 的 'uint8'。
+  const keybdEvent = user32.func('keybd_event', 'void', ['uint8', 'uint8', 'uint', 'uint'])
   const vkKeyScanW = user32.func('VkKeyScanW', 'int16', ['uint16'])
   // 窗口
   const enumWindows = user32.func('EnumWindows', 'bool', ['void*', 'int64'])
@@ -153,6 +158,8 @@ const VK_MAP: Record<string, number> = {
   CONTROL: 0x11, CTRL: 0x11,
   SHIFT: 0x10,
   ALT: 0x12, MENU: 0x12,
+  // Windows 键 — 用于打开开始菜单等系统操作
+  WIN: 0x5B, LWIN: 0x5B, RWIN: 0x5C,
 }
 
 /** 允许的键名（与旧实现一致，防止注入） */

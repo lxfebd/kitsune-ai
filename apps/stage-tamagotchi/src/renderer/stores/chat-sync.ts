@@ -469,6 +469,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+    // REVIEW: 诊断日志 — 确认 executeIngest 被调用 + provider/model 状态
+    try {
+      window.electron?.ipcRenderer?.send('chat-sync-diagnostic', JSON.stringify({
+        step: 'executeIngest',
+        providerId: activeProvider.value,
+        modelId: activeModel.value,
+        text: payload.text?.slice(0, 50),
+      }))
+    }
+    catch {}
+
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -522,13 +533,37 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       }
     }
 
-    await chatOrchestrator.ingest(payload.text, {
-      model: modelId,
-      chatProvider,
-      attachments: payload.attachments,
-      input: payload.input,
-      tools: resolveTools(payload.toolset),
-    }, sessionId)
+    try {
+      await chatOrchestrator.ingest(payload.text, {
+        model: modelId,
+        chatProvider,
+        attachments: payload.attachments,
+        input: payload.input,
+        tools: resolveTools(payload.toolset),
+      }, sessionId)
+      // REVIEW: 诊断 — ingest 成功完成，无异常
+      try {
+        const assistantText = readNewAssistantVisibleText(sessionId, Math.max(0, chatSession.getSessionMessages(sessionId).length - 2))
+        window.electron?.ipcRenderer?.send('chat-sync-diagnostic', JSON.stringify({
+          step: 'ingestComplete',
+          sessionId,
+          assistantText: assistantText?.slice(0, 200) || '(empty)',
+          messageCount: chatSession.getSessionMessages(sessionId).length,
+        }))
+      }
+      catch {}
+    }
+    catch (ingestError) {
+      // REVIEW: 诊断 — ingest 失败
+      try {
+        window.electron?.ipcRenderer?.send('chat-sync-diagnostic', JSON.stringify({
+          step: 'ingestError',
+          error: errorMessageFrom(ingestError) ?? String(ingestError),
+        }))
+      }
+      catch {}
+      throw ingestError
+    }
 
     // Task 10: 记忆写入 — 流式完成后提取对话中的记忆并保存
     if (memoryIpc) {
@@ -628,6 +663,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   async function handleCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
+    // REVIEW: 诊断日志 — 通过 IPC 发到主进程日志，定位消息是否到达 authority
+    try {
+      window.electron?.ipcRenderer?.send('chat-sync-diagnostic', JSON.stringify({
+        step: 'handleCommand',
+        mode: mode.value,
+        command: message.command,
+        senderId: message.senderId,
+      }))
+    }
+    catch {}
+
     if (mode.value !== 'authority')
       return
 

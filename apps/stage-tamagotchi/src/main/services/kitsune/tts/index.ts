@@ -27,32 +27,15 @@ import { optional, object, string, number, integer, minValue, maxValue, pipe, un
 import { getEngineSidecarId, getDefaultEngineId } from '@kitsune/tts-hybrid'
 
 import { createConfig } from '../../../libs/electron/persistence'
-import { installRuntimePlugin, resolvePluginRoot, type RuntimePluginProgress } from '../runtime-plugins'
+import { resolvePluginRoot } from '../runtime-plugins'
 
 const log = useLogg('tts-service').useGlobalConfig()
 
 const DEFAULT_GPT_SOVITS_PORT = 9880
 
 // ---------------------------------------------------------------------------
-// 运行时插件（GPT-SoVITS 引擎按需下载）
+// 运行时插件（GPT-SoVITS 引擎）
 // ---------------------------------------------------------------------------
-
-/**
- * 安装进度转发器 — 由主进程 setup 注入，把 runtime-plugin 的进度原样
- * 转发为 `electronTtsInstallProgress` 事件（渲染层 settings/sidecar/tts-section.vue
- * 监听展示）。未注入时静默，避免 tts 模块与 eventa 强耦合。
- */
-let installProgressForwarder: ((progress: RuntimePluginProgress) => void) | null = null
-
-/** 注入安装进度转发器（主进程设置时调用，返回取消函数）。 */
-export function setGptSovitsInstallProgressReporter(
-  reporter: (progress: RuntimePluginProgress) => void,
-): () => void {
-  installProgressForwarder = reporter
-  return () => {
-    installProgressForwarder = null
-  }
-}
 
 /**
  * 返回已安装的 GPT-SoVITS 运行时插件根目录；未安装返回 null。
@@ -62,24 +45,7 @@ function resolveInstalledGptSovitsPluginDir(): string | null {
   return resolvePluginRoot('tts-gptsovits')
 }
 
-/**
- * 触发并等待 GPT-SoVITS 运行时插件下载安装（含进度转发）。
- * 已安装时可跳过；安装失败抛错由调用方捕获。
- *
- * @returns 安装后的引擎根目录
- */
-async function ensureGptSovitsPluginInstalled(): Promise<string> {
-  if (resolveInstalledGptSovitsPluginDir()) {
-    log.log('[tts] 运行时插件已安装，跳过下载')
-    return resolveInstalledGptSovitsPluginDir()!
-  }
-  log.log('[tts] 首次使用 TTS，开始按需下载运行时插件（GPT-SoVITS + Python runtime）...')
-  return installRuntimePlugin('tts-gptsovits', (p) => {
-    installProgressForwarder?.(p)
-  })
-}
-
-// 持久化配置 schema：dir 为 GPT-SoVITS 安装目录，port 为 HTTP 监听端口（1024-65535），device 为推理设备模式
+// 持久化配置 schema：dir 为 GPT-SoVITS 安装目录，port 为 HTTP 监听端口（1024-65535），device 为推理设备模式，threads 为 CPU 推理线程数
 const gptSovitsConfigSchema = object({
   dir: optional(string()),
   port: optional(pipe(number(), integer(), minValue(1024), maxValue(65535))),
@@ -89,10 +55,11 @@ const gptSovitsConfigSchema = object({
     literal('cuda'),
     literal('cuda-half'),
   ])),
+  threads: optional(pipe(number(), integer(), minValue(1), maxValue(64))),
 })
 
 const gptSovitsConfigStore = createConfig('gpt-sovits', 'config.json', gptSovitsConfigSchema, {
-  default: { dir: undefined, port: undefined, device: undefined },
+  default: { dir: undefined, port: undefined, device: 'cpu', threads: 4 },
   autoHeal: true,
 })
 
@@ -387,28 +354,23 @@ function probeCudaAvailability(pythonExe: string, cwd: string): Promise<boolean>
 export async function startGptSovits(sidecarService: SidecarService): Promise<{ success: boolean, message: string }> {
   let dir = resolveGptSovitsDir()
 
-  // 路径未配置且未内置时：按需下载运行时插件（仅打包后生效；开发可用
-  // KITSUNE_SKIP_RUNTIME_PLUGIN 跳过判断，本地已放置模型时避免误触下载）。
-  // 首次使用才触发，安装过程通过进度事件转发给渲染层 UI 展示。
+  // NOTICE:
+  // 未安装引擎时不再自动触发 6GB 插件下载——GitHub 直连在国内环境极易失败，
+  // 下载失败会在应用启动/点「启动」时拖慢甚至卡死进程。改为引导用户先在
+  // 设置页「离线导入引擎（ZIP 分卷）」导入本地已下载的分卷，或用
+  // KITSUNE_SKIP_RUNTIME_PLUGIN + GPT_SOVITS_DIR 指向本地目录。
   if (!dir) {
-    log.log('[tts] 未找到 GPT-SoVITS 目录，尝试按需下载运行时插件')
-    try {
-      dir = await ensureGptSovitsPluginInstalled()
-    }
-    catch (error) {
-      const msg = `GPT-SoVITS 运行时插件下载失败: ${errorMessageFrom(error)}`
-      log.error(msg)
-      return { success: false, message: msg }
-    }
-    if (!dir) {
-      log.warn('GPT-SoVITS 数据目录未找到')
-      return { success: false, message: 'GPT-SoVITS 数据目录未找到，请在设置中配置数据目录路径' }
+    log.warn('[tts] 未找到 GPT-SoVITS 引擎目录，跳过自动下载；请先在设置页离线导入分卷或配置数据目录')
+    return {
+      success: false,
+      message: '未找到 GPT-SoVITS 引擎。请先在设置页使用「离线导入引擎（ZIP 分卷）」从本地分卷导入，或配置引擎目录路径。',
     }
   }
 
   const pythonExe = resolveGptSovitsPython(dir)
   const port = getGptSovitsPort()
-  const configuredDevice = gptSovitsConfigStore.get()?.device ?? 'auto'
+  const configuredDevice = gptSovitsConfigStore.get()?.device ?? 'cpu'
+  const threads = gptSovitsConfigStore.get()?.threads ?? 4
 
   // 幂等 guard：sidecar 已在运行时直接返回成功，避免应用启动自动拉起与
   // 首次合成懒启动并发导致重复 spawn 同一进程。
@@ -438,21 +400,31 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
   log.log(`启动 GPT-SoVITS，Python: ${pythonExe}, 端口: ${port}, 设备: ${device}(配置: ${configuredDevice}), 目录: ${dir}`)
 
   // NOTICE:
-  // GPT-SoVITS v2ProPlus 使用 api.py 作为入口，通过 -p 参数指定监听端口。
-  // 参考 api.py 文档：`python api.py -p 9880`
-  // `-sm normal` 启用流式模式：api.py 的 get_tts_wav() 在推理循环内逐 chunk
-  // yield 音频帧 (L1071-1073)；`-mt raw` 跳过 OGG 编解码，直接输出 int16 PCM，
-  // 省去前端 decodeAudioData 的开销与有损压缩。主进程逐 chunk 转发至渲染进程，
-  // 前端直接构造 AudioBuffer 边合成边播放，降低首包延迟。
+  // 设备分支必须同时决定 args 与 env：
+  // - cpu 档设 CUDA_VISIBLE_DEVICES='' 让 CUDA 驱动认为无 GPU，从而不加载 torch_cuda/cublasLt/cuDNN 等 2.4GB 库；
+  //   -fp 强制全精度（config.py 默认 is_half=True 会让 kaldi torch.fft.rfft 在 CPU 半精度抛 Unsupported dtype Half）。
+  // - cuda 档补 -fp 修复"假全精度"（原代码不传 -fp，被 config 默认 is_half=True 降成半精度）。
+  // - 三线程变量（OMP/MKL/OPENBLAS）保证不同 BLAS 后端下线程钳制都生效。
   const args = ['api.py', '-p', String(port), '-sm', 'normal', '-mt', 'raw']
-  if (device === 'cpu') {
-    args.push('-d', 'cpu')
+  const env: Record<string, string> = {
+    PYTHONUTF8: '1',
+    PYTHONIOENCODING: 'utf-8',
+    PYTHONUNBUFFERED: '1',
   }
-  else if (device === 'cuda-half') {
+  if (configuredDevice === 'cpu') {
+    args.push('-d', 'cpu', '-fp')
+    env.CUDA_VISIBLE_DEVICES = ''
+    env.OMP_NUM_THREADS = String(threads)
+    env.MKL_NUM_THREADS = String(threads)
+    env.OPENBLAS_NUM_THREADS = String(threads)
+  }
+  else if (configuredDevice === 'cuda-half') {
     args.push('-hp')
   }
-  // 'auto' 和 'cuda' 不需要额外参数
-  // 'auto' 模式下 api.py 默认使用 CUDA，如果不可用会自动回退到 CPU
+  else if (configuredDevice === 'cuda') {
+    args.push('-d', 'cuda', '-fp')
+  }
+  // 'auto' 不加额外参数，由 api.py/config.py 自选
 
   try {
     await sidecarService.start({
@@ -460,11 +432,7 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
       command: pythonExe,
       args,
       cwd: dir,
-      env: {
-        PYTHONUTF8: '1',
-        PYTHONIOENCODING: 'utf-8',
-        PYTHONUNBUFFERED: '1',
-      },
+      env,
     })
 
     // NOTICE:
@@ -545,15 +513,16 @@ export function getGptSovitsStatus(sidecarService: SidecarService): GptSovitsSta
  *
  * @param config - 部分配置对象，dir 为安装目录，port 为 HTTP 监听端口，device 为推理设备模式
  */
-export async function setGptSovitsConfig(config: { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half' }): Promise<{ needsRestart: boolean }> {
+export async function setGptSovitsConfig(config: { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number }): Promise<{ needsRestart: boolean }> {
   ensureConfigLoaded()
-  // 使用带显式字段的 fallback，确保 current.dir / current.port / current.device 可安全访问
-  const current = gptSovitsConfigStore.get() ?? { dir: undefined, port: undefined, device: undefined }
+  // 使用带显式字段的 fallback，确保 current.dir / current.port / current.device / current.threads 可安全访问
+  const current = gptSovitsConfigStore.get() ?? { dir: undefined, port: undefined, device: undefined, threads: undefined }
 
   // 仅当提供的值与当前值不同时才视为"改变"，避免无变化的写入触发误重启
   const dirChanged = config.dir !== undefined && config.dir !== current.dir
   const portChanged = config.port !== undefined && config.port !== current.port
   const deviceChanged = config.device !== undefined && config.device !== current.device
+  const threadsChanged = config.threads !== undefined && config.threads !== current.threads
 
   const next = { ...current }
   if (config.dir !== undefined) {
@@ -565,22 +534,26 @@ export async function setGptSovitsConfig(config: { dir?: string, port?: number, 
   if (config.device !== undefined) {
     next.device = config.device
   }
+  if (config.threads !== undefined) {
+    next.threads = config.threads
+  }
   gptSovitsConfigStore.update(next)
 
   // 配置实际变化且 sidecar 正在运行时才需要重启
   const running = await isGptSovitsRunning()
-  return { needsRestart: (dirChanged || portChanged || deviceChanged) && running }
+  return { needsRestart: (dirChanged || portChanged || deviceChanged || threadsChanged) && running }
 }
 
 /**
  * 获取当前 GPT-SoVITS 配置（dir / port / device）。
  */
-export function getGptSovitsConfig(): { dir: string | null, port: number, device: string | undefined } {
+export function getGptSovitsConfig(): { dir: string | null, port: number, device: string | undefined, threads: number | undefined } {
   ensureConfigLoaded()
   return {
     dir: resolveGptSovitsDir(),
     port: getGptSovitsPort(),
     device: gptSovitsConfigStore.get()?.device,
+    threads: gptSovitsConfigStore.get()?.threads,
   }
 }
 
@@ -905,11 +878,14 @@ export async function* synthesizeGptSovitsStream(
   // 前端 decodeAudioData 会自动读取，此处提供便于前端初始化 AudioContext。
   const sampleRate = 32000
 
-  // 推断音频格式：api.py 在 `-mt raw` 下返回 Content-Type: audio/raw（int16 PCM），
-  // 否则为 OGG。带 WAV 头时（media_type=wav 非流式）也视为 pcm-int16（剥离头）。
+  // NOTICE: 流式模式（streaming_mode=normal）下 api.py 总是用 pack_ogg 生成
+  // 独立 OGG 帧 yield（见函数头注释），与启动参数 -mt raw 无关。-mt raw 只影响
+  // 非流式 synthesizeGptSovits 的返回格式。但 -mt raw 会污染流式响应的
+  // Content-Type 为 audio/raw，旧逻辑据此误判成 pcm-int16，导致前端把 OGG 字节
+  // 当 PCM 解码，输出噪音/只出一小段语气词。流式固定按 OGG 处理。
   const contentType = res.headers.get('content-type') ?? ''
-  const format: 'ogg' | 'pcm-int16' = contentType.includes('ogg') ? 'ogg' : 'pcm-int16'
-  log.log(`流式合成格式: ${format} (content-type=${contentType})`)
+  const format: 'ogg' | 'pcm-int16' = 'ogg'
+  log.log(`流式合成格式: ${format} (content-type=${contentType}, 强制 OGG：流式模式总用 pack_ogg)`)
 
   const reader = res.body!.getReader()
   let chunkCount = 0
@@ -980,4 +956,75 @@ export async function removeVoice(
     log.log(`声线 ${characterName} 已删除`)
   }
   return { success: true }
+}
+
+// NOTICE: 重启期间持有此锁，防止用户快速连续切换导致两次 restart 重叠、sidecar 状态混乱。
+let restartLock = false
+
+/**
+ * 应用新配置并热加载：停止当前 sidecar → 用新配置 spawn → 轮询 /health。
+ * 失败时回滚到旧配置并重新 spawn；旧配置也失败则返回错误，不无限重试。
+ *
+ * @param newConfig 仅 device/threads，其余保持
+ */
+export async function restartGptSovits(
+  sidecarService: SidecarService,
+  newConfig: { device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number },
+): Promise<{ success: boolean, message: string }> {
+  if (restartLock) {
+    return { success: false, message: '切换进行中，请稍候' }
+  }
+
+  // 校验前置
+  if (newConfig.threads !== undefined) {
+    const { getSystemCapabilities } = await import('../system-capabilities')
+    const caps = await getSystemCapabilities()
+    if (newConfig.threads < 1 || newConfig.threads > caps.physicalCores) {
+      return { success: false, message: `线程数需在 1~${caps.physicalCores} 之间（本机物理核数）` }
+    }
+  }
+  if (newConfig.device !== undefined && !['auto', 'cpu', 'cuda', 'cuda-half'].includes(newConfig.device)) {
+    return { success: false, message: '非法的设备类型' }
+  }
+
+  restartLock = true
+  try {
+    const oldConfig = gptSovitsConfigStore.get() ?? { dir: undefined, port: undefined, device: undefined, threads: undefined }
+    const oldSnapshot = { ...oldConfig }
+
+    // 写入新配置
+    const next = { ...oldConfig }
+    if (newConfig.device !== undefined) next.device = newConfig.device
+    if (newConfig.threads !== undefined) next.threads = newConfig.threads
+    gptSovitsConfigStore.update(next)
+
+    try {
+      await stopGptSovits(sidecarService)
+      const r = await startGptSovits(sidecarService)
+      if (r.success) {
+        return { success: true, message: '切换成功' }
+      }
+      throw new Error(r.message)
+    }
+    catch (e) {
+      const reason = errorMessageFrom(e) ?? 'unknown'
+      log.error(`新配置启动失败，回滚: ${reason}`)
+      // 回滚到旧配置并重新 spawn
+      gptSovitsConfigStore.update(oldSnapshot)
+      try {
+        await stopGptSovits(sidecarService)
+        const rollback = await startGptSovits(sidecarService)
+        if (rollback.success) {
+          return { success: false, message: `新配置启动失败（${reason}），已回滚到原配置` }
+        }
+      }
+      catch (e2) {
+        log.error(`旧配置重启也失败: ${errorMessageFrom(e2) ?? 'unknown'}`)
+      }
+      return { success: false, message: `服务无法启动，请检查日志: ${reason}` }
+    }
+  }
+  finally {
+    restartLock = false
+  }
 }

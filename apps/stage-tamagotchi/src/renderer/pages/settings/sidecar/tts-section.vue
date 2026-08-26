@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import type { SidecarState, SidecarStatus, TtsEngine, TtsEngineInfo } from '../../../../shared/eventa'
+import type { SidecarState, SidecarStatus, SystemCapabilities, TtsEngine, TtsEngineInfo } from '../../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { getDefaultEngineId, getEngine, listEngines } from '@kitsune/tts-hybrid'
 import { Button, Callout, FieldInput, FieldSelect } from '@kitsune/ui'
 import { computed, onMounted, onScopeDispose, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   electronDialogChooseDirectory,
   electronDialogChooseFile,
+  electronGetRuntimePluginsDir,
+  electronGetSystemCapabilities,
+  electronSetRuntimePluginsDir,
   electronSidecarStatus,
   electronSidecarStatusChanged,
+  electronTtsApplyConfig,
   electronTtsCloneVoice,
   electronTtsCurrentEngine,
   electronTtsGetConfig,
   electronTtsGetEngines,
+  electronTtsInstallPluginFromLocal,
+  electronTtsInstallPluginFromLocalZips,
   electronTtsInstallProgress,
   electronTtsListVoices,
   electronTtsRemoveVoice,
@@ -24,6 +31,8 @@ import {
   electronTtsStart,
   electronTtsStop,
 } from '../../../../shared/eventa'
+
+import ConfirmDeviceSwitchDialog from './components/confirm-device-switch-dialog.vue'
 
 const defaultEngineId = getDefaultEngineId()
 const defaultEngine = getEngine(defaultEngineId)
@@ -42,6 +51,22 @@ const invokeChooseFile = useElectronEventaInvoke(electronDialogChooseFile)
 const invokeCloneVoice = useElectronEventaInvoke(electronTtsCloneVoice)
 const invokeRemoveVoice = useElectronEventaInvoke(electronTtsRemoveVoice)
 const invokeListVoices = useElectronEventaInvoke(electronTtsListVoices)
+const invokeInstallPluginFromLocal = useElectronEventaInvoke(electronTtsInstallPluginFromLocal)
+const invokeInstallPluginFromLocalZips = useElectronEventaInvoke(electronTtsInstallPluginFromLocalZips)
+const invokeGetRuntimePluginsDir = useElectronEventaInvoke(electronGetRuntimePluginsDir)
+const invokeSetRuntimePluginsDir = useElectronEventaInvoke(electronSetRuntimePluginsDir)
+const invokeApplyConfig = useElectronEventaInvoke(electronTtsApplyConfig)
+const invokeGetCapabilities = useElectronEventaInvoke(electronGetSystemCapabilities)
+
+const { t } = useI18n()
+
+// 设备切换弹窗与能力探测状态
+const capabilities = ref<SystemCapabilities | null>(null)
+const pendingDevice = ref<string | null>(null)
+const pendingThreads = ref<number | undefined>(undefined)
+const dialogVisible = ref(false)
+const applying = ref(false)
+const threadsInput = ref<number | undefined>(undefined)
 
 const PANEL = 'settings-panel'
 const CARD = 'settings-card'
@@ -62,6 +87,11 @@ const deviceInput = ref<string>('auto')
 const saving = ref(false)
 const savingPort = ref(false)
 const picking = ref(false)
+const importingFromLocal = ref(false)
+const importingZipsFromLocal = ref(false)
+const pluginsDir = ref('')
+const pluginsDirBusy = ref(false)
+const pickingPluginsDir = ref(false)
 
 // TTS 引擎选择状态
 const engines = ref<TtsEngineInfo[]>([])
@@ -91,10 +121,10 @@ const CLONE_LANGUAGE_OPTIONS = [
 ]
 
 const DEVICE_OPTIONS = [
-  { label: '自动（推荐）', value: 'auto', description: 'CUDA 可用时用半精度，否则用 CPU' },
-  { label: 'CPU（显存 0GB）', value: 'cpu', description: '使用 CPU 推理，速度较慢' },
-  { label: 'GPU 半精度（~1.5GB）', value: 'cuda-half', description: '使用 GPU 半精度，速度较快' },
-  { label: 'GPU 全精度（~3-4GB）', value: 'cuda', description: '使用 GPU 全精度，音质最佳' },
+  { label: 'CPU 推理', value: 'cpu', description: '零显存占用，兼容性好' },
+  { label: '自动', value: 'auto', description: 'CUDA 可用时用半精度，否则用 CPU' },
+  { label: 'GPU 半精度', value: 'cuda-half', description: '速度与显存占用的折中' },
+  { label: 'GPU 全精度', value: 'cuda', description: '音质最佳，显存占用最高' },
 ]
 
 const STATE_BADGE: Record<SidecarState, string> = {
@@ -165,26 +195,56 @@ const engineModel = computed<TtsEngine>({
 
 const deviceModel = computed<string>({
   get: () => deviceInput.value,
-  set: async (value) => {
+  set: (value) => {
     if (!value || value === deviceInput.value)
       return
-    deviceInput.value = value
-    clearMessages()
-    try {
-      const result = await invokeSetConfig({ device: deviceInput.value })
-      if (result.needsRestart) {
-        needsRestartNotice.value = true
-        infoMessage.value = '设备配置已保存。GPT-SoVITS 正在运行，需重启才能生效。'
-      }
-      else {
-        infoMessage.value = '设备配置已保存。'
-      }
-    }
-    catch (e) {
-      setError(e)
-    }
+    pendingDevice.value = value
+    pendingThreads.value = threadsInput.value
+    dialogVisible.value = true
   },
 })
+
+async function confirmSwitch() {
+  dialogVisible.value = false
+  applying.value = true
+  clearMessages()
+  try {
+    const r = await invokeApplyConfig({
+      device: pendingDevice.value as 'auto' | 'cpu' | 'cuda' | 'cuda-half' | undefined,
+      threads: pendingThreads.value,
+    })
+    if (r.success) {
+      if (pendingDevice.value)
+        deviceInput.value = pendingDevice.value
+      if (pendingThreads.value !== undefined)
+        threadsInput.value = pendingThreads.value
+      await refreshStatus()
+    }
+    else {
+      setError(new Error(r.message))
+    }
+  }
+  catch (e) {
+    setError(e)
+  }
+  finally {
+    applying.value = false
+    pendingDevice.value = null
+    pendingThreads.value = undefined
+  }
+}
+
+function cancelSwitch() {
+  dialogVisible.value = false
+  pendingDevice.value = null
+  pendingThreads.value = undefined
+}
+
+function saveThreads() {
+  pendingDevice.value = null
+  pendingThreads.value = threadsInput.value
+  dialogVisible.value = true
+}
 
 function setError(e: unknown) {
   errorMessage.value = errorMessageFrom(e) ?? '未知错误'
@@ -229,6 +289,8 @@ async function refreshConfig() {
       portInput.value = config.port
     if (config?.device)
       deviceInput.value = config.device
+    if (config?.threads !== undefined)
+      threadsInput.value = config.threads
   }
   catch (e) {
     setError(e)
@@ -291,6 +353,107 @@ async function chooseDirectory() {
   }
   finally {
     picking.value = false
+  }
+}
+
+async function chooseAndInstallFromLocal() {
+  clearMessages()
+  importingFromLocal.value = true
+  try {
+    const result = await invokeChooseDirectory({ title: '选择已解压的 GPT-SoVITS 引擎目录' })
+    if (!result.canceled && result.path) {
+      installProgress.value = '正在导入本地引擎...'
+      const importResult = await invokeInstallPluginFromLocal({ sourceDir: result.path })
+      if (!importResult.success) {
+        setError(new Error(importResult.message))
+        installProgress.value = ''
+      }
+      else {
+        installProgress.value = 'GPT-SoVITS 引擎导入完成！'
+        infoMessage.value = importResult.message
+        void refreshEngines()
+      }
+    }
+  }
+  catch (e) {
+    setError(e)
+  }
+  finally {
+    importingFromLocal.value = false
+  }
+}
+
+async function chooseAndInstallFromLocalZips() {
+  clearMessages()
+  importingZipsFromLocal.value = true
+  try {
+    const result = await invokeChooseDirectory({ title: '选择存放 GPT-SoVITS 分卷 ZIP 的目录（如 gpt-sovits.0001.zip ~ 0006.zip）' })
+    if (!result.canceled && result.path) {
+      installProgress.value = '正在解压并导入本地引擎...'
+      const importResult = await invokeInstallPluginFromLocalZips({ volumesDir: result.path })
+      if (!importResult.success) {
+        setError(new Error(importResult.message))
+        installProgress.value = ''
+      }
+      else {
+        installProgress.value = 'GPT-SoVITS 引擎导入完成！'
+        infoMessage.value = importResult.message
+        void refreshEngines()
+      }
+    }
+  }
+  catch (e) {
+    setError(e)
+  }
+  finally {
+    importingZipsFromLocal.value = false
+  }
+}
+
+async function refreshPluginsDir() {
+  try {
+    pluginsDir.value = await invokeGetRuntimePluginsDir()
+  }
+  catch (e) {
+    console.warn('[tts-section] get plugins dir failed:', e)
+  }
+}
+
+// 选择插件存储位置并迁移已安装插件。GPT-SoVITS 引擎体积大（数 GB），
+// 默认装在 C 盘 userData 下，用户可把它迁到其他磁盘。
+async function choosePluginsDir() {
+  clearMessages()
+  pickingPluginsDir.value = true
+  try {
+    const result = await invokeChooseDirectory({ title: '选择插件存储目录（GPT-SoVITS 引擎将安装在此）' })
+    if (!result.canceled && result.path) {
+      if (result.path.toLowerCase() === pluginsDir.value.toLowerCase()) {
+        infoMessage.value = '已是最新目录，无需迁移'
+        return
+      }
+      const confirmText = `将插件存储目录迁移到「${result.path}」？\n已安装的 GPT-SoVITS 引擎（可能数 GB）会自动复制过去并删除原目录。`
+      if (!window.confirm(confirmText))
+        return
+      pluginsDirBusy.value = true
+      installProgress.value = '正在迁移插件目录，请稍候...'
+      const r = await invokeSetRuntimePluginsDir({ dir: result.path })
+      installProgress.value = ''
+      if (!r.ok) {
+        setError(new Error(r.message))
+        return
+      }
+      pluginsDir.value = result.path
+      infoMessage.value = r.message
+      void refreshEngines()
+    }
+  }
+  catch (e) {
+    installProgress.value = ''
+    setError(e)
+  }
+  finally {
+    pluginsDirBusy.value = false
+    pickingPluginsDir.value = false
   }
 }
 
@@ -486,7 +649,13 @@ onMounted(() => {
   void refreshStatus()
   void refreshEngines()
   void refreshConfig()
+  void refreshPluginsDir()
   void refreshVoices()
+  invokeGetCapabilities().then((caps: SystemCapabilities) => {
+    capabilities.value = caps
+    if (threadsInput.value === undefined)
+      threadsInput.value = Math.min(4, caps.physicalCores)
+  }).catch(() => {})
 })
 </script>
 
@@ -562,6 +731,80 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 插件存储位置 -->
+    <div :class="CARD">
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          插件存储位置
+        </span>
+        <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
+          GPT-SoVITS 引擎（数 GB）默认安装在系统盘。如果你的 C 盘空间紧张，可以把它迁到其他磁盘，已安装的引擎会自动搬移。
+        </span>
+      </div>
+      <div class="flex items-end gap-2 mt-1">
+        <div class="flex-1">
+          <FieldInput
+            :model-value="pluginsDir"
+            type="text"
+            disabled
+            placeholder="加载中..."
+          />
+        </div>
+        <Button
+          variant="secondary" size="md"
+          :loading="pickingPluginsDir || pluginsDirBusy"
+          :disabled="pickingPluginsDir || pluginsDirBusy || isRunning"
+          label="更换目录"
+          icon="i-solar:folder-path-connect-bold-duotone"
+          @click="choosePluginsDir"
+        />
+      </div>
+    </div>
+
+    <!-- 从本地导入引擎（离线安装 - 已解压目录） -->
+    <div :class="CARD">
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          离线导入引擎（已解压目录）
+        </span>
+        <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
+          已从 GitHub Release 手动下载 GPT-SoVITS 分卷并解压完成？选择解压后的引擎目录，应用会自动校验并导入，无需联网下载。
+        </span>
+      </div>
+      <div class="flex items-end gap-2 mt-1">
+        <Button
+          variant="secondary" size="md"
+          :loading="importingFromLocal"
+          :disabled="importingFromLocal || isRunning"
+          label="选择引擎目录并导入"
+          icon="i-solar:folder-with-files-bold-duotone"
+          @click="chooseAndInstallFromLocal"
+        />
+      </div>
+    </div>
+
+    <!-- 从本地 ZIP 分卷导入引擎（离线安装 - 分卷解压安装） -->
+    <div :class="CARD">
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+          离线导入引擎（ZIP 分卷）
+        </span>
+        <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
+          已从 GitHub Release 手动下载 GPT-SoVITS 分卷（gpt-sovits.0001.zip ~ 0006.zip）但未解压？选择存放这些 ZIP 分卷的目录，应用会自动解压并导入，无需联网下载。
+        </span>
+      </div>
+      <div class="flex items-end gap-2 mt-1">
+        <Button
+          variant="secondary" size="md"
+          :loading="importingZipsFromLocal"
+          :disabled="importingZipsFromLocal || isRunning"
+          label="选择分卷目录并导入"
+          icon="i-solar:archive-check-bold-duotone"
+          @click="chooseAndInstallFromLocalZips"
+        />
+      </div>
+    </div>
+
     <!-- 端口配置 -->
     <div :class="CARD">
       <div class="flex flex-col gap-1">
@@ -608,7 +851,57 @@ onMounted(() => {
         :options="DEVICE_OPTIONS"
         select-class="w-full"
       />
+
+      <Callout v-if="capabilities?.isLowSpec" theme="orange">
+        {{ t('settings.tts.low_spec_warning') }}
+      </Callout>
+
+      <!-- CPU 核心数配置 -->
+      <div v-if="deviceInput === 'cpu'" class="flex flex-col gap-1 mt-1">
+        <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
+          CPU 推理线程数
+        </span>
+        <div class="flex items-end gap-2">
+          <div class="flex-1">
+            <FieldInput
+              v-model="threadsInput"
+              type="number"
+              :min="1"
+              :max="capabilities?.physicalCores ?? 4"
+              placeholder="4"
+            />
+          </div>
+          <Button
+            variant="primary" size="md"
+            :disabled="threadsInput === undefined || threadsInput < 1"
+            label="保存线程数"
+            icon="i-solar:diskette-bold-duotone"
+            @click="saveThreads"
+          />
+        </div>
+      </div>
+
+      <!-- 本机配置信息 -->
+      <div v-if="capabilities" class="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-neutral-500 dark:text-neutral-400 pt-1">
+        <span>{{ capabilities.cpuModel }}</span>
+        <span>{{ capabilities.physicalCores }} 核</span>
+        <span>{{ capabilities.logicalCores }} 线程</span>
+        <span>{{ capabilities.totalMemoryGB }} GB 内存</span>
+        <span v-if="capabilities.gpu">· {{ capabilities.gpu.vendor }} {{ capabilities.gpu.model }}</span>
+      </div>
     </div>
+
+    <ConfirmDeviceSwitchDialog
+      :visible="dialogVisible"
+      :current-device="deviceInput as 'cpu' | 'auto' | 'cuda-half' | 'cuda'"
+      :target-device="(pendingDevice ?? deviceInput) as 'cpu' | 'auto' | 'cuda-half' | 'cuda'"
+      :current-threads="threadsInput"
+      :target-threads="pendingThreads"
+      :device-only-threads-changed="pendingDevice === null"
+      :confirming="applying"
+      @confirm="confirmSwitch"
+      @cancel="cancelSwitch"
+    />
 
     <!-- 运行状态详情 -->
     <div :class="CARD">

@@ -248,6 +248,22 @@ export async function streamFrom({
         const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
         await options?.onStreamEvent?.(streamEvent as StreamEvent)
 
+        // REVIEW: 诊断 — 记录所有 stream 事件类型，定位 LLM 返回空回复
+        try {
+          if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+            const ev = event as { type?: string, text?: string, finishReason?: string }
+            if (ev?.type === 'text-delta' || ev?.type === 'finish' || ev?.type === 'error') {
+              ;(window as any).electron.ipcRenderer.send('chat-sync-diagnostic', JSON.stringify({
+                step: 'streamEvent',
+                eventType: ev.type,
+                text: ev.text?.slice(0, 100),
+                finishReason: ev.finishReason,
+              }))
+            }
+          }
+        }
+        catch {}
+
         // Type guard for event with type property
         if (event && typeof event === 'object' && 'type' in event) {
           const typedEvent = event as { type: string }
@@ -255,9 +271,24 @@ export async function streamFrom({
           if (typedEvent.type === 'finish') {
             const finishEvent = event as FinishEvent
             const finishReason = finishEvent.finishReason
-            const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
-            if (!waitingForToolRound || !options?.waitForTools)
-              resolveOnce()
+            // NOTICE:
+            // Some OpenAI-compatible providers emit a 'finish' event with an
+            // empty finishReason before the actual text-delta events arrive.
+            // Resolving on such an event prematurely completes the stream,
+            // causing callers (e.g. chatOrchestrator.ingest) to read an empty
+            // assistant message before the LLM text is committed to the session.
+            // When finishReason is empty/undefined, defer resolution to
+            // streamResult.steps (the authoritative completion signal attached
+            // below), which resolves only after the full interaction — including
+            // all tool-call rounds — has truly settled.
+            if (!finishReason) {
+              // Ignore finish events with empty finishReason — wait for steps
+            }
+            else {
+              const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
+              if (!waitingForToolRound || !options?.waitForTools)
+                resolveOnce()
+            }
           }
           else if (typedEvent.type === 'error') {
             const errorEvent = event as { type: 'error', error?: unknown }
@@ -271,6 +302,21 @@ export async function streamFrom({
     }
 
     try {
+      // REVIEW: diagnostic - log LLM request config
+      try {
+        if (typeof window !== 'undefined' && (window as any).electron?.ipcRenderer) {
+          ;(window as any).electron.ipcRenderer.send('chat-sync-diagnostic', JSON.stringify({
+            step: 'streamStart',
+            baseURL: chatConfig.baseURL,
+            model: chatConfig.model,
+            hasApiKey: !!(chatConfig as any).apiKey || !!(chatConfig as any).headers?.Authorization,
+            messageCount: sanitized.length,
+            toolsCount: tools?.length ?? 0,
+          }))
+        }
+      }
+      catch {}
+
       const streamResult = streamText({
         ...chatConfig,
         abortSignal: options?.abortSignal,

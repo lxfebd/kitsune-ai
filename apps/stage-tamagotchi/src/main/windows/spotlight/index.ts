@@ -118,7 +118,25 @@ export function setupSpotlightWindowManager(params: {
       },
     })
 
-    window.on('blur', () => window.hide())
+    // NOTICE: 原来是 window.on('blur', () => window.hide())，但主窗口
+    // type: 'panel' 在 Windows 上会抢焦点，导致 spotlight 刚弹出来就 blur
+    // → 立刻隐藏。加 150ms 延迟 + focus 取消，只有真正失焦才隐藏。
+    let blurHideTimer: ReturnType<typeof setTimeout> | undefined
+    window.on('blur', () => {
+      if (blurHideTimer)
+        clearTimeout(blurHideTimer)
+      blurHideTimer = setTimeout(() => {
+        if (!window.isDestroyed() && !window.isFocused())
+          window.hide()
+        blurHideTimer = undefined
+      }, 150)
+    })
+    window.on('focus', () => {
+      if (blurHideTimer) {
+        clearTimeout(blurHideTimer)
+        blurHideTimer = undefined
+      }
+    })
 
     const { context } = createContext(ipcMain, window)
     await setupBaseWindowElectronInvokes({ context, window, i18n: params.i18n, serverChannel: params.serverChannel })

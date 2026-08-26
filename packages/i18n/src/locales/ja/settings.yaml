@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: 監督者
+      description: 監督者システムはタスクを自動的に監視し、接続されたツールに割り当てます。
+      error-title: 監督者エラー
+      enable-label: 監督者を有効化
+      enable: 有効化
+      disable: 無効化
+      status:
+        running: 実行中
+        stopped: 停止中
+      tools-title: 監視ツール
+      tool-running: 実行中
+      tool-idle: 待機中
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "推論デバイスの切り替え"
+    title_threads: "CPU スレッド数の調整"
+    current: "現在"
+    target: "切り替え先"
+    restart_hint: "切り替えにより TTS サービスを再起動します。初回のモデル読み込みは遅くなる場合があります"
+    cancel: "キャンセル"
+    confirm: "切り替えを確認"
+    cpu:
+      - "CUDA ランタイムを読み込まず、VRAM を解放"
+      - "推論速度は CPU 性能とコア数に依存"
+      - "GPU 非依存で、互換性が高い"
+    cuda_half:
+      - "GPU 半精度で推論し、速度と VRAM のバランスを確保"
+      - "NVIDIA GPU と CUDA ランタイムが必要"
+      - "速度は GPU モデルと VRAM 帯域幅に依存"
+    cuda:
+      - "GPU 全精度で推論し、音質の上限が高い"
+      - "半精度より VRAM 使用量が多い"
+      - "速度は GPU モデルに依存"
+    auto:
+      - "GPT-SoVITS が最適なデバイスを自動選択"
+      - "利用可能な GPU がある場合は GPU を優先"
+      - "速度とリソース使用量は選択されたデバイスに依存"
+  device_options:
+    cpu: "CPU 推論（推奨、既定）"
+    auto: "自動（システム選択）"
+    cuda_half: "GPU 半精度（ハードウェアアクセラレーション）"
+    cuda: "GPU 全精度（高音質）"
+  low_spec_warning: "このマシンは低スペックです。ローカル TTS はリソースを多く消費するため、クラウド TTS の利用を検討するか、慎重に有効化してください。"
+  threads_label: "CPU スレッド数"
+  machine_info: "本機の構成"
 

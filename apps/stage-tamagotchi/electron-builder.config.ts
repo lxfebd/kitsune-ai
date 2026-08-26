@@ -134,6 +134,20 @@ export default {
       to: 'models/sherpa-onnx',
       filter: ['**/*'],
     },
+    // Live2D 模型（桌宠）：作为 extraResources 放到 asar 外，避免 Vite 构建
+    // 重命名文件名导致 live2d-file-server 找不到。
+    {
+      from: '../../packages/stage-ui/src/assets/live2d/models',
+      to: 'live2d/models',
+      filter: ['*.zip'],
+    },
+    // Config 文件（providers.yaml / tools.yaml / mcp.yaml 等）：打包到 dist/win-unpacked/config/，
+    // 供 overseer executor / doctor 等模块读取。to: '../config' 表示放在 resources 的上级目录。
+    {
+      from: '../../config',
+      to: '../config',
+      filter: ['**/*'],
+    },
   ],
   extraMetadata: {
     name: 'ai.kitsune.desktop',

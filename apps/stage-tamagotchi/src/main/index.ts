@@ -1,11 +1,12 @@
-﻿import type { BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
 import { execSync } from 'node:child_process'
+import { writeFileSync } from 'node:fs'
 import process, { env, platform } from 'node:process'
 
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@kitsune/i18n/locales'
@@ -78,6 +79,12 @@ import {
   electronTtsStream,
   electronTtsGetConfig,
   electronTtsInstallProgress,
+  electronTtsInstallPluginFromLocal,
+  electronTtsInstallPluginFromLocalZips,
+  electronGetRuntimePluginsDir,
+  electronSetRuntimePluginsDir,
+  electronTtsApplyConfig,
+  electronGetSystemCapabilities,
 } from '../shared/eventa'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -97,12 +104,42 @@ if (process.platform === 'win32') {
   catch { /* non-critical, ignore if chcp is unavailable */ }
 }
 
-// Swallow EPIPE errors from console.log when pipe closes (e.g. terminal disconnect)
-const originalConsoleLog = console.log.bind(console)
-console.log = (...args: unknown[]) => {
-  try { originalConsoleLog(...args) }
+// NOTICE:
+// 包装 console.info/log/warn/error，吞掉 EPIPE 错误。应用作为后台进程或被
+// 重定向输出时，管道关闭后任何 console 写入都会抛 `EPIPE: broken pipe, write`
+// （例如 auto-updater 通过 console.warn 输出告警、Node 内部 process.on('warning')
+// 通过 console.error 输出）。未被捕获时 Electron 默认弹出 "Error" 对话框，
+// 用户会看到标题为 Error 的原生弹窗且应用"看起来没内容"。
+// 移除条件：确认所有输出路径都不再使用管道（例如默认 detached 启动无重定向）。
+const safeConsoleWrite = (fn: (...args: unknown[]) => void, args: unknown[]): void => {
+  try {
+    fn(...args)
+  }
   catch { /* EPIPE when pipe closes */ }
 }
+const originalConsoleLog = console.log.bind(console)
+const originalConsoleInfo = console.info.bind(console)
+const originalConsoleWarn = console.warn.bind(console)
+const originalConsoleError = console.error.bind(console)
+console.log = (...args) => safeConsoleWrite(originalConsoleLog, args)
+console.info = (...args) => safeConsoleWrite(originalConsoleInfo, args)
+console.warn = (...args) => safeConsoleWrite(originalConsoleWarn, args)
+console.error = (...args) => safeConsoleWrite(originalConsoleError, args)
+
+// NOTICE: 捕获主进程未捕获异常并写入文件，防止 Electron 默认弹出 "Error" 对话框。
+// 错误同时落盘，便于诊断（logs/uncaught-error.log、logs/unhandled-rejection.log）。
+process.on('uncaughtException', (error) => {
+  try {
+    writeFileSync(join(app.getPath('userData'), 'logs', 'uncaught-error.log'), `${new Date().toISOString()}\n${error.stack ?? error.message}\n`, { flag: 'a' })
+  }
+  catch { /* ignore */ }
+})
+process.on('unhandledRejection', (reason) => {
+  try {
+    writeFileSync(join(app.getPath('userData'), 'logs', 'unhandled-rejection.log'), `${new Date().toISOString()}\n${String(reason)}\n`, { flag: 'a' })
+  }
+  catch { /* ignore */ }
+})
 
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
@@ -312,7 +349,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, aboutWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -440,7 +477,7 @@ app.whenReady().then(async () => {
               return { ok: true }
             // 窗口管理
             case 'listWindows':
-              return { ok: true, result: await desktopAutomation.listWindows() }
+              return { ok: true, result: JSON.parse(JSON.stringify(await desktopAutomation.listWindows())) }
             case 'focusWindow':
               return { ok: true, result: await desktopAutomation.focusWindow(params.title, params.processName) }
             case 'maximizeWindow':
@@ -461,7 +498,106 @@ app.whenReady().then(async () => {
           }
         }
         catch (error) {
-          return { ok: false, error: String(error) }
+          // NOTICE: errorMessageFrom converts non-serializable Error objects to plain strings
+          // so the response is always JSON-serializable over IPC (structured clone algorithm).
+          return { ok: false, error: errorMessageFrom(error) ?? String(error) }
+        }
+      })
+      // REVIEW: 诊断 — chat-sync 消息是否到达 authority 窗口
+      ipcMain.on('chat-sync-diagnostic', (_event, message: string) => {
+        try {
+          const data = typeof message === 'string' ? JSON.parse(message) : message
+          log.withFields(data).log('chat-sync diagnostic')
+        }
+        catch {
+          log.log(`chat-sync diagnostic (raw): ${message}`)
+        }
+      })
+      // 备用通道：ipcMain.handle 直接注册，供 renderer 端 ipcRenderer.invoke 调用
+      // （避免 eventa 的 ctx.emit 间歇性结构化克隆序列化失败）
+      ipcMain.handle('desktop-automation:invoke', async (_event, payloadJson) => {
+        // NOTICE: renderer 端传 JSON 字符串而非对象，与 resolveDesktopInvoker 配对。
+        // 字符串永远可克隆，彻底绕开 V8 structuredClone 对纯对象偶发的序列化失败。
+        // 兼容旧版对象格式（容错降级）。
+        const payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : payloadJson
+        const { action, params } = payload
+        const clone = (value: unknown) => JSON.parse(JSON.stringify(value))
+        const respond = (value: { ok: boolean, result?: unknown, error?: string }) => JSON.stringify(value)
+        try {
+          switch (action) {
+            case 'click':
+              await desktopAutomation.click(params.button)
+              return respond({ ok: true })
+            case 'moveTo':
+              if (params.x === undefined || params.y === undefined)
+                return respond({ ok: false, error: '缺少 x/y 坐标' })
+              await desktopAutomation.moveTo(params.x, params.y)
+              return respond({ ok: true })
+            case 'drag':
+              if (!params.from || !params.to)
+                return respond({ ok: false, error: '缺少 from/to 坐标' })
+              await desktopAutomation.drag(params.from, params.to)
+              return respond({ ok: true })
+            case 'type':
+              if (!params.text)
+                return respond({ ok: false, error: '缺少 text 内容' })
+              await desktopAutomation.type(params.text)
+              return respond({ ok: true })
+            case 'pressKey':
+              if (!params.key)
+                return respond({ ok: false, error: '缺少 key' })
+              await desktopAutomation.pressKey(params.key)
+              return respond({ ok: true })
+            case 'scroll':
+              if (!params.direction)
+                return respond({ ok: false, error: '缺少 direction' })
+              await desktopAutomation.scroll(params.direction, params.amount, params.x, params.y)
+              return respond({ ok: true })
+            case 'screenshot':
+              return respond({ ok: true, result: await desktopAutomation.screenshot() })
+            case 'getCursorPosition':
+              return respond({ ok: true, result: clone(await desktopAutomation.getCursorPosition()) })
+            case 'findElement':
+              if (!params.description)
+                return respond({ ok: false, error: '缺少 description' })
+              return respond({ ok: true, result: clone(await desktopAutomation.findElement(params.description)) })
+            case 'setOverlayInteractive':
+              if (params.interactive === undefined)
+                return respond({ ok: false, error: '缺少 interactive' })
+              await desktopAutomation.setOverlayInteractive(params.interactive)
+              return respond({ ok: true })
+            case 'listWindows':
+              return respond({ ok: true, result: clone(await desktopAutomation.listWindows()) })
+            case 'focusWindow':
+              if (!params.title && !params.processName)
+                return respond({ ok: false, error: '缺少 title 或 processName' })
+              return respond({ ok: true, result: clone(await desktopAutomation.focusWindow(params.title, params.processName)) })
+            case 'maximizeWindow':
+              if (!params.title && !params.processName)
+                return respond({ ok: false, error: '缺少 title 或 processName' })
+              return respond({ ok: true, result: clone(await desktopAutomation.maximizeWindow(params.title, params.processName)) })
+            case 'minimizeWindow':
+              if (!params.title && !params.processName)
+                return respond({ ok: false, error: '缺少 title 或 processName' })
+              return respond({ ok: true, result: clone(await desktopAutomation.minimizeWindow(params.title, params.processName)) })
+            case 'restoreWindow':
+              if (!params.title && !params.processName)
+                return respond({ ok: false, error: '缺少 title 或 processName' })
+              return respond({ ok: true, result: clone(await desktopAutomation.restoreWindow(params.title, params.processName)) })
+            case 'closeWindow':
+              if (!params.title && !params.processName)
+                return respond({ ok: false, error: '缺少 title 或 processName' })
+              return respond({ ok: true, result: clone(await desktopAutomation.closeWindow(params.title, params.processName)) })
+            case 'launchApp':
+              if (!params.command)
+                return respond({ ok: false, error: '缺少 command' })
+              return respond({ ok: true, result: clone(await desktopAutomation.launchApp(params.command, params.args)) })
+            default:
+              return respond({ ok: false, error: `未知操作: ${action}` })
+          }
+        }
+        catch (error) {
+          return respond({ ok: false, error: errorMessageFrom(error) ?? String(error) })
         }
       })
       // 注册 findElement 视觉定位结果处理器（渲染进程回传）
@@ -475,12 +611,17 @@ app.whenReady().then(async () => {
       sidecarServiceRef = sidecarService
       // 应用启动时自动拉起 GPT-SoVITS sidecar（后台、非阻塞），打开语音/声线面板即可见声线，
       // 无需手动点「启动」。失败（如模型缺失）仅记日志，不影响主进程启动。
+      // 仅在运行时插件已安装（或目录已配置）时才自动拉起，避免启动即触发 6GB 插件下载拖垮系统。
       void (async () => {
         try {
-          const { getGptSovitsStatus, startGptSovits } = await import('./services/kitsune/tts')
+          const { resolveGptSovitsDir, getGptSovitsStatus, startGptSovits } = await import('./services/kitsune/tts')
           const status = getGptSovitsStatus(sidecarService)
           if (status.running) {
             log.log('[GPT-SoVITS] 已在运行，跳过自动启动')
+            return
+          }
+          if (!resolveGptSovitsDir()) {
+            log.log('[GPT-SoVITS] 未安装引擎，跳过自动启动（可在设置页离线导入或手动启动）')
             return
           }
           log.log('[GPT-SoVITS] 应用启动，自动拉起 sidecar...')
@@ -593,13 +734,6 @@ app.whenReady().then(async () => {
       })
       // GPT-SoVITS 启停与配置 — 参照 electronComfyuiStart/Stop/SetConfig 模式，
       // 进程由 SidecarService 管理，adapter 层负责解析安装目录、Python 路径与端口。
-      // 注入运行时插件安装进度转发：GPT-SoVITS 未内置时按需下载，进度实时推给渲染层。
-      {
-        const { setGptSovitsInstallProgressReporter } = await import('./services/kitsune/tts')
-        setGptSovitsInstallProgressReporter((progress) => {
-          context.emit(electronTtsInstallProgress, { message: progress.detail || progress.phase })
-        })
-      }
       defineInvokeHandler(context, electronTtsStart, async () => {
         if (!sidecarServiceRef)
           throw new Error('sidecarService not ready')
@@ -617,14 +751,80 @@ app.whenReady().then(async () => {
         return getGptSovitsConfig()
       })
       defineInvokeHandler(context, electronTtsSetConfig, async (payload) => {
-        if (!payload?.dir && payload?.port === undefined && payload?.device === undefined)
-          throw new Error('tts set-config requires dir, port, or device')
+        if (!payload?.dir && payload?.port === undefined && payload?.device === undefined && payload?.threads === undefined)
+          throw new Error('tts set-config requires dir, port, device, or threads')
         const { setGptSovitsConfig } = await import('./services/kitsune/tts')
         return setGptSovitsConfig({
           dir: payload.dir,
           port: payload.port,
           device: payload.device,
+          threads: payload.threads,
         })
+      })
+      // 热加载配置：停止当前实例 → 用新 device/threads 重启 → 轮询就绪 → 失败回滚。
+      // 与 set-config 分工：set-config 仅落盘配置并返回 needsRestart 由调用方决定重启时机，
+      // apply-config 由主进程内部完成整套停止/启动/就绪轮询/失败回滚，仅返回成功与否与诊断消息。
+      defineInvokeHandler(context, electronTtsApplyConfig, async (payload) => {
+        if (!sidecarServiceRef)
+          throw new Error('sidecarService not ready')
+        const { restartGptSovits } = await import('./services/kitsune/tts')
+        return restartGptSovits(sidecarServiceRef, {
+          device: payload?.device,
+          threads: payload?.threads,
+        })
+      })
+      // 本机能力探测 — CPU/内存/GPU/核心数，供设置页推荐默认 device 与 threads 上限校验。
+      defineInvokeHandler(context, electronGetSystemCapabilities, async () => {
+        const { getSystemCapabilities } = await import('./services/kitsune/system-capabilities')
+        return getSystemCapabilities()
+      })
+      // 从本地已解压的引擎目录导入运行时插件
+      defineInvokeHandler(context, electronTtsInstallPluginFromLocal, async (payload) => {
+        if (!payload?.sourceDir)
+          return { success: false, message: '请选择 GPT-SoVITS 引擎目录' }
+        const { existsSync } = await import('node:fs')
+        if (!existsSync(payload.sourceDir))
+          return { success: false, message: `目录不存在: ${payload.sourceDir}` }
+        const { installRuntimePluginFromLocal } = await import('./services/kitsune/runtime-plugins')
+        try {
+          const dir = await installRuntimePluginFromLocal('tts-gptsovits', payload.sourceDir, (p) => {
+            context.emit(electronTtsInstallProgress, { message: p.detail || p.phase })
+          })
+          return { success: true, message: 'GPT-SoVITS 引擎导入完成', dir }
+        }
+        catch (error) {
+          return { success: false, message: `导入失败: ${errorMessageFrom(error)}` }
+        }
+      })
+      // 从本地 ZIP 分卷解压导入运行时插件
+      defineInvokeHandler(context, electronTtsInstallPluginFromLocalZips, async (payload) => {
+        if (!payload?.volumesDir)
+          return { success: false, message: '请选择存放 ZIP 分卷的目录' }
+        const { existsSync } = await import('node:fs')
+        if (!existsSync(payload.volumesDir))
+          return { success: false, message: `目录不存在: ${payload.volumesDir}` }
+        const { installRuntimePluginFromLocalZips } = await import('./services/kitsune/runtime-plugins')
+        try {
+          const dir = await installRuntimePluginFromLocalZips('tts-gptsovits', payload.volumesDir, (p) => {
+            context.emit(electronTtsInstallProgress, { message: p.detail || p.phase })
+          })
+          return { success: true, message: 'GPT-SoVITS 引擎导入完成', dir }
+        }
+        catch (error) {
+          return { success: false, message: `导入失败: ${errorMessageFrom(error)}` }
+        }
+      })
+      // 运行时插件存储位置：查询当前根目录
+      defineInvokeHandler(context, electronGetRuntimePluginsDir, async () => {
+        const { getRuntimePluginsDir } = await import('./services/kitsune/runtime-plugins')
+        return getRuntimePluginsDir()
+      })
+      // 运行时插件存储位置：迁移到新目录（自动搬运已安装插件）
+      defineInvokeHandler(context, electronSetRuntimePluginsDir, async (payload) => {
+        if (!payload?.dir)
+          return { ok: false, message: '请选择插件存储目录' }
+        const { setRuntimePluginsDir } = await import('./services/kitsune/runtime-plugins')
+        return setRuntimePluginsDir(payload.dir)
       })
       // GPT-SoVITS 语音合成 — 通过 sidecar HTTP API 进行本地语音合成，返回 WAV 供前端播放。
       // 懒启动：首次合成时若 sidecar 未运行才拉起 Python 进程（避免启动期常驻 261MB + 143ms 阻塞）。

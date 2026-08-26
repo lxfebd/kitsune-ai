@@ -26,12 +26,14 @@ export type DisplayModel
 const LIVE2D_FILE_SERVER_PORT = 19527
 
 function live2dModelUrl(fileName: string): string {
-  // NOTICE: Only route through the on-demand file server when running inside a
-  // real Electron window (where the main process can start it on first model
-  // request via IPC). In browser preview there is no ipcRenderer, so the server
-  // never starts and fetching http://127.0.0.1:19527 fails with ECONNREFUSED;
+  // NOTICE: Route through the local file server in ANY Electron window (DEV or
+  // production). In production the models live as extraResources next to app.asar
+  // (resources/live2d/models/<originalName>.zip), so the file name must stay the
+  // original one. Vite would otherwise rewrite it with a content hash
+  // (e.g. hiyori_pro_zh-BOkrWUw6.zip) and break both the HTTP whitelist and the
+  // live2d:read-model IPC lookup. In browser preview there is no ipcRenderer, so
   // fall back to the Vite-served asset URL instead.
-  if (import.meta.env.DEV && isStageTamagotchi() && isElectronWindow(window)) {
+  if (isStageTamagotchi() && isElectronWindow(window)) {
     return `http://127.0.0.1:${LIVE2D_FILE_SERVER_PORT}/live2d/models/${fileName}`
   }
   return new URL(`../assets/live2d/models/${fileName}`, import.meta.url).href

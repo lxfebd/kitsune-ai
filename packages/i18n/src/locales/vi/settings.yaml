@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: Giám sát
+      description: Hệ thống giám sát tự động theo dõi tác vụ và phân phối cho các công cụ đã kết nối.
+      error-title: Lỗi Giám sát
+      enable-label: Bật Giám sát
+      enable: Bật
+      disable: Tắt
+      status:
+        running: Đang chạy
+        stopped: Đã dừng
+      tools-title: Công cụ theo dõi
+      tool-running: Đang chạy
+      tool-idle: Nhàn rỗi
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "Chuyển thiết bị suy luận"
+    title_threads: "Điều chỉnh số luồng CPU"
+    current: "Hiện tại"
+    target: "Chuyển sang"
+    restart_hint: "Việc chuyển sẽ khởi động lại dịch vụ TTS; lần tải mô hình đầu tiên có thể chậm"
+    cancel: "Hủy"
+    confirm: "Xác nhận chuyển"
+    cpu:
+      - "Không nạp thư viện CUDA, giải phóng VRAM"
+      - "Tốc độ suy luận phụ thuộc vào CPU và số nhân"
+      - "Không phụ thuộc GPU, tương thích tốt hơn"
+    cuda_half:
+      - "Suy luận bán chính xác trên GPU, cân bằng tốc độ và VRAM"
+      - "Cần GPU NVIDIA và thư viện CUDA"
+      - "Tốc độ phụ thuộc vào mẫu GPU và băng thông VRAM"
+    cuda:
+      - "Suy luận chính xác toàn phần trên GPU, chất lượng âm thanh có thể cao hơn"
+      - "Sử dụng VRAM nhiều hơn chế độ bán chính xác"
+      - "Tốc độ phụ thuộc vào mẫu GPU"
+    auto:
+      - "Để GPT-SoVITS tự chọn thiết bị tối ưu"
+      - "Ưu tiên GPU khi có sẵn"
+      - "Tốc độ và tài nguyên sử dụng phụ thuộc vào thiết bị được chọn"
+  device_options:
+    cpu: "Suy luận CPU (khuyến nghị, mặc định)"
+    auto: "Tự động (hệ thống chọn)"
+    cuda_half: "GPU bán chính xác (tăng tốc phần cứng)"
+    cuda: "GPU chính xác toàn phần (chất lượng cao)"
+  low_spec_warning: "Máy này có cấu hình thấp; TTS cục bộ tiêu tốn nhiều tài nguyên. Hãy cân nhắc dùng TTS đám mây hoặc bật một cách thận trọng."
+  threads_label: "Số luồng CPU"
+  machine_info: "Cấu hình máy"
 

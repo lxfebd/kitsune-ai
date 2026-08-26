@@ -1793,6 +1793,20 @@ pages:
       cleared: Whitelist cleared.
       removed: Entry removed.
 
+    overseer:
+      title: Superviseur
+      description: Le système superviseur surveille automatiquement les tâches et les distribue aux outils connectés.
+      error-title: Erreur Superviseur
+      enable-label: Activer le superviseur
+      enable: Activer
+      disable: Désactiver
+      status:
+        running: En cours
+        stopped: Arrêté
+      tools-title: Outils d'écoute
+      tool-running: En cours
+      tool-idle: Inactif
+
     executor:
       title: Autonomous Executor
       description: Decompose requirements into CLI/IDE hybrid task lists and execute them automatically. Requires an API key (see providers.yaml active_provider's api_key_env).
@@ -2106,4 +2120,38 @@ godot:
   camera-yaw: Camera Yaw
   camera-pitch: Camera Pitch
   camera-fov: Camera FOV
+
+tts:
+  device_confirm:
+    title_switch: "Changer de dispositif d'inférence"
+    title_threads: "Ajuster le nombre de threads CPU"
+    current: "Actuel"
+    target: "Basculer vers"
+    restart_hint: "Le basculement redémarrera le service TTS ; le premier chargement du modèle peut être lent"
+    cancel: "Annuler"
+    confirm: "Confirmer le basculement"
+    cpu:
+      - "Aucune bibliothèque CUDA chargée, libère la VRAM"
+      - "La vitesse d'inférence dépend du CPU et du nombre de cœurs"
+      - "Sans dépendance GPU, meilleure compatibilité"
+    cuda_half:
+      - "Inférence GPU demi-précision, équilibre vitesse et VRAM"
+      - "Nécessite un GPU NVIDIA et la bibliothèque CUDA"
+      - "La vitesse dépend du modèle de GPU et de la bande passante VRAM"
+    cuda:
+      - "Inférence GPU pleine précision, plafond de qualité audio plus élevé"
+      - "Utilisation de VRAM supérieure à la demi-précision"
+      - "La vitesse dépend du modèle de GPU"
+    auto:
+      - "Laisser GPT-SoVITS choisir le dispositif optimal"
+      - "Préfère le GPU lorsqu'il est disponible"
+      - "La vitesse et l'utilisation des ressources dépendent du dispositif choisi"
+  device_options:
+    cpu: "Inférence CPU (recommandé, par défaut)"
+    auto: "Auto (sélection système)"
+    cuda_half: "GPU demi-précision (accélération matérielle)"
+    cuda: "GPU pleine précision (haute qualité)"
+  low_spec_warning: "Cette machine est peu puissante ; le TTS local est gourmand en ressources. Privilégiez le TTS cloud ou activez-le avec prudence."
+  threads_label: "Nombre de threads CPU"
+  machine_info: "Configuration de la machine"
 

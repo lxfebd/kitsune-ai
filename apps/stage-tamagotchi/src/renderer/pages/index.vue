@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@kitsune/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
@@ -53,7 +53,6 @@ const stageMounted = computed(() => componentStateStage.value === 'mounted')
 const isLoading = computed(() => !stageMounted.value)
 
 const isIgnoringMouseEvents = ref(false)
-const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
@@ -73,6 +72,11 @@ const isTransparentByPixels = useCanvasPixelIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
+// NOTICE: Live2D pixel transparency is a computed that fires on every mouse move.
+// Near the character's edge, anti-aliased alpha values cause it to flip rapidly
+// between transparent/non-transparent, creating a flickering feedback loop with
+// the fade-on-hover CSS transition. Debounce it to suppress micro-movement noise.
+const isTransparentByPixelsDebounced = refDebounced(isTransparentByPixels, 150)
 const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   widgetStageRef,
   relativeMouseX,
@@ -102,7 +106,7 @@ const isTransparent = computed(() => {
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
   if (stageModelRenderer.value === 'live2d')
-    return isTransparentByPixels.value
+    return isTransparentByPixelsDebounced.value
 
   return true
 })
@@ -111,10 +115,6 @@ const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBo
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
-
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -184,41 +184,27 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
 watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
   if (hearingDialogOpen.value) {
-    // Hearing dialog/drawer is open; keep window interactive
     isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutside.value || !isOutsideStatusIslandFor250Ms.value
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
-    // Inside interactive controls or near resize border: do NOT ignore events
     isIgnoringMouseEvents.value = false
-    shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
   }
   else {
     const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
     isIgnoringMouseEvents.value = fadeEnabled
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
     setIgnoreMouseEvents([fadeEnabled, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
-      pause()
   }
 })
 
@@ -261,6 +247,12 @@ type CaptionChannelEvent
     | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'kitsune-caption-overlay' })
 
+// NOTICE:
+// 之前 handleStreamingSentenceEnd 每检测到一个句尾就立即 requestIngest 发送，
+// 导致用户话还没说完就被截断发送。改为累积文本，只在 handleStreamingSpeechEnd
+//（整段语音结束、较长静音后）才一次性发送。
+let pendingVoiceText = ''
+
 function handleStreamingSentenceEnd(delta: string) {
   console.info('[Main Page] Received transcription delta:', delta)
   const finalText = delta
@@ -268,22 +260,34 @@ function handleStreamingSentenceEnd(delta: string) {
     return
   }
 
-  postCaption({ type: 'caption-speaker', text: finalText })
+  pendingVoiceText = pendingVoiceText
+    ? `${pendingVoiceText} ${finalText.trim()}`
+    : finalText.trim()
+
+  postCaption({ type: 'caption-speaker', text: pendingVoiceText })
+}
+
+function handleStreamingSpeechEnd(text: string) {
+  console.info('[Main Page] Speech ended, final text:', text)
+  // 优先使用 onSpeechEnd 回调里的完整文本，否则用累积的 pendingVoiceText
+  const fullText = (text && text.trim()) ? text.trim() : pendingVoiceText
+  pendingVoiceText = ''
+
+  if (!fullText) {
+    return
+  }
+
+  postCaption({ type: 'caption-speaker', text: fullText })
 
   void (async () => {
     try {
-      console.info('[Main Page] Sending transcription to chat:', finalText)
-      await chatSyncStore.requestIngest({ text: finalText })
+      console.info('[Main Page] Sending transcription to chat:', fullText)
+      await chatSyncStore.requestIngest({ text: fullText })
     }
     catch (err) {
       console.error('[Main Page] Failed to send chat from voice:', err)
     }
   })()
-}
-
-function handleStreamingSpeechEnd(text: string) {
-  console.info('[Main Page] Speech ended, final text:', text)
-  postCaption({ type: 'caption-speaker', text })
 }
 
 async function handleSpeechStart() {
@@ -476,12 +480,10 @@ const cursorPosition = computed(() => ({
     >
       <div
         :class="[
-          shouldFadeOnCursorWithin ? 'op-0' : 'op-100',
           'absolute',
           'top-0 left-0 w-full h-full',
           'overflow-hidden',
           'rounded-2xl',
-          'transition-opacity duration-250 ease-in-out',
         ]"
       >
         <StatusIsland v-if="IS_DEV" ref="statusIslandRef" />

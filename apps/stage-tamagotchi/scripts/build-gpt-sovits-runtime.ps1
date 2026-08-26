@@ -107,7 +107,7 @@ $packages = @(
     "g2p-pypinyin>=0.1.0",
     "pydantic>=2.0.0",
     "requests>=2.28.0",
-    "tqdm>=4.65.0",
+    "tqdm>=4.65.0"
 )
 
 Write-Host "Installing packages (this may take a while)..." -ForegroundColor Cyan
@@ -124,6 +124,52 @@ Write-Host "=== Verifying runtime ===" -ForegroundColor Cyan
 # Clean up pip cache to reduce size
 Write-Host "Cleaning pip cache..." -ForegroundColor Cyan
 & $pythonExe.FullName -m pip cache purge 2>$null
+
+# ---------------------------------------------------------------------------
+# PATCH: config.py 无 GPU guard（幂等）
+#
+# NOTICE:
+# 当用户选择 cpu 设备模式时，sidecar 启动设置 `CUDA_VISIBLE_DEVICES=''`，
+# 使 torch.cuda.device_count() 返回 0，`for i in range(max(GPU_COUNT, 1))`
+# 仍会因 `get_device_dtype_sm(0)` 探测到 GPU 不可用而返回 cpu 设备、tmp 列表
+# 仅含单个 (cpu, float32, 0.0, 0.0) 条目——这本身不抛错。但 config.py 原逻辑
+# 中 `if not GPU_INFOS:` 分支会把 GPU_INDEX 设为 0，而 `max(tmp, ...)` 在
+# tmp 为单元素列表时可正常执行。真正的问题出在更深层：若引擎版本中 tmp 为空
+# （例如 get_device_dtype_sm 在异常路径中未 append），`max()` 会抛
+# `ValueError: max() arg is an empty sequence`。打一个幂等 try/except guard
+# 让空 GPU 列表回退到 cpu，避免侧车进程因 config.py 崩溃而无法启动。
+$engineDir = Split-Path -Parent $RuntimeDir
+$configPy = Join-Path $engineDir 'config.py'
+if (Test-Path $configPy) {
+    Write-Host "Patching config.py no-GPU guard..." -ForegroundColor Cyan
+    $configContent = Get-Content $configPy -Raw
+    if ($configContent -notmatch 'except ValueError') {
+        $oldPattern = 'infer_device = max\(tmp, key=lambda x: \(x\[2\], x\[3\]\)\)\[0\]\r?\nis_half = any\(dtype == torch\.float16 for _, dtype, _, _ in tmp\)'
+        $newBlock = @'
+try:
+    infer_device = max(tmp, key=lambda x: (x[2], x[3]))[0]
+    is_half = any(dtype == torch.float16 for _, dtype, _, _ in tmp)
+except ValueError:
+    infer_device = torch.device('cpu')
+    is_half = False
+'@
+        $newBlock = $newBlock -replace '\r?\n$', ''
+        $patched = $configContent -replace $oldPattern, $newBlock
+        if ($patched -eq $configContent) {
+            Write-Host "[patch] config.py 模式匹配失败，跳过" -ForegroundColor Yellow
+        }
+        else {
+            Set-Content -Path $configPy -Value $patched -NoNewline
+            Write-Host "[patch] config.py 无 GPU guard 已应用"
+        }
+    }
+    else {
+        Write-Host "[patch] config.py 已含 no-GPU guard（except ValueError），跳过"
+    }
+}
+else {
+    Write-Host "[patch] config.py 不存在（engine 目录尚未就绪），跳过" -ForegroundColor Yellow
+}
 
 Write-Host "=== Runtime built successfully ===" -ForegroundColor Green
 Write-Host "Location: $RuntimeDir"

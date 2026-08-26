@@ -6,9 +6,12 @@
 
 /** 默认允许的操作类型 */
 export const DEFAULT_ALLOWED_ACTIONS = new Set([
-  'click', 'moveTo', 'drag', 'type', 'pressKey',
+  'click', 'moveTo', 'drag', 'type', 'pressKey', 'scroll',
   'screenshot', 'getCursorPosition', 'findElement',
   'setOverlayInteractive',
+  'listWindows', 'focusWindow', 'maximizeWindow',
+  'minimizeWindow', 'restoreWindow', 'closeWindow',
+  'launchApp',
 ])
 
 /** 敏感键盘操作 — 需要二次确认 */

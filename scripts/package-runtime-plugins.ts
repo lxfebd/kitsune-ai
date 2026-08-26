@@ -211,7 +211,7 @@ async function writeStoreZipPart(
         const header = Buffer.alloc(30)
         header.writeUInt32LE(0x04034b50, 0) // local file header sig
         header.writeUInt16LE(20, 4) // version needed
-        header.writeUInt16LE(0, 6) // flags
+        header.writeUInt16LE(0x0800, 6) // flags: bit 11 (UTF-8 filenames)
         header.writeUInt16LE(0, 8) // method: store
         header.writeUInt16LE(time, 10)
         header.writeUInt16LE(date, 12)
@@ -238,7 +238,7 @@ async function writeStoreZipPart(
         entry.writeUInt32LE(0x02014b50, 0) // central dir header sig
         entry.writeUInt16LE(20, 4) // version made by
         entry.writeUInt16LE(20, 6) // version needed
-        entry.writeUInt16LE(0, 8) // flags
+        entry.writeUInt16LE(0x0800, 8) // flags: bit 11 (UTF-8 filenames)
         entry.writeUInt16LE(0, 10) // method
         entry.writeUInt16LE(e.time, 12)
         entry.writeUInt16LE(e.date, 14)

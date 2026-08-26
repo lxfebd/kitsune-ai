@@ -55,6 +55,7 @@ import {
   OverseerEventType,
   OverseerSeverity,
   electronOverseerEvent,
+  electronOverseerLlmProvider,
   electronOverseerPushWithVerification,
   electronOverseerStats,
   electronOverseerStatus,
@@ -93,6 +94,7 @@ import { createAcceptance } from './executor/acceptance'
 import { generatePlan } from './executor/planGenerator'
 import type { Task, TaskResult } from './executor/planGenerator'
 import { createPlanner } from './executor/planner'
+import { setSyncedProviderConfig } from './executor/llmHelper'
 import { getFileLogger } from '../logger'
 
 type MainContext = ReturnType<typeof createContext>['context']
@@ -143,11 +145,12 @@ function defaultConfig(): OverseerConfig {
 }
 
 function getConfigPath(): string {
-  // electronMainDirname 指向 apps/stage-tamagotchi/src/main
-  // 向上四级回到项目根目录，再进入 config 目录
+  // 与 llmHelper.ts 的 getConfigDir() 同路径策略：
+  // 开发环境 → <monorepoRoot>/config/overseer.yaml
+  // 打包环境 → <distRoot>/config/overseer.yaml（由 extraResources 拷入）
   const electronMainDirname = getElectronMainDirname()
-  const projectRoot = join(electronMainDirname, '..', '..', '..', '..')
-  return join(projectRoot, 'apps', 'stage-tamagotchi', 'config', 'overseer.yaml')
+  const root = join(electronMainDirname, '..', '..', '..', '..')
+  return join(root, 'config', 'overseer.yaml')
 }
 
 export async function loadOverseerConfig(): Promise<OverseerConfig> {
@@ -893,6 +896,21 @@ ${errorText}`,
   }
 
   // IPC 处理器
+  defineInvokeHandler(context, electronOverseerLlmProvider, async (payload) => {
+    if (!payload || !payload.apiKey || !payload.baseUrl) {
+      log.warn('[overseer] llm-provider sync: 无效配置（缺少 apiKey 或 baseUrl），已清除')
+      setSyncedProviderConfig(null)
+      return { ok: false }
+    }
+    setSyncedProviderConfig({
+      baseUrl: payload.baseUrl,
+      model: payload.model,
+      apiKey: payload.apiKey,
+    })
+    log.log('[overseer] llm-provider synced', { providerId: payload.providerId, model: payload.model, baseUrl: payload.baseUrl })
+    return { ok: true }
+  })
+
   defineInvokeHandler(context, electronOverseerToggle, async (payload) => {
     const enabled = payload?.enabled ?? false
     if (enabled)
