@@ -49,10 +49,14 @@ async function loadFallbackProviders(): Promise<ProviderConfig[]> {
 }
 
 function callLlmWithProvider(
-  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number },
+  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number, type?: string },
   systemPrompt: string,
   userPrompt: string,
 ): Promise<{ ok: boolean, text?: string, error?: string }> {
+  if (provider.type === 'anthropic') {
+    return callAnthropicApi(provider, systemPrompt, userPrompt)
+  }
+
   const url = `${provider.baseUrl.replace(/\/+$/, '')}/chat/completions`
   const body = {
     model: provider.model,
@@ -68,6 +72,54 @@ function callLlmWithProvider(
   }
 
   return fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) }, provider.model)
+}
+
+async function callAnthropicApi(
+  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number },
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ ok: boolean, text?: string, error?: string }> {
+  const url = `${provider.baseUrl.replace(/\/+$/, '')}/v1/messages`
+  const body = {
+    model: provider.model,
+    max_tokens: provider.maxCompletionTokens ?? 4096,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+  }
+  const headers: Record<string, string> = {
+    'x-api-key': provider.apiKey,
+    'anthropic-version': '2023-06-01',
+    'content-type': 'application/json',
+  }
+
+  let lastError = ''
+  for (const [_attempt, delayMs] of FETCH_RETRY_DELAYS_MS.entries()) {
+    try {
+      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+      if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+        const errText = await resp.text().catch(() => '')
+        return { ok: false, error: `Anthropic HTTP ${resp.status}: ${errText.slice(0, 200)}` }
+      }
+      if (!resp.ok) {
+        lastError = `Anthropic HTTP ${resp.status}`
+        const retryAfter = resp.headers.get('retry-after')
+        const waitMs = retryAfter ? Math.max(parseInt(retryAfter, 10) * 1000, delayMs) : delayMs
+        await sleep(waitMs)
+        continue
+      }
+      const data = await resp.json()
+      const text = data.content?.[0]?.text
+      if (!text)
+        return { ok: false, error: 'Anthropic 返回空内容' }
+      console.log(`[llm] Anthropic 200 ${provider.model} → ${text.length} chars`)
+      return { ok: true, text }
+    }
+    catch (err) {
+      lastError = `网络错误: ${err instanceof Error ? err.message : String(err)}`
+      await sleep(delayMs)
+    }
+  }
+  return { ok: false, error: `重试 3 次均失败：${lastError}` }
 }
 
 /**
@@ -155,7 +207,7 @@ export async function callLlm(
       continue
     }
     const result = await callLlmWithProvider(
-      { baseUrl: provider.base_url, model: provider.model, apiKey, maxCompletionTokens: provider.max_completion_tokens },
+      { baseUrl: provider.base_url, model: provider.model, apiKey, maxCompletionTokens: provider.max_completion_tokens, type: provider.type },
       systemPrompt,
       userPrompt,
     )

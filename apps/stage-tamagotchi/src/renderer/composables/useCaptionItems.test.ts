@@ -40,7 +40,13 @@ describe('useCaptionItems', () => {
 
       expect(captions.items.value.map(item => item.text)).toEqual(['assistant'])
 
+      // assistant 项不过期（AI 回复气泡持久显示，不设 TTL），推进 ttl 后仍存在
       vi.advanceTimersByTime(1000)
+
+      expect(captions.items.value.map(item => item.text)).toEqual(['assistant'])
+
+      // 需显式 clearType 才能移除不过期的 assistant 项
+      captions.clearType('caption-assistant')
 
       expect(captions.items.value).toEqual([])
     }
