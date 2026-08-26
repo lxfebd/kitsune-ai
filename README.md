@@ -149,7 +149,51 @@ The project is feature-complete for a personal desktop companion. Before invitin
 
 ---
 
-## 7 · Docs & contributing（文档与贡献）
+## 7 · Changelog（更新记录）
+
+> 按时间倒序排列。每条记录对应一次提交或一组关联提交，说明**改了什么**和**为什么改**。
+
+### 2026-08-26 · `e8d775a` — 修复流式 TTS 与 ASR 自动发送
+
+- **TTS 流式只出噪音/语气词**：GPT-SoVITS 流式合成（`-sm normal`）实际返回 OGG 帧（`pack_ogg`），但启动参数 `-mt raw` 污染了 HTTP `Content-Type` 为 `audio/raw`，旧逻辑据此误判为 `pcm-int16`，前端把 OGG 字节当 PCM 解码 → 噪音。修复：流式 `format` 固定为 `ogg`；前端改为自适应解码（先 `decodeAudioData`，失败回退 PCM int16 字节重解释）。
+- **ASR 话没说完就发送**：VAD 静音帧数从 30（~0.96s）提高到 45（~1.44s），避免正常停顿被误判为句尾；`debouncedAutoSend` 增加诊断日志，输出 `autoSendEnabled` / `autoSendDelay` 真实值，便于排查 localStorage 残留。
+- **随同提交**：overseer 监工感知层、桌面自动化 safety 白名单 + Win 键支持、findElement 渲染进程直推、system-capabilities 检测、运行时插件下载机制、i18n 设置翻译扩展、GPT-SoVITS 设备切换对话框。
+
+### 2026-08-21 · `ee3441e` `919c6e2` `6718cdd` — 打包运行时依赖修复
+
+- **`ERR_MODULE_NOT_FOUND`**：`zod-to-json-schema` 和 `@modelcontextprotocol/sdk` 被误放在 `devDependencies`，打包后运行时找不到。移至 `dependencies`。
+- **koffi 原生模块缺失**：`koffi`（Windows 桌面自动化后端）及其 `ms/debug` 依赖未正确打包进 asar，导致打包后 `require('koffi')` 失败。显式声明为依赖并确保打包包含。
+- **lockfile 同步**：`pnpm-lockfile` 与 `debug/ms` 依赖声明对齐。
+
+### 2026-08-20 · `65a0a79` `d65fc86` — 项目元数据与 BOM 修复
+
+- **项目 URL 迁移**：所有 `package.json` 的 `repository`、`author`、`electron-updater` 的 `owner`/`repo` 从旧地址指向 `lxfebd/kitsune-ai`，确保 GitHub Release 自动更新 feed 正确。
+- **UTF-8 BOM 破坏 `pnpm install`**：`package.json` 和 `tsconfig.json` 文件头残留 UTF-8 BOM（`\uFEFF`），导致 pnpm 解析 JSON 失败。剥离 BOM。
+
+### 2026-08-19 · `34e51df` + 多提交 — GPT-SoVITS 运行时插件化与发布管线
+
+- **GPT-SoVITS 引擎改为运行时插件**：不再打包内置（体积过大），改为首次启动时按需下载（含自带 Python runtime，解压即用）。`resolvePluginRoot('tts-gptsovits')` 探测插件目录；设置页提供「离线导入引擎（ZIP 分卷）」入口，避免 GitHub 直连下载失败。
+- **GitHub Actions 发布管线**：序列化 Win/Linux 发布 job 避免 draft 竞态；`publish` flag 经 `exec` 传递避免 dangling `--`；发布 job 独立 checkout 让 `gh` 校验 tag；安装包文件名含空格时动态检测。
+- **CI 基础设施**：Linux X11 构建依赖（`libxrandr-dev` 等）安装；`uiohook-napi` 原生模块编译；`pnpm-lockfile` 同步 `electron-updater` 版本钉。
+- **功能扩展**：computer-use MCP 扩展、Discord bot、Minecraft 服务；overseer 监控加固与 task pusher；web 路由类型刷新；pocket 首页刷新；display models 更新；comfyui/doctor/plugins/sidecar 精炼；Windows koffi 后端与平台工厂；overseer 任务执行/计划生成/监督面板加固；i18n + 本地 ASR/TTS 调优与设置翻译。
+
+### 2026-08-19 · `67051dd` — 双语 README 与 MIT 许可
+
+- 撰写中英双语 README（项目定位、架构图、功能地图、品牌出处、路线图）。
+- 添加 MIT LICENSE，保留 `moeru-ai/airi` 上游版权归属。
+- 添加架构记忆文档。
+
+### 2026-08-07 · `c51e17c` — TypeCheck 零基线
+
+- 全仓库 `typecheck` 从大量错误归零，移除 `kitsune-overseer` 遗留 JS 死代码。
+
+### 2026-07-28 · `379326c` — 初始提交
+
+- Kitsune AI monorepo 初始提交：Vue 3 + Electron + Hono 后端，Live2D 舞台，本地 ASR/TTS，Overseer 编排，桌面自动化，多前端（web/pocket/admin/tamagotchi）。
+
+---
+
+## 8 · Docs & contributing（文档与贡献）
 
 - [AGENTS.md](./AGENTS.md) — repository guide & conventions
 - [.github/CONTRIBUTING.md](.github/CONTRIBUTING.md) — contribution guide (commit conventions / PR checklist)
