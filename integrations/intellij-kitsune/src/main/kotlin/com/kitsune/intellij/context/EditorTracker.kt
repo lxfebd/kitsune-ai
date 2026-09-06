@@ -1,6 +1,7 @@
 package com.kitsune.intellij.context
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.event.CaretEvent
 import com.intellij.openapi.editor.event.CaretListener
 import com.intellij.openapi.editor.event.SelectionEvent
@@ -27,6 +28,7 @@ class EditorTracker(
 
     private val debounceAlarm = Alarm(ThreadToUse.SWING_THREAD, this)
     private val connection = project.messageBus.connect(this)
+    private val editorEventMulticaster = EditorFactory.getInstance().eventMulticaster
 
     fun start() {
         // 编辑器切换：FileEditorManagerListener.selectionChanged
@@ -36,21 +38,21 @@ class EditorTracker(
             }
         })
 
-        // 光标移动：CaretListener.caretPositionChanged（编辑器级别多播）
-        connection.subscribe(CaretListener.CARET_TOPIC, object : CaretListener {
+        // 光标移动：EditorEventMulticaster.addCaretListener（2024.3+ 取代 CaretListener.CARET_TOPIC）
+        editorEventMulticaster.addCaretListener(object : CaretListener {
             override fun caretPositionChanged(event: CaretEvent) {
                 if (event.editor.project !== project) return
                 trigger("cursor")
             }
-        })
+        }, this)
 
-        // 选区变化：SelectionListener.selectionChanged
-        connection.subscribe(SelectionListener.SELECTION_TOPIC, object : SelectionListener {
+        // 选区变化：EditorEventMulticaster.addSelectionListener（2024.3+ 取代 SelectionListener.SELECTION_TOPIC）
+        editorEventMulticaster.addSelectionListener(object : SelectionListener {
             override fun selectionChanged(event: SelectionEvent) {
                 if (event.editor.project !== project) return
                 trigger("selection")
             }
-        })
+        }, this)
     }
 
     /** 文件保存由外部 BulkFileListener 触发，调用此方法以统一去抖入口 */

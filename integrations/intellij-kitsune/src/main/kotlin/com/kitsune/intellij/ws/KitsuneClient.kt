@@ -20,10 +20,10 @@ import java.util.concurrent.atomic.AtomicReference
 private val LOG = logger<KitsuneClient>()
 
 /** 任务执行 payload，对齐 vscode-kitsune types.ts 的 TaskExecutePayload */
-sealed class TaskExecutePayload(val taskId: String) {
-    data class OpenFile(val taskId: String, val path: String, val line: Int?, val column: Int?) : TaskExecutePayload(taskId)
-    data class InsertCode(val taskId: String, val code: String, val position: String?) : TaskExecutePayload(taskId)
-    data class RunCommand(val taskId: String, val command: String, val args: List<String>?) : TaskExecutePayload(taskId)
+sealed class TaskExecutePayload(open val taskId: String) {
+    data class OpenFile(override val taskId: String, val path: String, val line: Int?, val column: Int?) : TaskExecutePayload(taskId)
+    data class InsertCode(override val taskId: String, val code: String, val position: String?) : TaskExecutePayload(taskId)
+    data class RunCommand(override val taskId: String, val command: String, val args: List<String>?) : TaskExecutePayload(taskId)
 }
 
 data class TaskResultPayload(val taskId: String, val success: Boolean, val error: String? = null)

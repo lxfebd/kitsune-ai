@@ -4,6 +4,7 @@ build/
 
 # IntelliJ Platform sandbox
 .idea/
+.intellijPlatform/
 *.iml
 *.iws
 *.ipr

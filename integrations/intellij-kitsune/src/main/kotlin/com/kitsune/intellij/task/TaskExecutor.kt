@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.kitsune.intellij.util.NotificationHelper
 import com.kitsune.intellij.ws.TaskExecutePayload
 import com.kitsune.intellij.ws.TaskResultPayload
+import java.io.File
 
 private val LOG = logger<TaskExecutor>()
 
@@ -78,7 +79,7 @@ class TaskExecutor(
         val commandLine = GeneralCommandLine().apply {
             exePath = payload.command
             payload.args?.let { addParameters(it) }
-            workDirectory = project.basePath
+            project.basePath?.let { workDirectory = File(it) }
         }
         val handler = OSProcessHandler(commandLine)
         handler.addProcessListener(object : ProcessAdapter() {

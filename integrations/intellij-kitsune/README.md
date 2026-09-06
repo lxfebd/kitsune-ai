@@ -18,8 +18,8 @@ Kitsune AI 的 JetBrains IDE 连接器（IDEA / PyCharm / WebStorm / GoLand）�
 ## 开发环境要求
 
 - JDK 21（JetBrains Runtime 21）
-- Gradle 8.x（通过 Gradle Wrapper）
-- IntelliJ Platform Gradle Plugin 2.x（`org.jetbrains.intellij.platform` 2.16.0）
+- Gradle 9.x（9.7.1 实测；IntelliJ Platform Gradle Plugin 2.16 起要求 Gradle 9.0+，8.x 会因插件版本要求失败）
+- IntelliJ Platform Gradle Plugin 2.x（`org.jetbrains.intellij.platform` 2.16.0，实测构建成功）
 - Kotlin 2.1.20
 
 ## 构建与打包

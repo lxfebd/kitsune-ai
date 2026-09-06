@@ -19,7 +19,8 @@ dependencies {
     intellijPlatform {
         // 以 IDEA Community 作为编译基线，运行时可被 Ultimate / PyCharm / WebStorm 加载
         intellijIdeaCommunity("2025.2.6.2")
-        testFramework(TestFrameworkType.Platform.JUnit4)
+        // IPGP 2.16 移除了 Platform.JUnit4，改用 JUnit5 测试框架（junit:junit 4.13.2 仍显式声明）
+        testFramework(TestFrameworkType.JUnit5)
     }
 
     // WebSocket 客户端：OkHttp（成熟、轻量）
