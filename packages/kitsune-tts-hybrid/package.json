@@ -1,0 +1,19 @@
+{
+  "name": "@kitsune/tts-hybrid",
+  "version": "1.0.0",
+  "description": "混合 TTS 系统 - 云端 + 本地 GPU",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "sidecar:install": "cd sidecar && pip install -r requirements.txt",
+    "sidecar:start": "cd sidecar && python gateway.py"
+  }
+}

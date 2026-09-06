@@ -1,0 +1,122 @@
+brand:
+  name: Kitsune
+devtools:
+  assistant-name: Kitsune
+  web-haptics:
+    preset:
+      success: 성공
+      nudge: 넛지
+      error: 오류
+      buzz: 버즈
+  performance-visualizer:
+    recording: 녹화 중
+    start-recording: 녹화 시작
+    stop-recording: 녹화 중지 (최대 60초)
+  background-removal:
+    process: '{count}개 이미지 처리'
+    processing: '처리 중... {percent}%'
+    download-all: '모두 다운로드 ({count})'
+    clear-all: 모두 지우기
+  notifications:
+    title-label: 제목
+    title-description: 알림 제목
+    content-label: 내용
+    content-description: 알림 내용
+errors:
+  '404':
+    title: 우리가 어디 있죠?
+    go-back: 뒤로
+settings:
+  characters:
+    unknown: 알 수 없음
+chat:
+  actions:
+    retry: Retry
+  message:
+    character-name:
+      kitsune: Kitsune AI
+      core-system: 코어
+      you: 당신
+  reasoning: 추론
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
+message: 듣고 있어요...
+send-mode:
+  title: Send key
+  enter: 엔터
+  ctrl-enter: Ctrl + Enter
+  double-enter: Double Enter
+operations:
+  load-models: 모델 불러오기
+  load-models-status:
+    loading: 로딩 중
+    ready: 준비됨
+select-a-audio-input: 오디오 입력 선택
+select-a-model: 모델 선택
+select-a-voice: 음성 선택
+viewers:
+  debug-menu:
+    emotions: 감정
+    emotions-btn:
+      angry: 화남
+      awkward: 어색함
+      happy: 행복함
+      neutral: '🙂 중립'
+      question: '🤔 질문'
+      sad: 슬픔
+      surprised: 놀람
+      think: '🤨 생각'
+    vrm:
+      camera: 카메라
+      model:
+        title: 모델
+profile-switcher:
+  no-profile: 프로필 없음
+  no-profiles: 아직 프로필 없음
+  save-as-new: 새로운 프로필로 저장하기
+  new-profile-name: 프로필 이름
+  manage: 프로필 관리
+promo-banner:
+  items:
+    build:
+      watermark: 빌드
+      fallbackLabel: 빌드 보너스
+      title: Supply Box Bonus
+      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      date: 03/30 - 04/12
+      reward: 5 Supply Vouchers + Upgrade Materials
+      cta: 작업 보기
+    spring:
+      watermark: Spring
+      fallbackLabel: Spring Draw
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      date: 04/01 - 04/18
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
+    coupon:
+      watermark: 대화
+      fallbackLabel: 쿠폰
+      title: Top-Up Coupon
+      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      date: 04/02 - 04/20
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: 쿠폰 받기
+    home:
+      watermark: 홈
+      fallbackLabel: 방 테마
+      title: 봄 테마 업데이트
+      eventName: ........
+      date: 04/05 - 04/22
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: 테마 보기
+waiting: 대기 중
+websocket-status:
+  connected: 연결됨
+  disconnected: 연결 없음
+  open-settings: 연결 설정 열기

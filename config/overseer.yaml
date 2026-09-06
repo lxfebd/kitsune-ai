@@ -1,0 +1,61 @@
+# Overseer 监工配置
+# 启用后监工服务会在应用启动时自动运行，监听任务事件并分发执行。
+version: 1
+enabled: true
+tools:
+  - id: claude_code
+    name: Claude Code
+    type: process
+    detect:
+      processName: claude
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+      - compile_failed
+      - test_failed
+    enabled: true
+  - id: opencode
+    name: Opencode
+    type: process
+    detect:
+      processName: opencode
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+  - id: trae
+    name: Trae
+    type: process
+    detect:
+      processName: trae
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+  - id: cursor
+    name: Cursor
+    type: process
+    detect:
+      processName: cursor
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+  - id: codex
+    name: OpenAI Codex
+    type: process
+    detect:
+      processName: codex
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+# CLI 任务的合法 cwd 根目录，空数组=不限制
+allowedRoots: []
+# 监控器轮询间隔（毫秒）
+pollInterval: 10000

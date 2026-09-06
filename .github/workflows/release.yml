@@ -1,0 +1,188 @@
+name: Release
+
+# 构建并发布桌面安装包到 GitHub Release，供 electron-updater 自动更新。
+# 触发方式：
+#   - 推送 tag（v*）→ 自动构建（Windows + Linux）并由 publish job 创建唯一 Release 并上传全部产物
+#   - 手动 workflow_dispatch → 选择目标平台，仅构建并上传到 Actions Artifacts（不发布）
+#
+# 为什么用显式发布：electron-builder 勾子会为同一 tag 的多个平台各自 publish 时静默创建
+# 多个 draft Release（"already exists/overwrite" 却仍新建），导致破碎的重复产物。因此这里
+# 平台 job 一律 --publish never 只构建，产物经 artifacts 收集后由一个 publish job 用 gh 创建
+# 唯一 Release 并统一上传，保证发布过程确定且单一。
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+  workflow_dispatch:
+    inputs:
+      target:
+        description: '要构建的目标平台'
+        required: true
+        default: 'win'
+        type: choice
+        options:
+          - win
+          - linux
+          - all
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  VERSION: ${{ github.ref_name }}
+
+jobs:
+  build-win:
+    name: Build Windows
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'all' || github.event.inputs.target == 'win'))
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Install native build tools (Windows)
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build packages
+        run: pnpm run build:packages
+
+      - name: Build & package (Windows)
+        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Upload artifact (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-win
+          if-no-files-found: error
+          path: |
+            apps/stage-tamagotchi/dist/*-setup.exe
+            apps/stage-tamagotchi/dist/*.blockmap
+
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && (github.event.inputs.target == 'all' || github.event.inputs.target == 'linux'))
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install native build deps (Linux)
+        run: sudo apt-get update && sudo apt-get install -y libx11-dev libxtst-dev libxrandr-dev pkg-config build-essential
+
+      - name: Install deps
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build packages
+        run: pnpm run build:packages
+
+      - name: Build & package (Linux)
+        run: pnpm -F @kitsune/stage-tamagotchi run build && pnpm -F @kitsune/stage-tamagotchi exec electron-builder --linux --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact (Linux)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          if-no-files-found: error
+          path: |
+            apps/stage-tamagotchi/dist/*.deb
+            apps/stage-tamagotchi/dist/*.rpm
+
+  publish:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs: [build-win, build-linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      # gh 需要用 git 仓库校验 tag 与生成 release notes，因此必须 checkout（含完整历史与 tag）。
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-win
+          path: ./artifacts
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-linux
+          path: ./artifacts
+
+      - name: Generate update feeds
+        # electron-builder 在 --publish never 下不写 latest-*.yml，这里按产物动态生成，
+        # 供 electron-updater 解析（Windows: latest-x64.yml；Linux: latest-x64-linux.yml）。
+        run: |
+          node -e '
+          const fs=require("fs"),crypto=require("crypto"),path=require("path");
+          const dir="./artifacts";
+          const ver=String(process.env.VERSION).replace(/^v/,"");
+          const sha=p=>crypto.createHash("sha512").update(fs.readFileSync(p)).digest("base64");
+          for(const file of fs.readdirSync(dir)){
+            const ext=path.extname(file);
+            if(ext===".exe"||ext===".deb"||ext===".rpm"){
+              const p=path.join(dir,file);
+              const s=sha(p),size=fs.statSync(p).size;
+              const name=ext===".exe"?"latest-x64.yml":"latest-x64-linux.yml";
+              const body=`version: ${ver}\nfiles:\n  - url: ${file}\n    sha512: ${s}\n    size: ${size}\npath: ${file}\nsha512: ${s}\nreleaseDate: ${new Date().toISOString()}\n`;
+              fs.writeFileSync(path.join(dir,name),body);
+              console.log("wrote "+name+" for "+file.replace(/\n/g," "));
+            }
+          }
+          '
+
+      - name: Create and upload Release
+        # 产物文件名含空格（Kitsune AI-0.10.3-…），shell 展开 ./* 会拆成多参数导致失败，
+        # 因此用 gh release create 的 --files-from-stdin 或逐个上传。这里用 find -print0 |
+        # xargs -0 传参，规避空格问题。
+        run: |
+          find ./artifacts -type f -print0 | xargs -0 gh release create "${{ github.ref_name }}" --title "${{ github.ref_name }}" --generate-notes
+
+      - name: Verify Release
+        run: |
+          echo "== assets on ${{ github.ref_name }} =="
+          gh release view "${{ github.ref_name }}" --json assets -q '.assets[].name'

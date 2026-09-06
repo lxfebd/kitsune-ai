@@ -1,0 +1,24 @@
+{
+  "name": "@kitsune/overseer",
+  "version": "1.0.0",
+  "description": "监工系统 - 监控 AI 编程工具状态，汇总事件驱动桌宠反应。",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "sql.js": "1.14.1"
+  },
+  "devDependencies": {
+    "@types/sql.js": "^1.4.0",
+    "vitest": "^4.1.4"
+  }
+}

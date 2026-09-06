@@ -1,0 +1,103 @@
+node_modules
+dist
+out
+.turbo
+.eslintcache
+apps/stage-web/.cache/
+
+# 构建日志
+*.log
+*.err
+
+# 调试/临时文件
+nul
+"nul ; Write-Host ok"
+nul*
+*.csv
+dev_perf*
+electron_fix*
+install*.log
+install*.err
+rmdir.log
+问题.txt
+
+# 一次性调试脚本（不提交到仓库）
+chk40.ps1
+chkpath.ps1
+fix_env.ps1
+fix_links.ps1
+fixpath.ps1
+fixpath2.ps1
+restart_dev.ps1
+rundv.ps1
+rundv2.ps1
+rundv3.ps1
+testmirror.ps1
+fixelectron.bat
+rundev.bat
+runinstall.bat
+nodecheck.cjs
+nodecheck.js
+patchidx.cjs
+
+# pnpm force install 临时文件
+.pnpm_force_install.*
+.pnpm_ignore.*
+
+# 自定义运行时目录
+.autoplan-runtime
+.codebuddy
+.mimocode
+.opencode
+.trae
+.zed
+
+# 内部/配置目录（最终决定提交）
+# .agents/  -> 提交（技能定义）
+# .github/ -> 提交（CI/CD）
+# config/ -> 提交（配置模板）
+
+# AI 开发记忆/计划/审计文档（不入仓）
+.ai-memory/
+
+# 其他工作目录（不需提交）
+kimik3/
+
+# 外部克隆的仓库
+open/
+
+# 二进制模型和资源（太大，应该用 LFS 或外部下载）
+# 仅忽略仓库根的 resources 与桌面端模型目录；包内 src/resources 源码需提交，不在此规则内
+# 注意：apps/stage-tamagotchi/resources 下的 gpt-sovits/workflows 等大型运行时资源不入库；
+# 但图标等小型构建必需资源必须提交，否则 CI 构建在解析 icon.png?asset 时会报 UNRESOLVED_IMPORT。
+/resources/
+apps/stage-tamagotchi/resources/*!apps/stage-tamagotchi/resources/icon.png
+!apps/stage-tamagotchi/resources/icon-512.png
+!apps/stage-tamagotchi/resources/icon.svg
+!apps/stage-tamagotchi/resources/tray-icon-macos.png
+
+# 环境变量/密钥（禁止入仓；保留 *.example 作为模板）
+.env
+.env.*
+!.env.example
+
+# 死代码备份（可还原，不入库；2026-08-07 overseer m0.5 清理）
+_dead_overseer_js_*/
+
+# 一次性调试产物（不提交到仓库）
+coverage/
+diag-*.mjs
+*.diag.mjs
+.screenshots/
+*_check.png
+*_capture.png
+capture_screen.ps1
+
+# 内部开发文档（含计划/进度/隐私信息，不入仓）
+docs/
+# Rust / napi-rs 构建产物（cargo target 与 .node 二进制，平台特定不入库）
+/target/
+*.node
+
+# TypeScript 声明产物（tsc -b 生成，可再生成）
+dist-types/

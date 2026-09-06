@@ -1,0 +1,122 @@
+brand:
+  name: Kitsune
+devtools:
+  assistant-name: Kitsune
+  web-haptics:
+    preset:
+      success: 成功
+      nudge: 輕推
+      error: 錯誤
+      buzz: 振動
+  performance-visualizer:
+    recording: 錄製中
+    start-recording: 開始錄製
+    stop-recording: 停止錄製（最長 60 秒）
+  background-removal:
+    process: '處理 {count} 張圖片'
+    processing: '處理中... {percent}%'
+    download-all: '全部下載 ({count})'
+    clear-all: 全部清除
+  notifications:
+    title-label: 標題
+    title-description: 通知標題
+    content-label: 內容
+    content-description: 通知內容
+errors:
+  '404':
+    title: 我們在哪？
+    go-back: 返回
+settings:
+  characters:
+    unknown: 未知
+chat:
+  actions:
+    retry: Retry
+  message:
+    character-name:
+      kitsune: Kitsune AI
+      core-system: 核心系統
+      you: 你
+  reasoning: 推理
+  sessions:
+    title: Conversations
+    new: + New
+    empty: No conversations yet
+    cloud-badge: Synced to cloud
+    new-chat-fallback: New chat
+    delete: Delete conversation
+message: 說點什麼...
+send-mode:
+  title: 傳送按鍵
+  enter: Enter
+  ctrl-enter: Ctrl + Enter
+  double-enter: Enter + Enter
+operations:
+  load-models: 載入模型
+  load-models-status:
+    loading: 模型載入中
+    ready: 已就緒
+select-a-audio-input: 選擇一個音訊輸入裝置
+select-a-model: 選擇一個模型
+select-a-voice: 選擇一個聲線
+viewers:
+  debug-menu:
+    emotions: 表情
+    emotions-btn:
+      angry: '😠 生氣'
+      awkward: '😳 尷尬'
+      happy: '😄 開心'
+      neutral: '🙂 日常'
+      question: '🤔 疑問'
+      sad: '😫 難過'
+      surprised: '🤯 驚喜'
+      think: '🤨 思考'
+    vrm:
+      camera: 攝影機
+      model:
+        title: 模型
+profile-switcher:
+  no-profile: 無設定檔
+  no-profiles: 暫時沒有設定檔
+  save-as-new: 儲存為新設定檔
+  new-profile-name: 設定檔名稱
+  manage: 管理設定檔
+promo-banner:
+  items:
+    build:
+      watermark: Build
+      fallbackLabel: Build Bonus
+      title: Supply Box Bonus
+      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      date: 03/30 - 04/12
+      reward: 5 Supply Vouchers + Upgrade Materials
+      cta: 查看任務
+    spring:
+      watermark: 春天
+      fallbackLabel: Spring Draw
+      title: Capsule Carnival
+      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      date: 04/01 - 04/18
+      reward: Half-Price First Pull + Rare Charm
+      cta: Draw Now
+    coupon:
+      watermark: Talk
+      fallbackLabel: Coupon
+      title: Top-Up Coupon
+      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      date: 04/02 - 04/20
+      reward: Save 6 on 30 / Save 15 on 68
+      cta: Claim Coupon
+    home:
+      watermark: Home
+      fallbackLabel: Room Theme
+      title: Spring Theme Update
+      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
+      date: 04/05 - 04/22
+      reward: Free Theme Draw Ticket on Sign-in
+      cta: View Theme
+waiting: 等待中
+websocket-status:
+  connected: 已連線
+  disconnected: 未連線
+  open-settings: 開啟連線設定

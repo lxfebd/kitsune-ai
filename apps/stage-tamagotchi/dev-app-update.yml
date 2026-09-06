@@ -1,0 +1,7 @@
+provider: github
+# NOTICE: 配置为你的 GitHub 仓库，格式：owner/repo
+owner: ''
+repo: ''
+updaterCacheDirName: kitsune-updater
+allowPrerelease: true
+channel: nightly

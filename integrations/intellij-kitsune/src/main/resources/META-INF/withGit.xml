@@ -1,0 +1,3 @@
+<idea-plugin>
+    <!-- Git4Idea 可选依赖配置：通过反射软引用 git4idea.* API，无需在此注册扩展点 -->
+</idea-plugin>

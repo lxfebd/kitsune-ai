@@ -1,0 +1,22 @@
+{
+  "name": "qwen3-tts",
+  "displayName": "Qwen3-TTS (C++ 加速)",
+  "version": "1.0.0",
+  "description": "纯 C++ 推理的 Qwen3-TTS，零 Python 依赖，CUDA 加速，支持声音克隆",
+  "entry": "index.js",
+  "requires": {
+    "gpu": true,
+    "minVRAMGB": 2
+  },
+  "capabilities": {
+    "streaming": true,
+    "voiceClone": true,
+    "multiLanguage": true
+  },
+  "sidecar": {
+    "script": "sidecar/qwen3_tts_server.py",
+    "port": 8006,
+    "healthPath": "/health",
+    "venv": "../../../.venv-qwen3"
+  }
+}

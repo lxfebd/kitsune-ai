@@ -1,0 +1,19 @@
+{
+  "name": "@kitsune/bm25-native",
+  "version": "0.1.0",
+  "description": "Native BM25 index (napi-rs) with incremental average-doc-length maintenance. Falls back to the TS implementation when the .node binary is absent.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src",
+    "index.node"
+  ],
+  "scripts": {
+    "build": "cargo build --release --target-dir ../../target && node scripts/copy-artifact.mjs",
+    "bench": "node --import tsx scripts/bench.mjs"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "catalog:"
+  }
+}

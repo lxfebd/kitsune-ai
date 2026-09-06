@@ -1,0 +1,31 @@
+<idea-plugin>
+    <id>com.kitsune.intellij</id>
+    <name>Kitsune AI</name>
+    <vendor email="kitsune@kitsune.ai" url="https://github.com/moeru-ai">Moeru AI</vendor>
+
+    <description><![CDATA[
+        Connects IntelliJ-based IDEs (IDEA / PyCharm / WebStorm / GoLand) to the Kitsune AI Server Channel.
+        Provides coding context streaming and remote task execution.
+    ]]></description>
+
+    <!-- 仅依赖平台核心模块，确保跨产品兼容 -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <!-- 可选：Git4Idea（IDEA/PyCharm/WebStorm 均内置）用于采集分支信息 -->
+    <depends optional="true" config-file="withGit.xml">Git4Idea</depends>
+
+    <!-- 可选：终端插件，run_command 任务复用 IDE 终端 -->
+    <depends optional="true" config-file="withTerminal.xml">org.jetbrains.plugins.terminal</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- 应用级服务：WebSocket 客户端单例 -->
+        <applicationService
+            serviceImplementation="com.kitsune.intellij.KitsunePlugin"/>
+
+        <!-- 启动入口：项目打开后初始化监听器 -->
+        <postStartupActivity implementation="com.kitsune.intellij.KitsuneProjectActivity"/>
+
+        <!-- 通知组 -->
+        <notificationGroup id="Kitsune AI" displayType="BALLOON"/>
+    </extensions>
+</idea-plugin>

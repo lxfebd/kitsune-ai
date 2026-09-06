@@ -1,0 +1,74 @@
+import type { WebSocketEventOptionalSource } from '@kitsune/server-sdk'
+
+import type { Events, TaskExecutePayload, TaskResultPayload } from './types'
+
+import { useLogger } from '@guiiai/logg'
+import { ContextUpdateStrategy, Client as ServerClient } from '@kitsune/server-sdk'
+import { nanoid } from 'nanoid'
+
+export class Client {
+  private client: ServerClient<Events> | null = null
+
+  async connect(): Promise<boolean> {
+    try {
+      this.client = new ServerClient<Events>({ name: 'proj-kitsune:plugin-trae' })
+      await this.client.connect()
+      useLogger().log('Kitsune AI (Trae) connected to Server Channel')
+      return true
+    }
+    catch (error) {
+      useLogger().errorWithError('Failed to connect to AIRI Server Channel:', error)
+      return false
+    }
+  }
+
+  disconnect(): void {
+    if (this.client) {
+      this.client.close()
+      this.client = null
+      useLogger().log('Kitsune AI (Trae) disconnected')
+    }
+  }
+
+  private async send(event: WebSocketEventOptionalSource<Events>): Promise<void> {
+    if (!this.client) {
+      useLogger().warn('Cannot send event: not connected to AIRI Server Channel')
+      return
+    }
+
+    try {
+      await this.client.connect()
+      this.client.send(event)
+    }
+    catch (error) {
+      useLogger().errorWithError('Failed to send event to AIRI:', error)
+    }
+  }
+
+  async replaceContext(context: string): Promise<void> {
+    const id = nanoid()
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context, id, contextId: id } })
+  }
+
+  async appendContext(context: string): Promise<void> {
+    const id = nanoid()
+    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context, id, contextId: id } })
+  }
+
+  onTaskExecute(callback: (payload: TaskExecutePayload) => void | Promise<void>): () => void {
+    if (!this.client) {
+      useLogger().warn('Cannot subscribe to task:execute: not connected to AIRI Server Channel')
+      return () => {}
+    }
+
+    return this.client.onEvent('task:execute', event => callback(event.data))
+  }
+
+  sendTaskResult(result: TaskResultPayload): void {
+    this.send({ type: 'task:result', data: result })
+  }
+
+  isConnected(): boolean {
+    return !!this.client
+  }
+}

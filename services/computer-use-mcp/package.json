@@ -1,0 +1,20 @@
+{
+  "name": "@kitsune/computer-use-mcp",
+  "type": "module",
+  "private": true,
+  "description": "macOS desktop orchestration MCP service for Kitsune AI",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx --watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@guiiai/logg": "catalog:"
+  },
+  "devDependencies": {
+    "tsx": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}
