@@ -306,4 +306,12 @@ pnpm knip                     # 死代码检测
 - 删除弃用包 `kitsune-mcp-bridge`、`kitsune-skills-system`（无引用方，commit `3f1a621`）。
 - 移除 `stage-tamagotchi` 6 个未使用依赖：`@kitsune/audio`、`@kitsune/ccc`、`stage-ui-live2d`、`stage-ui-spine`、`ui-transitions`、`font-chillroundm`（保留 `font-cjkfonts-allseto`/`font-xiaolai`——renderer/main.ts 动态导入）。
 - 修复 `scripts/oxlint-staged.mjs`：删除文件会因 `oxlint` 报「文件不存在」导致 pre-commit 失败，现用 `existsSync` 过滤已删文件（commit `839a720`）。
+- 修复 nano-staged 只应匹配可 lint 文件类型（`.md` 等会触发 "No files found to lint"）——`"*"` 改为 `"*.{js,mjs,cjs,ts,mts,cts,vue,jsx,tsx}"`（commit `4394b75`）。
+
+### 2026-09-06 追加：实机启动验证（electron-vite dev）
+- `pnpm dev:tamagotchi`（根目录）实机验证通过：`electron-vite dev` 启动，主进程 DI 装配完整，server-runtime WS 监听 `ws://127.0.0.1:6121` 并收到渲染进程连接（activePeers=1）。
+- 窗口创建成功，标题 `Kitsune`，尺寸 346×524；渲染进程页面 `http://localhost:5173/#/` 正常加载。
+- UI 树经无障碍 API 验证：textarea 输入框、聊天/消息区、连接状态按钮（"已连接"）、头像区、devtools 按钮等均渲染，非白屏。
+- 交互链路验证：AXPress 点击成功（devtools 按钮触发后 a11y 树新增 5 元素），type 输入 2 字符（fallback 路径）。
+- 已知噪音（不阻塞）：`SyntaxError: Identifier 'require' has already been declared`（主进程某 ESM 子模块加载报错，被捕获继续，不影响启动与 WS 连接）；duckdb-wasm sourcemap 警告（上游包问题）；dev 窗口尺寸偏小（346×524，非默认布局）。
 
