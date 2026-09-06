@@ -25,9 +25,12 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@kitsune/plugin-sdk": "workspace:*"
+    "@kitsune/plugin-sdk": "workspace:*",
+    "tsdown": "catalog:",
+    "vitest": "catalog:"
   }
 }

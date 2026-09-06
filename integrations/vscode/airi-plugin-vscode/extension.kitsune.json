@@ -1,0 +1,27 @@
+{
+  "apiVersion": "v1",
+  "kind": "manifest.extension.kitsune.ai",
+  "id": "kitsune-plugin-vscode",
+  "version": "0.1.0",
+  "permissions": {
+    "apis": [
+      {
+        "key": "kitsune:plugin-sdk:apis:kits:list",
+        "actions": ["invoke"]
+      },
+      {
+        "key": "kit.vscode-context",
+        "actions": ["invoke"]
+      }
+    ],
+    "resources": [
+      {
+        "key": "kitsune:plugin-sdk:resources:kits",
+        "actions": ["read"]
+      }
+    ]
+  },
+  "entrypoints": {
+    "electron": "./dist/index.mjs"
+  }
+}
