@@ -285,3 +285,20 @@ pnpm knip                     # 死代码检测
 - 验证：bm25/adapters/store 测试 29/29 通过（含 native-vs-TS 打分一致性测试）；stage-tamagotchi `vue-tsc --noEmit` 通过。
 - 构建：`pnpm -F @kitsune/bm25-native build`（cargo release + 复制 `index.node`）；postinstall 自动执行。
 - 注意：`index.node` 是平台特定二进制（当前 Windows x64）；跨平台分发需在各平台构建，electron-builder 可用 afterPack 钩子。
+
+---
+
+## 12 · 工程地基（2026-09-06 补齐）
+
+### Git
+- 2026-09-06 已 `git init` 并首次提交（`3b53d2d`，身份 `lxfebd <lxfebd@users.noreply.github.com>`）。
+- .gitignore 已覆盖：node_modules/dist/out/.turbo/target/.env/.env.local/dist-types/*.node 及模型/调试产物。
+- 首次提交含 307MB 运行资产（Live2D/VRM/字体/wasm）；**发布前建议迁 Git LFS 或外链下载**，否则 clone 体积大。
+
+### Server 本地启动（apps/server）
+- **硬依赖**：PostgreSQL + Redis（env 校验：`DATABASE_URL`、`REDIS_URL`、`BETTER_AUTH_SECRET`、`LLM_ROUTER_MASTER_KEY`[base64 32B] 必填；OAuth/Stripe/Resend 可选，留空降级）。
+- `docker-compose.yml`（根目录）：postgres:16-alpine + redis:7-alpine，端口 5432/6379，数据落 `./data/`。
+- `.env.local` 已生成（匹配 compose；git 忽略）。**本机无 Docker 时需另装 PG/Redis 或用远程实例**。
+- 启动：`docker compose up -d` → `pnpm dev:server`（首次启动自动跑 drizzle migration，无需手动 db:push）。
+- 已验证：env 注入 11+ 变量通过、DI 装配正常、DB 重试机制工作（无 PG 时 5 次重试后退出——属预期行为）。
+

@@ -1,0 +1,40 @@
+# kitsune-ai 本地开发基础设施：PostgreSQL + Redis
+# 用法：
+#   1. docker compose up -d
+#   2. cp apps/server/.env.example apps/server/.env.local 并按需修改（默认值已匹配本 compose）
+#   3. pnpm dev:server
+#
+# 注意：server 启动时自动执行 drizzle migration（app.ts -> migrateDatabase），
+# 因此首次启动无需手动跑 db:push。DB 数据持久化在 ./data/pg 与 ./data/redis。
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitsune-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kitsune
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d kitsune"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kitsune-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
