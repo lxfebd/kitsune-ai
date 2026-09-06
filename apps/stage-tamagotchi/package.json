@@ -120,6 +120,7 @@
     "sherpa-onnx": "catalog:",
     "shiki": "catalog:",
     "splitpanes": "catalog:",
+    "tinyexec": "catalog:",
     "uiohook-napi": "catalog:",
     "unified": "catalog:",
     "unspeech": "catalog:xsai",

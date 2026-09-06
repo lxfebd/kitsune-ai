@@ -138,6 +138,7 @@
     "unified": "catalog:",
     "unist-builder": "catalog:",
     "unist-util-visit": "catalog:",
+    "uncrypto": "catalog:",
     "unspeech": "catalog:xsai",
     "unstorage": "catalog:",
     "uuid": "catalog:",
