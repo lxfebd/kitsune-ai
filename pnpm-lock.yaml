@@ -1805,24 +1805,15 @@ importers:
       '@intlify/core':
         specifier: 'catalog:'
         version: 11.3.2
-      '@kitsune/audio':
-        specifier: workspace:^
-        version: link:../../packages/audio
       '@kitsune/bm25-native':
         specifier: workspace:^
         version: link:../../packages/bm25-native
-      '@kitsune/ccc':
-        specifier: workspace:^
-        version: link:../../packages/ccc
       '@kitsune/core-character':
         specifier: workspace:^
         version: link:../../packages/core-character
       '@kitsune/emotion-mapper':
         specifier: workspace:^
         version: link:../../packages/kitsune-emotion-mapper
-      '@kitsune/font-chillroundm':
-        specifier: workspace:^
-        version: link:../../packages/font-chillroundm
       '@kitsune/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -1853,12 +1844,6 @@ importers:
       '@kitsune/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
-      '@kitsune/stage-ui-live2d':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-live2d
-      '@kitsune/stage-ui-spine':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-spine
       '@kitsune/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
@@ -2145,9 +2130,6 @@ importers:
       '@kitsune/stage-shared':
         specifier: workspace:^
         version: link:../../packages/stage-shared
-      '@kitsune/ui-transitions':
-        specifier: workspace:^
-        version: link:../../packages/ui-transitions
       '@pnpm/find-workspace-dir':
         specifier: 'catalog:'
         version: 1000.1.5
@@ -3026,12 +3008,6 @@ importers:
 
   packages/kitsune-emotion-mapper: {}
 
-  packages/kitsune-mcp-bridge:
-    dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
-
   packages/kitsune-overseer:
     dependencies:
       sql.js:
@@ -3058,8 +3034,6 @@ importers:
       tinyexec:
         specifier: 'catalog:'
         version: 1.1.1
-
-  packages/kitsune-skills-system: {}
 
   packages/kitsune-tts-hybrid: {}
 
