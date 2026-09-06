@@ -285,6 +285,7 @@ pnpm knip                     # 死代码检测
 - 验证：bm25/adapters/store 测试 29/29 通过（含 native-vs-TS 打分一致性测试）；stage-tamagotchi `vue-tsc --noEmit` 通过。
 - 构建：`pnpm -F @kitsune/bm25-native build`（cargo release + 复制 `index.node`）；postinstall 自动执行。
 - 注意：`index.node` 是平台特定二进制（当前 Windows x64）；跨平台分发需在各平台构建，electron-builder 可用 afterPack 钩子。
+- **踩坑记录（2026-09-06，commit `648e6c5`）**：`src/index.js` 原在**模块顶层** `const require = createRequire(import.meta.url)`。rolldown 打包主进程时会为该模块自动注入另一个顶层 CommonJS shim `const require = __cjs_mod__.createRequire(...)`，同一作用域重复声明 `require` → `SyntaxError: Identifier 'require' has already been declared` → 整个 memory chunk 加载失败，连锁导致 `createMemoryService` 及依赖它的功能不可用（表现为"设置页/环境适配中心功能用不了"）。**修复**：将 `createRequire` 移入 IIFE 局部作用域，仅用 `let native` 承接结果。教训：**别在会被打包器注入 CJS shim 的 ESM 模块顶层声明 `require`**。
 
 ---
 
