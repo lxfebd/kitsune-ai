@@ -101,3 +101,6 @@ docs/
 
 # TypeScript 声明产物（tsc -b 生成，可再生成）
 dist-types/
+
+# Mellos map runtime viewer lockfiles
+.mellos/viewers/
