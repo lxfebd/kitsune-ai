@@ -20,7 +20,7 @@ describe('exportToPNG', () => {
     const result = exportToPNG(card, png)
 
     // PNG signature is preserved.
-    expect(result.slice(0, 8)).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    expect(Array.from(result.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     // Output is larger than the source — metadata chunk was added.
     expect(result.length).toBeGreaterThan(png.length)
   })

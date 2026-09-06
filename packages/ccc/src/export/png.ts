@@ -1,8 +1,10 @@
 import type { Card } from '../define'
 
-import { addMetadata, addMetadataFromBase64DataURI } from 'meta-png'
+import metaPng from 'meta-png'
 
 import { exportToJSON } from './json'
+
+const { addMetadata, addMetadataFromBase64DataURI } = metaPng
 
 /**
  * Encodes card data as metadata in a PNG image

@@ -10,6 +10,16 @@ import { dirname, join } from 'node:path'
 const here = dirname(fileURLToPath(import.meta.url))
 const pkgRoot = join(here, '..')
 
+// SDK 1.29 的 CallToolResult 带 [x: string]: unknown 索引签名，content 属性在
+// 本包 tsconfig 下被解析为 unknown；服务端工具固定返回 [{ type: 'text', text }]，
+// 这里显式窄化到我们期望的形状。
+function firstText(res: unknown): string {
+  const items = (res as { content?: unknown }).content
+  if (!Array.isArray(items)) return ''
+  const first = items[0] as { text?: unknown } | undefined
+  return typeof first?.text === 'string' ? first.text : ''
+}
+
 describe('computer-use-mcp server', () => {
   let client: Client
   let transport: StdioClientTransport
@@ -56,7 +66,7 @@ describe('computer-use-mcp server', () => {
       name: 'desktop_get_capabilities',
       arguments: {},
     })
-    const text = res.content?.[0]?.text ?? ''
+    const text = firstText(res)
     const parsed = JSON.parse(text)
     expect(parsed.executor).toBeTruthy()
     expect(typeof parsed.features.windows).toBe('boolean')
@@ -67,7 +77,7 @@ describe('computer-use-mcp server', () => {
       name: 'terminal_exec',
       arguments: { command: process.platform === 'win32' ? 'echo hello-kitsune' : "echo hello-kitsune && pwd" },
     })
-    const text = res.content?.[0]?.text ?? ''
+    const text = firstText(res)
     const parsed = JSON.parse(text)
     expect(parsed.ok).toBe(true)
     expect(parsed.stdout).toContain('hello-kitsune')
