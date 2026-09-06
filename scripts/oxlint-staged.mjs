@@ -17,6 +17,7 @@
 // nano-staged appends the matched (absolute) file paths after the flags.
 
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 // argv after the script name: [<flags...>, <files...>]
@@ -41,6 +42,12 @@ for (let i = 0; i < files.length; i += CHUNK_SIZE) {
     .slice(i, i + CHUNK_SIZE)
     // Use repo-relative paths to keep the command line short.
     .map((file) => path.relative(process.cwd(), file))
+    // Drop deleted files — oxlint errors on non-existent paths ("No files found to
+    // lint"), which would fail the whole pre-commit hook on pure-deletion commits.
+    .filter((file) => existsSync(file))
+
+  if (chunk.length === 0)
+    continue
 
   const result = spawnSync('oxlint', [...flags, ...chunk], {
     cwd: process.cwd(),
