@@ -111,11 +111,11 @@
 | `component-calling` | `@kitsune/component-calling` | 实时音视频通话 demo。 |
 | `server` | `@kitsune/server` | Hono 后端（OpenAI 网关/计费/多上游路由），详见 §5。 |
 
-### packages（51 个，核心一览）
+### packages（50 个，核心一览）
 
 **stage 系列（舞台前端）**：`stage-ui`（核心：stores/providers(14) + stores/modules(21) + composables(47) + components(247) + libs/workers/database）、`stage-shared`（env/错误/CSV/tts/window/beat-sync）、`stage-pages`、`stage-layouts`（含 use-transcriptions）、`stage-ui-live2d`、`stage-ui-spine`、`stage-ui-three`（VRM）、`stage-ui-pixi`。
 
-**kitsune- 系列**：`kitsune-overseer`（感知层）、`kitsune-persona`（SOUL.md/IDENTITY.md/persona.yaml 加载 + PersonaContextBuilder）、`kitsune-tts-hybrid`（TTS 混合路由）、`kitsune-emotion-mapper`（情绪映射）、`kitsune-screenshot`（截图编排 CLI）、`kitsune-mcp-bridge`（**已弃用**）、`kitsune-skills-system`（**已弃用**）。
+**kitsune- 系列**：`kitsune-overseer`（感知层）、`kitsune-persona`（SOUL.md/IDENTITY.md/persona.yaml 加载 + PersonaContextBuilder）、`kitsune-tts-hybrid`（TTS 混合路由）、`kitsune-emotion-mapper`（情绪映射）、`kitsune-screenshot`（截图编排 CLI）、`bm25-native`（Rust/napi-rs BM25 加速，见 §11）。
 
 **core- 系列**：`core-agent`（Agent 运行时：chat orchestrator / LLM 流式 / 上下文注册表 / hooks）、`core-character`（角色卡管道：registry/loader/context-builder）。
 
@@ -230,7 +230,7 @@ pnpm knip                     # 死代码检测
 - ~~`docs/`、`docs/solutions/`、`docs/ai/context/ui-components.md`（AGENTS.md 引用）~~ —— **已修**：引用已改为 `packages/ui` 等真实位置。
 - ~~`engines/`、`plugins/`、`examples/`（package.json workspaces）~~ —— **已修**：workspaces 改为 `packages/**`、`integrations/**`、`services/**`、`apps/**`（补齐 `integrations/`）。
 - ~~`_dead_overseer_js_2026-08-07/`（kitsune-overseer/index.js 注释引用）~~ —— **已修**：改为说明历史归档不在当前仓库。PROJECT-MAP 历史记录里仍保留该词作文档（有意）。
-- `packages/kitsune-mcp-bridge`、`packages/kitsune-skills-system` —— 标「已弃用」，无引用方，**可删**（尚未删）。
+- ~~`packages/kitsune-mcp-bridge`、`packages/kitsune-skills-system`~~ —— **已删**（2026-09-06，commit 3f1a621；确认无引用后移除）。
 - ~~`.run_dev.cmd` / `.install_ignore.cmd`（硬编码 `e:\xiangm\agentpet-backup\...`）~~ —— **已删除**。
 - ~~`config/{default,yachiyo}/mcp.yaml`、`desktop-live2d.json` 的 `G:/agentpet/...` 绝对路径~~ —— **已修**：改为相对路径/留空。
 - ~~`electron-builder.config.ts` 引用不存在的 `resources/`、`engines/`、`build/` 目录~~ —— **已修**：改为「存在才打包」的优雅回退；mac 图标/entitlements 同理。
@@ -301,4 +301,9 @@ pnpm knip                     # 死代码检测
 - `.env.local` 已生成（匹配 compose；git 忽略）。**本机无 Docker 时需另装 PG/Redis 或用远程实例**。
 - 启动：`docker compose up -d` → `pnpm dev:server`（首次启动自动跑 drizzle migration，无需手动 db:push）。
 - 已验证：env 注入 11+ 变量通过、DI 装配正常、DB 重试机制工作（无 PG 时 5 次重试后退出——属预期行为）。
+
+### 2026-09-06 追加：P1 清理
+- 删除弃用包 `kitsune-mcp-bridge`、`kitsune-skills-system`（无引用方，commit `3f1a621`）。
+- 移除 `stage-tamagotchi` 6 个未使用依赖：`@kitsune/audio`、`@kitsune/ccc`、`stage-ui-live2d`、`stage-ui-spine`、`ui-transitions`、`font-chillroundm`（保留 `font-cjkfonts-allseto`/`font-xiaolai`——renderer/main.ts 动态导入）。
+- 修复 `scripts/oxlint-staged.mjs`：删除文件会因 `oxlint` 报「文件不存在」导致 pre-commit 失败，现用 `existsSync` 过滤已删文件（commit `839a720`）。
 
