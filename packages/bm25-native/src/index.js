@@ -13,17 +13,20 @@ import { createRequire } from 'node:module'
 
 import { createBM25Index as createBM25IndexTs } from './bm25-fallback.js'
 
-const require = createRequire(import.meta.url)
-
 /** @type {import('./index.d.ts').NativeBM25Module | null} */
 let native = null
-try {
-  native = require('../index.node')
-}
-catch {
-  // .node 未编译或平台不匹配 —— 走纯 TS 回退
-  native = null
-}
+;(() => {
+  // 局部作用域内创建 require，避免顶层 const require 与打包器（rolldown）
+  // 自动注入的 CommonJS shim 在同一作用域重复声明导致 SyntaxError。
+  const require = createRequire(import.meta.url)
+  try {
+    native = require('../index.node')
+  }
+  catch {
+    // .node 未编译或平台不匹配 —— 走纯 TS 回退
+    native = null
+  }
+})()
 
 /**
  * @param {{ k1?: number, b?: number }} [options]
