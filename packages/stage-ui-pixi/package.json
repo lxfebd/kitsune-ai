@@ -29,8 +29,7 @@
   },
   "devDependencies": {
     "typescript": "catalog:",
-    "vitest": "catalog:vitest",
+    "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }
 }
-

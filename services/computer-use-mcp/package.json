@@ -10,11 +10,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
-    "@guiiai/logg": "catalog:"
+    "@guiiai/logg": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:"
   },
   "devDependencies": {
     "tsx": "catalog:",
-    "vitest": "catalog:vitest"
+    "vitest": "catalog:"
   }
 }

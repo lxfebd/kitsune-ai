@@ -25,12 +25,12 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
+    "@kitsune/stage-shared": "workspace:*",
+    "@kitsune/ui": "workspace:*",
     "@moeru/eventa": "catalog:",
     "@pixiv/three-vrm": "catalog:",
     "@pixiv/three-vrm-animation": "catalog:",
     "@pixiv/three-vrm-core": "catalog:",
-    "@kitsune/stage-shared": "workspace:*",
-    "@kitsune/ui": "workspace:*",
     "@tresjs/cientos": "catalog:",
     "@tresjs/core": "catalog:",
     "@tresjs/post-processing": "catalog:",
@@ -46,8 +46,7 @@
   "devDependencies": {
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
-    "vitest": "catalog:vitest",
+    "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }
 }
-

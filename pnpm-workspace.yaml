@@ -91,8 +91,8 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.18
   '@moeru/eventa': 1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
-  '@napi-rs/image': ^1.12.0
   '@napi-rs/cli': ^2.18.4
+  '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.215.0
@@ -167,6 +167,8 @@ catalog:
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
   '@vitejs/plugin-vue': ^6.0.6
+  '@vitest/browser-playwright': ^4.1.11
+  '@vitest/coverage-v8': ^4.1.11
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
   '@vue/tsconfig': ^0.9.1
@@ -362,6 +364,7 @@ catalog:
   vite-plugin-vue-devtools: ^8.1.1
   vite-plugin-vue-layouts: ^0.11.0
   vitepress: 2.0.0-alpha.17
+  vitest: ^4.1.11
   vitest-browser-vue: ^2.1.0
   vscode-ext-gen: ^1.6.0
   vue: ^3.5.32
@@ -387,10 +390,6 @@ catalog:
   zod-to-json-schema: ^3.25.2
 catalogMode: prefer
 catalogs:
-  vitest:
-    '@vitest/browser-playwright': ^4.1.4
-    '@vitest/coverage-v8': ^4.1.4
-    vitest: ^4.1.4
   xsai:
     unspeech: ^0.1.14
 

@@ -29,14 +29,14 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@moeru/eventa": "catalog:",
-    "@moeru/std": "catalog:",
     "@kitsune/ccc": "workspace:*",
     "@kitsune/i18n": "workspace:*",
     "@kitsune/server-sdk": "workspace:*",
     "@kitsune/stage-ui": "workspace:*",
     "@kitsune/stage-ui-three": "workspace:*",
     "@kitsune/ui": "workspace:*",
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
     "@vueuse/shared": "catalog:",
     "@xsai-ext/providers": "catalog:",
@@ -58,16 +58,15 @@
     "vue-sonner": "catalog:"
   },
   "devDependencies": {
-    "@nekopaw/tempora": "catalog:",
     "@kitsune/stage-shared": "workspace:^",
+    "@nekopaw/tempora": "catalog:",
     "@types/audioworklet": "catalog:",
     "@types/three": "catalog:",
     "@vue/test-utils": "catalog:",
     "@webgpu/types": "catalog:",
     "jsdom": "catalog:",
     "unplugin-info": "catalog:",
-    "vitest": "catalog:vitest",
+    "vitest": "catalog:",
     "vue-tsc": "catalog:"
   }
 }
-
