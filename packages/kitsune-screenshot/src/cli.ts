@@ -20,6 +20,15 @@ const electronRunnerPackagePath = path.join(repoRootPath, 'packages', 'vishot-ru
 const tamagotchiScenariosRootPath = path.join(repoRootPath, 'packages', 'scenarios-stage-tamagotchi-electron', 'src', 'scenarios')
 
 /**
+ * Normalizes a filesystem path to POSIX separators for shell delegation.
+ * `pnpm`/npm scripts receive these as cross-platform CLI arguments, so the
+ * delegated command must be identical on Windows and POSIX hosts.
+ */
+function toCliPath(p: string): string {
+  return path.normalize(p).split(path.sep).join('/')
+}
+
+/**
  * Represents one AIRI screenshot CLI capture request.
  *
  * @param command The top-level CLI command selected by the user.
@@ -182,7 +191,7 @@ export function parseAiriScreenshotCliArguments(argv: string[]): AiriScreenshotC
     command,
     target,
     scenario,
-    outputDir: outputDir ?? path.join('.vishot', 'kitsune-screenshot', 'tamagotchi'),
+    outputDir: outputDir ?? toCliPath(path.join('.vishot', 'kitsune-screenshot', 'tamagotchi')),
     format: parseFormat(format),
   }
 }
@@ -216,11 +225,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
 
   // The filtered pnpm command runs from packages/vishot-runner-electron.
   const runnerScenarioPath = scenarioPath.startsWith(repoRootPath)
-    ? path.relative(electronRunnerPackagePath, scenarioPath)
-    : scenarioPath
+    ? toCliPath(path.relative(electronRunnerPackagePath, scenarioPath))
+    : toCliPath(scenarioPath)
   const runnerOutputDir = outputDir.startsWith(repoRootPath)
-    ? path.relative(electronRunnerPackagePath, outputDir)
-    : outputDir
+    ? toCliPath(path.relative(electronRunnerPackagePath, outputDir))
+    : toCliPath(outputDir)
 
   const output = await x('pnpm', [
     '-F',

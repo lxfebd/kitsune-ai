@@ -4,8 +4,9 @@
  * 测试空闲检测、阈值触发、事件发布
  */
 
-const { describe, it, expect, beforeEach, afterEach, vi } = require('vitest')
-const { IdleDetector } = require('./idleDetector')
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { IdleDetector } from './idleDetector.js'
 
 describe('IdleDetector', () => {
   let detector
