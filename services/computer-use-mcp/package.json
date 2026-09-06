@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
-    "@modelcontextprotocol/sdk": "catalog:"
+    "@modelcontextprotocol/sdk": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "tsx": "catalog:",

@@ -16,10 +16,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "references": [
-    { "path": "./apps/stage-tamagotchi" },
-    { "path": "./apps/stage-web" }
-  ],
   "exclude": [
     "node_modules",
     "**/dist/**",
