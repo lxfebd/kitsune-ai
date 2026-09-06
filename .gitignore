@@ -109,6 +109,9 @@ dist-types/
 # Mellos map runtime viewer lockfiles
 .mellos/viewers/
 
+# 扫描缓存（repo-scanner 产物，可再生成；真图在仓库根 pet/.mellos/map.json）
+.mellos/repo-scan*.json
+
 # 生成产物与运行时状态
 .mellos/html/
 .mimosa/
