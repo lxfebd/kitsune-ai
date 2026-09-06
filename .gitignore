@@ -4,6 +4,8 @@ out
 .turbo
 .eslintcache
 apps/stage-web/.cache/
+# unplugin-fetch 下载缓存（由 scripts/seed-assets.mjs 从 git 跟踪的 assets 填充）
+.cache/
 
 # 构建日志
 *.log
@@ -95,6 +97,8 @@ capture_screen.ps1
 
 # 内部开发文档（含计划/进度/隐私信息，不入仓）
 docs/
+# 例外：scenarios 包里的 docs 场景是实际场景代码（imports 截图资产），不是内部文档
+!packages/scenarios-stage-tamagotchi-browser/src/scenes/docs/
 # Rust / napi-rs 构建产物（cargo target 与 .node 二进制，平台特定不入库）
 /target/
 *.node
