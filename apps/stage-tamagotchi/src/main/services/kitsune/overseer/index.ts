@@ -112,6 +112,24 @@ interface ToolConfig {
   detect?: { processName?: string }
   events?: string[]
   enabled: boolean
+  /**
+   * P2：CLI 控制协议声明。yaml 中给工具配了 cli 段，编排层启动时
+   * 就会把它注册进 TaskPusher 运行时注册表，自动获得 autoFix 的 cli 路由：
+   *   cli:
+   *     binary: gemini
+   *     timeoutMs: 60000
+   *     riskLevel: medium
+   *     templates:
+   *       - key: prompt
+   *         args: [--print]
+   *         inputParam: -p
+   */
+  cli?: {
+    binary: string
+    timeoutMs?: number
+    riskLevel?: 'low' | 'medium' | 'high'
+    templates?: Array<{ key: string, label?: string, args?: string[], inputParam?: string | null, maxLen?: number }>
+  }
 }
 
 interface OverseerConfig {
@@ -379,6 +397,25 @@ export function createOverseerService(params: { context: MainContext, config: Ov
 
   // ——— 执行层初始化 ———
   const taskPusher = new TaskPusher({ bus })
+  // P2：把 yaml 中声明了 cli 协议的工具注册进 TaskPusher 运行时注册表，
+  // 使它们获得与内置 CLI 工具一致的 pushTask / autoFix 能力（provider = 工具 id）
+  for (const tool of config.tools) {
+    if (!tool.enabled || !tool.cli?.binary) continue
+    const registered = taskPusher.registerTool(tool.id, {
+      name: tool.name,
+      binary: tool.cli.binary,
+      timeoutMs: tool.cli.timeoutMs,
+      riskLevel: tool.cli.riskLevel,
+      templates: tool.cli.templates?.length
+        ? tool.cli.templates
+        : [{ key: 'prompt', label: '发送指令', args: [], inputParam: null, maxLen: 2000 }],
+    })
+    if (registered) {
+      fileLogger.info('[overseer] 已注册 CLI 工具到 TaskPusher', { toolId: tool.id, binary: tool.cli.binary })
+    } else {
+      fileLogger.warn('[overseer] CLI 工具注册失败（配置非法）', { toolId: tool.id })
+    }
+  }
   const runner = createTaskRunner({ taskPusher, connectors, context, allowedRoots: config.allowedRoots ?? [], desktopAutomation })
   const auditLog = new AuditLog()
   const acceptance = createAcceptance({ visionCompare })
@@ -539,7 +576,7 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     //   1) 仅处理错误类失败事件（compile_failed / test_failed / task_failed）
     //   2) 仅对 AUTO_FIX_ROUTE 中登记、且 permissionModel 确认通过（白名单/autonomous）的来源
     //   3) 同一来源在修复进行中不去重触发，避免刷屏
-    if (isAutoFixableFailure(event) && !autoFixActive.has(event.source) && AUTO_FIX_ROUTE[event.source]) {
+    if (isAutoFixableFailure(event) && !autoFixActive.has(event.source) && AUTO_FIX_ROUTE.get(event.source)) {
       const allowed = !permissionModel.needsConfirm({ source: event.source, assertion: { type: 'auto_fix' } })
       if (allowed) {
         void triggerAutoFix(event)
@@ -556,18 +593,31 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   }
 
   /**
-   * 可进行自动修复的来源路由表。
-   * - mode 'cli'：来源具备 CLI 控制协议（claude_code / codex），走 TaskPusher 发指令
-   * - mode 'desktop'：来源是 GUI 编辑器（trae / cursor），无公开 CLI 协议，
-   *                   走桌面自动化（聚焦窗口 → 视觉定位输入框 → 粘贴指令 → 回车）
+   * 可进行自动修复的来源路由表（P2：运行时动态构建）。
+   * - mode 'cli'：来源具备 CLI 控制协议（claude_code / codex / yaml 注册的工具），走 TaskPusher 发指令
+   * - mode 'connector'：来源是 IDE 且有在线连接器（trae / cursor），走 WebSocket 连接器发指令
+   * - mode 'desktop'：来源是 GUI 编辑器且无连接器在线，走桌面自动化（聚焦窗口 → 视觉定位 → 粘贴 → 回车）
    */
-  const AUTO_FIX_ROUTE: Record<string, { mode: 'cli', provider: 'claude' | 'codex' | 'aider' | 'opencode' } | { mode: 'connector', connectorId: string } | { mode: 'desktop', processName: string }> = {
-    claude_code: { mode: 'cli', provider: 'claude' },
-    codex: { mode: 'cli', provider: 'codex' },
-    opencode: { mode: 'cli', provider: 'opencode' },
-    trae: { mode: 'connector', connectorId: 'trae' },
-    cursor: { mode: 'connector', connectorId: 'cursor' },
+  type AutoFixRoute =
+    | { mode: 'cli', provider: string }
+    | { mode: 'connector', connectorId: string }
+    | { mode: 'desktop', processName: string }
+
+  const autoFixRoutes = new Map<string, AutoFixRoute>()
+  // 内置路由：CLI 工具（provider 即 TaskPusher 注册表中的工具 key）
+  for (const [source, provider] of Object.entries({ claude_code: 'claude', codex: 'codex', opencode: 'opencode' })) {
+    autoFixRoutes.set(source, { mode: 'cli', provider })
   }
+  // 内置路由：IDE 连接器
+  autoFixRoutes.set('trae', { mode: 'connector', connectorId: 'trae' })
+  autoFixRoutes.set('cursor', { mode: 'connector', connectorId: 'cursor' })
+  // P2：yaml 中声明了 cli 协议的工具 → 自动获得 cli autoFix 路由（provider = 工具 id）
+  for (const tool of config.tools) {
+    if (tool.enabled && tool.cli?.binary) {
+      autoFixRoutes.set(tool.id, { mode: 'cli', provider: tool.id })
+    }
+  }
+  const AUTO_FIX_ROUTE = autoFixRoutes
 
   /** 正在自动修复中的来源集合，防止重复触发 */
   const autoFixActive = new Set<string>()
@@ -603,7 +653,7 @@ export function createOverseerService(params: { context: MainContext, config: Ov
    * 错误被吞掉，绝不影响主事件流；修复结束（成功/失败）后清理 autoFixActive。
    */
   async function triggerAutoFix(event: OverseerEvent): Promise<void> {
-    const route = AUTO_FIX_ROUTE[event.source]
+    const route = AUTO_FIX_ROUTE.get(event.source)
     if (!route) {
       fileLogger.debug('[overseer] autoFix: 来源无自动修复路由', { source: event.source })
       return

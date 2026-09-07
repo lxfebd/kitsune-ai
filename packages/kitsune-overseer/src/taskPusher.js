@@ -14,7 +14,7 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// 预定义工具配置 — 白名单，不可运行时修改
+// 预定义工具配置 — 内置白名单（运行时可通过 registerTool 扩展）
 const TOOL_ALLOWLIST = {
   claude: {
     name: 'Claude Code',
@@ -22,6 +22,11 @@ const TOOL_ALLOWLIST = {
     // 允许的命令模板（参数由用户提供）
     templates: [
       { key: 'prompt', label: '发送指令', args: ['--print'], inputParam: '-p', maxLen: 2000 },
+      // P3 试点：结构化 stdout（JSON Lines）——result 解析时可拿到逐条 tool_use / 错误信号，
+      // 不再靠人读文本判断成败。claude -p --output-format json 输出 JSON Lines：
+      //   {"type":"system","subtype":"init",...}
+      //   {"type":"assistant","message":{...}} / {"type":"result","subtype":"success"|"error_max_turns"|...}
+      { key: 'prompt-json', label: '发送指令(结构化)', args: ['--print', '--output-format', 'json'], inputParam: '-p', maxLen: 2000, structured: true },
       { key: 'diff', label: '请求 diff 审查', args: ['--diff', '--print'], inputParam: null, maxLen: 0 },
       { key: 'commit', label: '生成 commit', args: ['--commit', '--print'], inputParam: null, maxLen: 0 },
     ],
@@ -141,6 +146,77 @@ class TaskPusher {
     this._activeChildren = new Set();
     this._exitHandlerRegistered = false;
     this._registerExitHooks();
+    // P2：运行时注册的工具配置（yaml/编排层注入），查找时优先于内置白名单
+    this._extraTools = new Map();
+  }
+
+  /**
+   * P2：运行时注册一个工具到命令注册表。
+   *
+   * 让 yaml/编排层可以在启动时把"带 CLI 控制协议"的工具（如 gemini-cli、
+   * qwen-code）注册进 TaskPusher，获得与内置工具一致的 pushTask / autoFix 能力，
+   * 不必改包源码。注册配置与 TOOL_ALLOWLIST 同构：
+   *   { name, binary, templates: [{key,label,args,inputParam,maxLen,custom?}], timeoutMs, riskLevel }
+   * 重复注册同一 binary > 1 次会告警，但以最新一次为准。
+   *
+   * @param {string} key - 工具标识（对应 execute event 的 source / task.provider）
+   * @param {Object} cfg - 工具配置，结构同 TOOL_ALLOWLIST[key]
+   * @returns {boolean} true=注册成功，false=配置非法被拒绝
+   */
+  registerTool(key, cfg) {
+    if (!key || !cfg || typeof cfg !== 'object') {
+      console.warn(`[TaskPusher] registerTool 拒绝: 非法参数 key=${key}`);
+      return false;
+    }
+    if (!cfg.binary || !Array.isArray(cfg.templates) || cfg.templates.length === 0) {
+      console.warn(`[TaskPusher] registerTool 拒绝: ${key} 缺少 binary 或 templates`);
+      return false;
+    }
+    // 模板规范化：补默认字段，校验 key 唯一
+    const templates = cfg.templates.map((t, i) => {
+      if (!t || !t.key) return null;
+      return {
+        key: t.key,
+        label: t.label || t.key,
+        args: Array.isArray(t.args) ? t.args : [],
+        inputParam: t.inputParam ?? null,
+        maxLen: typeof t.maxLen === 'number' ? t.maxLen : 2000,
+        custom: t.custom === true,
+      };
+    });
+    if (templates.some(t => !t)) {
+      console.warn(`[TaskPusher] registerTool 拒绝: ${key} 的模板缺少 key`);
+      return false;
+    }
+    const normalized = {
+      name: cfg.name || key,
+      binary: cfg.binary,
+      templates,
+      timeoutMs: typeof cfg.timeoutMs === 'number' && cfg.timeoutMs > 0 ? cfg.timeoutMs : 60_000,
+      riskLevel: ['low', 'medium', 'high'].includes(cfg.riskLevel) ? cfg.riskLevel : 'medium',
+      custom: cfg.custom === true,
+    };
+    if (this._extraTools.has(key)) {
+      console.warn(`[TaskPusher] registerTool 覆盖已注册工具: ${key}`);
+    }
+    this._extraTools.set(key, normalized);
+    this._binaryCache = null; // 有新的二进制，失效 PATH 探测缓存
+    return true;
+  }
+
+  /**
+   * 列出运行时已注册的工具 key（供编排层查询/校验）
+   */
+  getRegisteredTools() {
+    return [...this._extraTools.keys()];
+  }
+
+  /**
+   * 查找工具配置：运行时注册表优先，其次内置白名单。
+   * @private
+   */
+  _resolveTool(key) {
+    return this._extraTools.get(key) || TOOL_ALLOWLIST[key] || null;
   }
 
   /**
@@ -180,10 +256,12 @@ class TaskPusher {
    * 返回 { key, name, templates, riskLevel, available, binary }
    * available=false 表示该工具的 CLI 二进制不在 PATH 中（如 trae/cursor 无 CLI，
    * 或 claude/codex/aider 未安装），调用方应跳过自动修复。
+   * 列表 = 内置白名单 + 运行时注册的工具。
    */
   getAvailableTools() {
     const availability = this.probeToolAvailability()
-    return Object.entries(TOOL_ALLOWLIST).map(([key, cfg]) => ({
+    const all = { ...TOOL_ALLOWLIST, ...Object.fromEntries(this._extraTools) }
+    return Object.entries(all).map(([key, cfg]) => ({
       key,
       name: cfg.name,
       templates: cfg.templates.map(t => ({ key: t.key, label: t.label })),
@@ -204,8 +282,8 @@ class TaskPusher {
    * @param {string} [options.userPermission] - 用户当前权限级别
    */
   async pushTask({ tool, templateKey, input = '', cwd = process.cwd(), userPermission = 'medium' }) {
-    // 1. 工具白名单检查
-    const toolConfig = TOOL_ALLOWLIST[tool];
+    // 1. 工具白名单检查（内置 + 运行时注册）
+    const toolConfig = this._resolveTool(tool);
     if (!toolConfig) {
       return { ok: false, error: `不支持的工具: ${tool}`, code: 'UNKNOWN_TOOL' };
     }
@@ -247,6 +325,12 @@ class TaskPusher {
     // 6. 执行命令（使用 spawn 避免 shell 注入）
     const result = await this.spawnCommand(toolConfig.binary, args, cwd, toolConfig.timeoutMs);
 
+    // P3 试点：结构化模板（claude --output-format=json）——解析 stdout JSON Lines，
+    // 把逐条错误信号回填到 result，执行层无需人读文本即可判断成败/失败原因。
+    if (template.structured && result.output) {
+      this._augmentStructuredResult(result);
+    }
+
     // 7. 记录历史
     this._recordHistory({ tool, templateKey, input: sanitizedInput, ...result });
 
@@ -264,10 +348,10 @@ class TaskPusher {
   }
 
   /**
-   * 返回工具白名单配置，供执行层查询 binary/timeoutMs/riskLevel
+   * 返回工具配置（内置 + 运行时注册），供执行层查询 binary/timeoutMs/riskLevel
    */
   getToolConfig(tool) {
-    return TOOL_ALLOWLIST[tool] || null;
+    return this._resolveTool(tool);
   }
 
   /**
@@ -346,6 +430,53 @@ class TaskPusher {
     });
   }
 
+  /**
+   * P3 试点：解析 claude --output-format=json 的 stdout（JSON Lines），
+   * 提取任务结果信号，回填到 result：
+   *   - result.subtype === 'success'            → ok=true
+   *   - result.subtype === 'error_*' / exit      → ok=false + errorMessage（优先 result 的 error 字段）
+   *   - assistant message 里的 tool_use 有 error？逐条记录 result.toolResults
+   * 解析失败（非 JSON / 截断）静默跳过，不触发额外错误路径。
+   */
+  _augmentStructuredResult(result) {
+    const messages = [];
+    let finalSubtype = null;
+    let finalError = null;
+    for (const line of result.output.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      let entry;
+      try {
+        entry = JSON.parse(trimmed);
+      } catch { continue; }
+      if (entry.type === 'result') {
+        finalSubtype = entry.subtype ?? null;
+        if (entry.result && typeof entry.result === 'object') {
+          finalError = entry.result.error || entry.result.errorMessage || finalError;
+        }
+        if (entry.subtype && entry.subtype !== 'success') {
+          finalError = finalError || entry.subtype;
+        }
+      } else if (entry.type === 'assistant' && Array.isArray(entry.message?.content)) {
+        for (const c of entry.message.content) {
+          if (c.type === 'tool_use') {
+            messages.push({ type: 'tool_use', name: c.name, id: c.id, input: c.input });
+          }
+        }
+      }
+    }
+    result.structured = {
+      parsed: finalSubtype !== null || messages.length > 0,
+      subtype: finalSubtype,
+      error: finalError,
+      toolUses: messages,
+    };
+    if (finalSubtype && finalSubtype !== 'success') {
+      result.ok = false;
+      result.error = result.error || `任务未成功: ${finalError || finalSubtype}`;
+    }
+  }
+
   _recordHistory(entry) {
     this.history.push({
       ...entry,
@@ -398,8 +529,10 @@ class TaskPusher {
     const isWin = process.platform === 'win32'
     // Windows 上可执行文件扩展名
     const exts = isWin ? ['', '.exe', '.cmd', '.bat'] : ['']
+    // 探测对象 = 内置白名单 + 运行时注册的工具
+    const all = { ...TOOL_ALLOWLIST, ...Object.fromEntries(this._extraTools) }
 
-    for (const [key, cfg] of Object.entries(TOOL_ALLOWLIST)) {
+    for (const [key, cfg] of Object.entries(all)) {
       const binary = cfg.binary
       let found = false
 

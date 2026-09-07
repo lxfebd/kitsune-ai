@@ -9,7 +9,8 @@ export interface CliTask {
   id: string
   type: 'cli'
   title: string
-  provider: 'claude' | 'codex' | 'aider' | 'opencode'
+  /** TaskPusher 注册表内的工具 key（内置 claude/codex/opencode 或 yaml 运行时注册的 CLI 工具） */
+  provider: string
   prompt: string
   cwd: string
   timeoutMs?: number
@@ -82,6 +83,8 @@ export interface TaskResult {
   error?: string
   exitCode?: number
   durationMs: number
+  /** P3：结构化模板（claude --output-format=json）解析出的结果信号 */
+  structured?: { subtype: string | null, error: string | null, toolUses: Array<{ name: string, id?: string }> } | null
 }
 
 export interface ExecutorStatus {

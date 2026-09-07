@@ -14,6 +14,41 @@ const IDE_TIMEOUT_MS: Record<string, number> = {
   run_command: 60_000,
 }
 
+/**
+ * P3：解析 claude --output-format=json 的 stdout（JSON Lines），提取任务结果信号。
+ * 与 TaskPusher._augmentStructuredResult 逻辑对齐；解析失败返回 null（调用方静默跳过）。
+ */
+function parseStructuredOutput(output: string): { subtype: string | null, error: string | null, toolUses: Array<{ name: string, id?: string }> } | null {
+  let parsed = false
+  let subtype: string | null = null
+  let error: string | null = null
+  const toolUses: Array<{ name: string, id?: string }> = []
+  for (const line of output.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    let entry: any
+    try { entry = JSON.parse(trimmed) } catch { continue }
+    parsed = true
+    if (entry.type === 'result') {
+      subtype = entry.subtype ?? subtype
+      if (entry.result && typeof entry.result === 'object') {
+        error = entry.result.error || entry.result.errorMessage || error
+      }
+      if (subtype && subtype !== 'success') {
+        error = error || subtype
+      }
+    } else if (entry.type === 'assistant' && Array.isArray(entry.message?.content)) {
+      for (const c of entry.message.content) {
+        if (c.type === 'tool_use') {
+          toolUses.push({ name: c.name, id: c.id })
+        }
+      }
+    }
+  }
+  if (!parsed) return null
+  return { subtype, error, toolUses }
+}
+
 interface TaskRunnerDeps {
   taskPusher: { spawnCommand: (binary: string, args: string[], cwd: string, timeoutMs: number) => Promise<any>, getToolConfig: (tool: string) => any, sanitizeInput: (raw: string, maxLength?: number) => string }
   connectors: { getStatus: (id: string) => ConnectorInfo | null, sendTask: (id: string, task: { type: string, payload?: Record<string, unknown> }) => { ok: boolean, error?: string } }
@@ -75,7 +110,17 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
     const timeoutMs = task.timeoutMs ?? cfg.timeoutMs
     const start = Date.now()
     const result = await taskPusher.spawnCommand(cfg.binary, args, task.cwd, timeoutMs)
-    fileLogger.debug('[taskRunner] runCliTask', { eventId: 'runCliTask', node: task.id, action: 'spawn', result: result.ok ? 'success' : result.error })
+    // P3：结构化模板的解析结果（claude --output-format=json）透传给规划器/验收，
+    // 让自动修复失败原因来自 JSON 信号而非人读文本。
+    let structured: any
+    if (template?.structured && result.output) {
+      // 与 TaskPusher._augmentStructuredResult 一致的内联解析（taskRunner 拿不到该私有方法）
+      structured = parseStructuredOutput(result.output)
+      if (structured && structured.subtype && structured.subtype !== 'success') {
+        result.ok = false
+        result.error = result.error || `任务未成功: ${structured.error || structured.subtype}`
+      }
+    }    fileLogger.debug('[taskRunner] runCliTask', { eventId: 'runCliTask', node: task.id, action: 'spawn', result: result.ok ? 'success' : result.error })
     return {
       taskId: task.id,
       ok: result.ok,
@@ -83,6 +128,7 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
       error: result.error,
       exitCode: result.exitCode,
       durationMs: Date.now() - start,
+      structured,
     }
   }
 

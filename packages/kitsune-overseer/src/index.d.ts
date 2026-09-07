@@ -71,8 +71,12 @@ export class TaskPusher {
   constructor(options?: any)
   /** 推送任务到指定工具（白名单/净化/注入检测/超时强杀） */
   pushTask(options: { tool: string, templateKey: string, input?: string, cwd?: string, userPermission?: string }): Promise<any>
-  /** 返回工具白名单配置（binary/timeoutMs/riskLevel 等） */
+  /** 返回工具白名单配置（binary/timeoutMs/riskLevel 等），含运行时注册的工具 */
   getToolConfig(tool: string): any
+  /** P2：运行时注册一个带 CLI 控制协议的工具，获得 pushTask/autoFix 能力 */
+  registerTool(key: string, cfg: { name?: string, binary: string, templates: Array<{ key: string, label?: string, args?: string[], inputParam?: string | null, maxLen?: number, custom?: boolean }>, timeoutMs?: number, riskLevel?: 'low' | 'medium' | 'high', custom?: boolean }): boolean
+  /** 列出运行时已注册的工具 key */
+  getRegisteredTools(): string[]
   /** 公开的输入净化方法（控制字符剥离 + 截断） */
   sanitizeInput(raw: string, maxLength?: number): string
   /** 使用 spawn 数组传参执行命令（非 shell，防注入） */
