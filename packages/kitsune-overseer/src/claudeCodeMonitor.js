@@ -21,15 +21,17 @@
  */
 
 const fs = require('node:fs');
-const fsp = fs.promises;
 const path = require('path');
 const { execFile } = require('node:child_process');
+const chokidar = require('chokidar');
 const { mapToUnifiedState } = require('./activityStates');
+const { TailFiles } = require('./tailFiles');
 
-// Claude Code 数据路径（跨平台）
-const CLAUDE_HOME = process.env.CLAUDE_HOME || process.env.XDG_CONFIG_HOME
-  ? path.join(process.env.XDG_CONFIG_HOME, 'claude')
-  : path.join(process.env.USERPROFILE || process.env.HOME || '', '.claude');
+// Claude Code 数据路径（跨平台；CLAUDE_HOME 显式设置时优先）
+const CLAUDE_HOME = process.env.CLAUDE_HOME
+  || (process.env.XDG_CONFIG_HOME
+    ? path.join(process.env.XDG_CONFIG_HOME, 'claude')
+    : path.join(process.env.USERPROFILE || process.env.HOME || '', '.claude'));
 const CLAUDE_HISTORY_FILE = path.join(CLAUDE_HOME, 'history.jsonl');
 const OLD_TRACES_DIR = path.join(CLAUDE_HOME, 'cc-haha', 'traces');
 const NEW_TRACES_DIR = path.join(CLAUDE_HOME, 'projects');
@@ -101,7 +103,7 @@ function analyzeActivityFallback(text) {
 }
 
 class ClaudeCodeMonitor {
-  constructor({ bus, eventBus, pollInterval } = {}) {
+  constructor({ bus, eventBus, pollInterval, watchMode } = {}) {
     this.bus = bus || eventBus;
     this.isRunning = false;
     this.lastStatus = null;
@@ -116,6 +118,14 @@ class ClaudeCodeMonitor {
       : 10000;
     this.pollTimer = null;
 
+    // P1：文件系统事件驱动唤醒（chokidar）——watchMode 可关闭，仅留轮询兜底
+    this.watchMode = watchMode !== false;
+    this.fileWatcher = null;
+    this._wakeTimer = null;
+    this._wakePending = false;
+    this._wakeDebounceMs = 800; // 连续写入合并为一次唤醒
+    this.tail = new TailFiles(); // 增量 tail：history + trace 共用，offset 只推进一次
+
     // 缓存
     this._lastHistoryLine = 0;
     this._lastTraceMTime = 0;
@@ -123,12 +133,18 @@ class ClaudeCodeMonitor {
     this._lastActivity = 'idle';
     this._lastToolCall = '';
     this._lastFilePath = '';
+    // 增量读取的"最近 N 行"窗口（每次 _check 后截断，避免无限膨胀）
+    this._recentTraceLines = [];
+    this._recentUserLines = [];
   }
 
   start() {
     if (this.isRunning) return;
     this.isRunning = true;
     console.log('[ClaudeCodeMonitor] 已启动，监控路径:', CLAUDE_HOME);
+    if (this.watchMode) {
+      this._startWatcher();
+    }
     this._startPolling();
   }
 
@@ -138,7 +154,67 @@ class ClaudeCodeMonitor {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
+    if (this._wakeTimer) {
+      clearTimeout(this._wakeTimer);
+      this._wakeTimer = null;
+    }
+    if (this.fileWatcher) {
+      this.fileWatcher.close();
+      this.fileWatcher = null;
+    }
     console.log('[ClaudeCodeMonitor] 已停止');
+  }
+
+  /**
+   * P1：chokidar 监听 Claude 数据文件，事件驱动唤醒 _check。
+   *
+   * 关键点：
+   * - awaitWriteFinish 等写入稳定（500ms 内无新写入）后再触发，避免读到半行；
+   *   稳定阈值刻意大于 tailFiles 的半行 carry 缓冲（半行跨写不丢，见 tailFiles.js）
+   * - add/change 都唤醒：Claude 会新建 records/*.jsonl（add），也会追加（change）
+   * - 目录用 glob 交给 chokidar 内部 fs 扫描，不手动 readdir
+   * - watcher 自身异常不得拖垮 monitor：捕获后仅告警，轮询兜底仍在跑
+   */
+  _startWatcher() {
+    try {
+      // 只盯具体文件/记录目录，不盯整棵 projects 树（避免 node_modules 类噪音）
+      const targets = [
+        CLAUDE_HISTORY_FILE,
+        path.join(NEW_TRACES_DIR, '*', 'records', '*.jsonl'),
+        path.join(OLD_TRACES_DIR, '*.jsonl'),
+      ];
+      this.fileWatcher = chokidar.watch(targets, {
+        ignoreInitial: true,
+        awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
+        ignored: (p) => p.includes('node_modules') || p.includes('.git'),
+      });
+
+      const wake = () => this._scheduleWake();
+      this.fileWatcher.on('add', wake);
+      this.fileWatcher.on('change', wake);
+      this.fileWatcher.on('error', (err) => {
+        console.error('[ClaudeCodeMonitor] watcher 错误:', err.message);
+      });
+    } catch (err) {
+      console.error('[ClaudeCodeMonitor] 文件监控启动失败，仅保留轮询兜底:', err.message);
+      this.fileWatcher = null;
+    }
+  }
+
+  /**
+   * 去抖唤醒：连续写入合并为一次 _check，避免高频文件事件打爆状态机
+   */
+  _scheduleWake() {
+    this._wakePending = true;
+    if (this._wakeTimer) return;
+    this._wakeTimer = setTimeout(() => {
+      this._wakeTimer = null;
+      if (!this.isRunning || !this._wakePending) return;
+      this._wakePending = false;
+      this._check().catch((err) => {
+        console.error('[ClaudeCodeMonitor] 事件唤醒检查失败:', err.message);
+      });
+    }, this._wakeDebounceMs);
   }
 
   _startPolling() {
@@ -318,23 +394,27 @@ class ClaudeCodeMonitor {
   }
 
   /**
-   * 读取用户最新输入（从 history.jsonl）
+   * 读取用户最新输入（从 history.jsonl，P1 增量式）
    */
   _readLatestUserInput() {
     try {
       if (!fs.existsSync(CLAUDE_HISTORY_FILE)) return null;
 
-      const content = fs.readFileSync(CLAUDE_HISTORY_FILE, 'utf8');
-      const lines = content.trim().split('\n').filter(Boolean);
-      if (lines.length === 0) return null;
+      const { lines } = this.tail.readNewLinesSync(CLAUDE_HISTORY_FILE)
+      if (!lines || lines.length === 0) return null;
 
-      // 读取最后几行，找最新的用户输入
-      const recentLines = lines.slice(-5);
+      // 只保留最近 N 行（增量窗口），避免无限膨胀
+      this._recentUserLines.push(...lines);
+      if (this._recentUserLines.length > 100) {
+        this._recentUserLines = this._recentUserLines.slice(-100);
+      }
+
+      // 从最新的用户输入行倒序找 display 字段
+      const recentLines = this._recentUserLines.slice(-5);
       for (let i = recentLines.length - 1; i >= 0; i--) {
         try {
           const entry = JSON.parse(recentLines[i]);
           if (entry.display && typeof entry.display === 'string') {
-            // 截断过长的输入
             return entry.display.substring(0, 200);
           }
         } catch {}
@@ -346,13 +426,15 @@ class ClaudeCodeMonitor {
   }
 
   /**
-   * 读取最新 trace 文件（实时活动）
+   * 读取最新 trace 文件（实时活动，P1 增量式）
    *
    * 探测路径（按优先级）：
    * 1. ~/.claude/projects/<proj>/records/<file>.jsonl — 新版 Claude Code
    * 2. ~/.claude/cc-haha/traces/*.jsonl — 旧版 Claude Code
    *
-   * 返回第一个有内容的 trace 目录的最新文件内容。
+   * 每次只读取"最新 trace 文件"；tailFiles 按字节偏移增量取新增行，
+   * 避免每次整读文件再取最后 N 行。truncate 归零时重置行窗口。
+   * 返回第一个有内容的 trace 目录的最新文件的新增行。
    */
   _readLatestTrace() {
     // 收集所有候选 trace 目录
@@ -398,100 +480,108 @@ class ClaudeCodeMonitor {
 
     if (!latestFile) return null;
 
-    // 如果文件没变，跳过（避免重复解析相同内容）
+    // 文件没变（mtime 快照相同）→ 无新增，跳过（避免重复解析）
     if (latestMtime === this._lastTraceMTime) {
       return null;
     }
     this._lastTraceMTime = latestMtime;
 
-    // 读取最后 50 行
-    const content = fs.readFileSync(latestFile, 'utf8');
-    const lines = content.trim().split('\n').filter(Boolean);
-    const recentLines = lines.slice(-50);
-
-      let activity = 'active';
-      let lastOutput = '';
-      let lastToolCall = '';
-      let lastFilePath = '';
-      let hasError = false;
-      let errorMessage = '';
-      let tokenUsage = 0;
-
-      // 结构化权威信号：最后一个 tool_use 的真实工具名映射出的活动类型。
-      // 只有命中 STRUCTURED_TOOL_ACTIVITY 时才更新 activity，
-      // 避免非工具类文本行（如 assistant 的解释）覆盖掉真实状态。
-      let structuredActivity = null;
-
-      for (const line of recentLines) {
-        try {
-          const entry = JSON.parse(line);
-
-          // 解析 call 记录（API 调用、工具调用）
-          if (entry.type === 'call' && entry.record) {
-            const rec = entry.record;
-
-            // 检测工具调用
-            if (rec.request?.headers?.['x-app'] === 'cli') {
-              // 这是一个 CLI 调用
-              const body = rec.request?.body;
-              if (body?.messages) {
-                // 从最后一条用户消息提取任务
-                const lastMsg = body.messages[body.messages.length - 1];
-                if (lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
-                  lastOutput = lastMsg.content.substring(0, 300);
-                }
-              }
-            }
-
-            // 检测状态 —— 直接采用 record 的真实 status，不再靠文本猜
-            if (rec.status === 'error') {
-              hasError = true;
-              errorMessage = rec.error?.message || 'Unknown error';
-              activity = 'error';
-              structuredActivity = 'error';
-            } else if (rec.status === 'ok') {
-              // 提取 token 使用量
-              if (rec.usage?.output_tokens) {
-                tokenUsage = rec.usage.output_tokens;
-              }
-              // 若尚无任何结构化工具活动，才用文本兜底猜测一次
-              if (!structuredActivity && rec.response?.content) {
-                const content = Array.isArray(rec.response.content)
-                  ? rec.response.content.map(c => c.text || '').join(' ')
-                  : String(rec.response.content);
-                const fb = analyzeActivityFallback(content);
-                if (fb !== 'active') {
-                  activity = fb;
-                  structuredActivity = fb;
-                }
-              }
-            }
-          }
-
-          // 解析真实工具使用 —— 这是最权威的活动来源
-          if (entry.type === 'tool_use' || entry.type === 'tool_result') {
-            const toolName = entry.name || entry.tool_name || '';
-            if (toolName) {
-              lastToolCall = toolName;
-              const mapped = STRUCTURED_TOOL_ACTIVITY[toolName];
-              if (mapped) {
-                activity = mapped;
-                structuredActivity = mapped;
-              } else {
-                // 未知工具名：默认视为执行类，但仍以结构化信号为准
-                activity = 'executing';
-                structuredActivity = 'executing';
-              }
-            }
-            if (entry.file_path || entry.filePath) {
-              lastFilePath = entry.file_path || entry.filePath;
-            }
-          }
-        } catch {}
-      }
-
-      return { activity, lastOutput, lastToolCall, lastFilePath, hasError, errorMessage, tokenUsage };
+    // 增量读取新增行（tailFiles 维护字节偏移；首次遇到自动建基线跳过已有内容）
+    const { lines: newLines, truncated } = this.tail.readNewLinesSync(latestFile);
+    if (truncated) {
+      this._recentTraceLines = []; // 文件被归零重写，重置行窗口
     }
+    if (newLines.length > 0) {
+      this._recentTraceLines.push(...newLines);
+      if (this._recentTraceLines.length > 200) {
+        this._recentTraceLines = this._recentTraceLines.slice(-200);
+      }
+    }
+    const recentLines = truncated ? newLines : this._recentTraceLines.slice(-50);
+
+    let activity = 'active';
+    let lastOutput = '';
+    let lastToolCall = '';
+    let lastFilePath = '';
+    let hasError = false;
+    let errorMessage = '';
+    let tokenUsage = 0;
+
+    // 结构化权威信号：最后一个 tool_use 的真实工具名映射出的活动类型。
+    // 只有命中 STRUCTURED_TOOL_ACTIVITY 时才更新 activity，
+    // 避免非工具类文本行（如 assistant 的解释）覆盖掉真实状态。
+    let structuredActivity = null;
+
+    for (const line of recentLines) {
+      try {
+        const entry = JSON.parse(line);
+
+        // 解析 call 记录（API 调用、工具调用）
+        if (entry.type === 'call' && entry.record) {
+          const rec = entry.record;
+
+          // 检测工具调用
+          if (rec.request?.headers?.['x-app'] === 'cli') {
+            // 这是一个 CLI 调用
+            const body = rec.request?.body;
+            if (body?.messages) {
+              // 从最后一条用户消息提取任务
+              const lastMsg = body.messages[body.messages.length - 1];
+              if (lastMsg?.role === 'user' && typeof lastMsg.content === 'string') {
+                lastOutput = lastMsg.content.substring(0, 300);
+              }
+            }
+          }
+
+          // 检测状态 —— 直接采用 record 的真实 status，不再靠文本猜
+          if (rec.status === 'error') {
+            hasError = true;
+            errorMessage = rec.error?.message || 'Unknown error';
+            activity = 'error';
+            structuredActivity = 'error';
+          } else if (rec.status === 'ok') {
+            // 提取 token 使用量
+            if (rec.usage?.output_tokens) {
+              tokenUsage = rec.usage.output_tokens;
+            }
+            // 若尚无任何结构化工具活动，才用文本兜底猜测一次
+            if (!structuredActivity && rec.response?.content) {
+              const content = Array.isArray(rec.response.content)
+                ? rec.response.content.map(c => c.text || '').join(' ')
+                : String(rec.response.content);
+              const fb = analyzeActivityFallback(content);
+              if (fb !== 'active') {
+                activity = fb;
+                structuredActivity = fb;
+              }
+            }
+          }
+        }
+
+        // 解析真实工具使用 —— 这是最权威的活动来源
+        if (entry.type === 'tool_use' || entry.type === 'tool_result') {
+          const toolName = entry.name || entry.tool_name || '';
+          if (toolName) {
+            lastToolCall = toolName;
+            const mapped = STRUCTURED_TOOL_ACTIVITY[toolName];
+            if (mapped) {
+              activity = mapped;
+              structuredActivity = mapped;
+            } else {
+              // 未知工具名：默认视为执行类，但仍以结构化信号为准
+              activity = 'executing';
+              structuredActivity = 'executing';
+            }
+          }
+          if (entry.file_path || entry.filePath) {
+            lastFilePath = entry.file_path || entry.filePath;
+          }
+        }
+      } catch {}
+    }
+
+    return { activity, lastOutput, lastToolCall, lastFilePath, hasError, errorMessage, tokenUsage };
+  }
 
   /**
    * 获取最近的 git 变更
