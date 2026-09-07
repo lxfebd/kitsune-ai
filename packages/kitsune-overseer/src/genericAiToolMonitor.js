@@ -427,10 +427,16 @@ class GenericAiToolMonitor {
   }
 
   _suggestReaction(status) {
+    // 透传感知层已算出的结构化信号（toolName/hasError/errorMessage）
+    const signal = {
+      toolName: status.lastToolCall || undefined,
+      hasError: Boolean(status.hasError),
+      errorMessage: status.errorMessage || undefined,
+    }
     if (!status.isRunning) {
       return status.activity === 'file_changes'
-        ? { emotion: 'happy', action: 'nod', message: `${this.config.name} 在改代码` }
-        : { emotion: 'sleepy', action: 'sleep', message: `${this.config.name} 休息了` };
+        ? { emotion: 'happy', action: 'nod', message: `${this.config.name} 在改代码`, ...signal }
+        : { emotion: 'sleepy', action: 'sleep', message: `${this.config.name} 休息了`, ...signal };
     }
     const map = {
       thinking: { emotion: 'curious', action: 'tilt_head', message: `${this.config.name} 在思考~` },
@@ -439,7 +445,8 @@ class GenericAiToolMonitor {
       completed: { emotion: 'happy', action: 'celebrate', message: `${this.config.name} 搞定啦！` },
       error: { emotion: 'worried', action: 'concern', message: `${this.config.name} 出问题了` },
     };
-    return map[status.activity] || { emotion: 'neutral', action: 'idle', message: '' };
+    const base = map[status.activity] || { emotion: 'neutral', action: 'idle', message: '' };
+    return { ...base, ...signal };
   }
 
   _getSummary(status) {

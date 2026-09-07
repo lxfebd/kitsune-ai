@@ -559,12 +559,28 @@ export enum OverseerEventType {
   ProcessCrash = 'process_crash',
   Timeout = 'timeout',
   StatusUpdate = 'status_update',
+  /** 工具级细粒度事件 — 结构化信号直达（P0.3 Adapter 分发用） */
+  ToolInvocation = 'tool_invocation',
+  ToolResult = 'tool_result',
 }
 
 export enum OverseerSeverity {
   Info = 'info',
   Warn = 'warn',
   Error = 'error',
+}
+
+/**
+ * 事件粗粒度分类 — 用于过滤/路由（PushFilter 白名单、autoFix 决策）。
+ * Adapter 把工具私有信号归一到这里，避免消费方依赖细粒度 action 枚举。
+ */
+export enum OverseerEventCategory {
+  /** 生命周期：任务开始/结束/崩溃/超时 */
+  Lifecycle = 'lifecycle',
+  /** 工具调用：tool_use / tool_result（感知层结构化信号） */
+  ToolInvocation = 'tool_invocation',
+  /** 诊断：编译/测试失败等错误信号 */
+  Diagnostic = 'diagnostic',
 }
 
 export interface OverseerEvent<T = unknown> {
@@ -574,6 +590,23 @@ export interface OverseerEvent<T = unknown> {
   timestamp: number
   severity: OverseerSeverity
   data: T
+  /**
+   * 粗粒度分类 — Adapter 归一产出；现有消费方（PushFilter/autoFix）只读
+   * type/severity，此字段为增量，向后兼容。
+   */
+  category?: OverseerEventCategory
+}
+
+/** 结构化信号负载 — P0.3 感知层直通编排层的字段（感知层 .js 按形状对齐） */
+export interface StructuredToolSignal {
+  /** 真实工具名（如 Bash / Write / Edit / Read） */
+  toolName?: string
+  /** 感知层是否检测到错误（errorMessage 伴随） */
+  hasError?: boolean
+  /** 错误信息（hasError 时存在） */
+  errorMessage?: string
+  /** 感知层原始信号超出 schema 定义时的兜底通道 */
+  raw?: unknown
 }
 
 export interface OverseerStatus {

@@ -16,14 +16,19 @@ const DEFAULT_OUT = path.join(MELLOS_DIR, 'html', 'map.html')
 
 let out = DEFAULT_OUT
 let open = false
+let page = null
 const argv = process.argv.slice(2)
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] === '--out') out = path.resolve(argv[++i])
   else if (argv[i] === '--open') open = true
+  else if (argv[i] === '--page') page = argv[++i]
   else { console.error(`unknown flag: ${argv[i]}`); process.exit(2) }
 }
 
-const mapPath = path.join(MELLOS_DIR, 'map.json')
+// --page <slug> 渲染 .mellos/pages/<slug>.json（并行 effort 页）；否则渲染根 map.json
+const mapPath = page
+  ? path.join(MELLOS_DIR, 'pages', `${page}.json`)
+  : path.join(MELLOS_DIR, 'map.json')
 if (!fs.existsSync(mapPath)) {
   console.error(`map file not found: ${mapPath}`)
   process.exit(1)

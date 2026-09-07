@@ -227,7 +227,11 @@ class Supervisor {
         action: reaction.action,
         message: reaction.message,
         summary: summary || '',
-        timestamp: now
+        timestamp: now,
+        // 结构化信号透传 — 编排层 Adapter 直读（P0.3）
+        toolName: reaction.toolName,
+        hasError: reaction.hasError,
+        errorMessage: reaction.errorMessage,
       }); } catch (err) {
         console.error('[监工] onPetReaction 错误:', err.message);
       }

@@ -115,3 +115,6 @@ dist-types/
 # 生成产物与运行时状态
 .mellos/html/
 .mimosa/
+
+# TS incremental build cache（每次 typecheck/build 重生成）
+**/*.tsbuildinfo

@@ -482,27 +482,34 @@ class TraeMonitor {
    * 根据 Trae 状态建议桌宠反应
    */
   _suggestPetReaction(status) {
+    // 透传感知层已算出的结构化信号（hasError/errorMessage/toolName）
+    const isError = status.activity === 'build_error' || status.activity === 'test_failed'
+    const signal = {
+      toolName: 'trae',
+      hasError: isError,
+      errorMessage: status.buildError || (isError ? status.activity : undefined),
+    }
     if (!status.isTraeRunning) {
       return status.activity === 'file_changes'
-        ? { emotion: 'happy', action: 'nod', message: '文件更新了' }
-        : { emotion: 'sleepy', action: 'sleep', message: 'Trae 没在跑' };
+        ? { emotion: 'happy', action: 'nod', message: '文件更新了', ...signal }
+        : { emotion: 'sleepy', action: 'sleep', message: 'Trae 没在跑', ...signal };
     }
 
     switch (status.activity) {
       case 'compiling':
-        return { emotion: 'focused', action: 'watch', message: '正在编译...' };
+        return { emotion: 'focused', action: 'watch', message: '正在编译...', ...signal };
       case 'build_success':
-        return { emotion: 'happy', action: 'celebrate', message: '编译成功！✨' };
+        return { emotion: 'happy', action: 'celebrate', message: '编译成功！✨', ...signal };
       case 'build_error':
-        return { emotion: 'worried', action: 'concern', message: `编译出错了: ${status.buildError?.substring(0, 40) || ''}` };
+        return { emotion: 'worried', action: 'concern', message: `编译出错了: ${status.buildError?.substring(0, 40) || ''}`, ...signal };
       case 'editing':
-        return { emotion: 'curious', action: 'tilt_head', message: '正在编辑代码' };
+        return { emotion: 'curious', action: 'tilt_head', message: '正在编辑代码', ...signal };
       case 'test_passed':
-        return { emotion: 'excited', action: 'celebrate', message: '测试全部通过！🎉' };
+        return { emotion: 'excited', action: 'celebrate', message: '测试全部通过！🎉', ...signal };
       case 'test_failed':
-        return { emotion: 'worried', action: 'concern', message: '测试有失败' };
+        return { emotion: 'worried', action: 'concern', message: '测试有失败', ...signal };
       default:
-        return { emotion: 'neutral', action: 'idle', message: '' };
+        return { emotion: 'neutral', action: 'idle', message: '', ...signal };
     }
   }
 

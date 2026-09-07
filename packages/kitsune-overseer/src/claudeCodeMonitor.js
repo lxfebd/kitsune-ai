@@ -547,10 +547,17 @@ class ClaudeCodeMonitor {
   }
 
   _suggestPetReaction(status) {
+    // 透传感知层已算出的结构化信号（toolName/hasError/errorMessage），
+    // 由编排层 Adapter 直读，避免二次降级成情绪文本再靠关键词反猜。
+    const signal = {
+      toolName: status.lastToolCall || undefined,
+      hasError: Boolean(status.hasError),
+      errorMessage: status.errorMessage || undefined,
+    }
     if (!status.isRunning) {
       return status.activity === 'code_changed'
-        ? { emotion: 'happy', action: 'nod', message: '代码更新了~' }
-        : { emotion: 'sleepy', action: 'sleep', message: 'Claude 休息了' };
+        ? { emotion: 'happy', action: 'nod', message: '代码更新了~', ...signal }
+        : { emotion: 'sleepy', action: 'sleep', message: 'Claude 休息了', ...signal };
     }
 
     // 有具体任务时显示任务内容
@@ -558,17 +565,17 @@ class ClaudeCodeMonitor {
 
     switch (status.activity) {
       case 'thinking':
-        return { emotion: 'curious', action: 'tilt_head', message: `Claude 在思考${taskHint}` };
+        return { emotion: 'curious', action: 'tilt_head', message: `Claude 在思考${taskHint}`, ...signal };
       case 'coding':
-        return { emotion: 'excited', action: 'happy', message: `Claude 在写代码${taskHint}` };
+        return { emotion: 'excited', action: 'happy', message: `Claude 在写代码${taskHint}`, ...signal };
       case 'executing':
-        return { emotion: 'focused', action: 'watch', message: `执行中: ${status.lastToolCall || '...'}` };
+        return { emotion: 'focused', action: 'watch', message: `执行中: ${status.lastToolCall || '...'}`, ...signal };
       case 'completed':
-        return { emotion: 'happy', action: 'celebrate', message: '任务完成了！' };
+        return { emotion: 'happy', action: 'celebrate', message: '任务完成了！', ...signal };
       case 'error':
-        return { emotion: 'worried', action: 'concern', message: `出错了: ${status.errorMessage?.substring(0, 50) || ''}` };
+        return { emotion: 'worried', action: 'concern', message: `出错了: ${status.errorMessage?.substring(0, 50) || ''}`, ...signal };
       default:
-        return { emotion: 'neutral', action: 'idle', message: `Claude 运行中${taskHint}` };
+        return { emotion: 'neutral', action: 'idle', message: `Claude 运行中${taskHint}`, ...signal };
     }
   }
 

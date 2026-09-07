@@ -11,6 +11,12 @@ export interface PetReaction {
   message: string
   summary?: string
   timestamp: number
+  /** 结构化信号（P0.3 直通编排层）— 感知层从 status 透传，非必填 */
+  toolName?: string
+  hasError?: boolean
+  errorMessage?: string
+  /** 感知层原始信号超出 schema 定义时的兜底通道 */
+  raw?: unknown
 }
 
 /**

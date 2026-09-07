@@ -52,8 +52,10 @@ import { TaskPusher } from '@kitsune/overseer'
 import * as yaml from 'yaml'
 
 import {
+  OverseerEventCategory,
   OverseerEventType,
   OverseerSeverity,
+  type StructuredToolSignal,
   electronOverseerEvent,
   electronOverseerLlmProvider,
   electronOverseerPushWithVerification,
@@ -179,11 +181,51 @@ export async function loadOverseerConfig(): Promise<OverseerConfig> {
 /**
  * 将 Supervisor 的桌宠反应映射为 OverseerEvent。
  *
- * NOTICE: 现有 .js 监控器只产出 emotion/message/status 等模糊信号，
- * 不直接区分 permission_request / compile_failed / test_failed 等离散类型。
- * 此处按关键词近似映射，待 .js 监控器升级为原生事件类型后可移除。
+ * P0.3 重构：优先读取感知层透传的结构化信号（hasError/errorMessage/toolName），
+ * 直接映射为确定的事件类型与 category，不再依赖关键词猜测；仅当结构化信号
+ * 缺失时才回退到关键词兜底（兼容旧 .js 监控器与外部触发源）。
  */
 function mapReactionToEvent(reaction: PetReaction): OverseerEvent {
+  // —— 结构化信号优先（感知层已算出的确定性信息） ——
+  if (reaction.hasError) {
+    const errText = `${reaction.errorMessage ?? ''} ${reaction.message ?? ''} ${reaction.summary ?? ''}`.toLowerCase()
+    let type: OverseerEventType
+    if (/crash|崩溃/.test(errText)) {
+      type = OverseerEventType.ProcessCrash
+    }
+    else if (/timeout|超时/.test(errText)) {
+      type = OverseerEventType.Timeout
+    }
+    else if (/test|测试/.test(errText)) {
+      type = OverseerEventType.TestFailed
+    }
+    else if (/compile|build|编译/.test(errText)) {
+      type = OverseerEventType.CompileFailed
+    }
+    else {
+      type = OverseerEventType.TaskFailed
+    }
+    return {
+      id: randomUUID(),
+      type,
+      source: reaction.source,
+      timestamp: reaction.timestamp,
+      severity: OverseerSeverity.Error,
+      category: OverseerEventCategory.Diagnostic,
+      data: {
+        emotion: reaction.emotion,
+        action: reaction.action,
+        message: reaction.message,
+        summary: reaction.summary,
+        toolName: reaction.toolName,
+        hasError: true,
+        errorMessage: reaction.errorMessage,
+        raw: reaction.raw,
+      } satisfies StructuredToolSignal & Record<string, unknown>,
+    }
+  }
+
+  // —— 无结构化错误 → 关键词兜底（保持向后兼容） ——
   const text = `${reaction.message} ${reaction.summary}`.toLowerCase()
   let type: OverseerEventType
   let severity: OverseerSeverity
@@ -228,7 +270,19 @@ function mapReactionToEvent(reaction: PetReaction): OverseerEvent {
     source: reaction.source,
     timestamp: reaction.timestamp,
     severity,
-    data: { emotion: reaction.emotion, action: reaction.action, message: reaction.message, summary: reaction.summary },
+    category: type === OverseerEventType.TaskEnd
+      ? OverseerEventCategory.Lifecycle
+      : (type === OverseerEventType.PermissionRequest ? OverseerEventCategory.Lifecycle : OverseerEventCategory.Diagnostic),
+    data: {
+      emotion: reaction.emotion,
+      action: reaction.action,
+      message: reaction.message,
+      summary: reaction.summary,
+      toolName: reaction.toolName,
+      hasError: reaction.hasError,
+      errorMessage: reaction.errorMessage,
+      raw: reaction.raw,
+    } satisfies StructuredToolSignal & Record<string, unknown>,
   }
 }
 
