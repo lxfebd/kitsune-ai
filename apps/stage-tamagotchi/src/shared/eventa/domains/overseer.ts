@@ -65,6 +65,29 @@ export interface StructuredToolSignal {
   raw?: unknown
 }
 
+/**
+ * 操作指导事件负载 — GuidanceService 触发时内嵌到 OverseerEvent.data。
+ * 两端（主进程 emitGuidance / 渲染层卡片）共享此类型，避免靠约定强转。
+ */
+export interface GuidanceEventData {
+  /** 命中的内置规则 id（如 zcode-edit-not-read） */
+  ruleId: string
+  /** 卡片标题 + 桌宠台词（按主进程当前语言本地化） */
+  suggestion: string
+  /** 有序修复步骤（本地化） */
+  steps: string[]
+  /** 与 suggestion 相同的标题，供渲染层统一取标题字段 */
+  title: string
+  /** 触发失败的工具名（可选） */
+  toolName?: string
+  /** 原始错误消息（截断 200） */
+  errorMessage?: string
+  /** 事件流摘要行 */
+  message: string
+  /** 摘要（与 suggestion 相同，兼容现有 summary 渲染） */
+  summary: string
+}
+
 export interface OverseerStatus {
   enabled: boolean
   running: boolean
@@ -92,11 +115,15 @@ export interface GuidanceRuntimeState {
   records: Array<{ source: string, count: number, ruleId: string | null, lastSeen: number }>
   /** 各规则最近触发指导时间（调试/展示用） */
   lastGuidanceAt: Record<string, number>
+  /** 阈值与窗口（只读展示；改值走 config/overseer.yaml） */
+  threshold?: number
+  windowMs?: number
+  cooldownMs?: number
 }
 
 export const electronOverseerGuidanceState = defineInvokeEventa<GuidanceRuntimeState>('eventa:invoke:electron:overseer:guidance:state')
 export const electronOverseerGuidanceToggle = defineInvokeEventa<{ enabled: boolean }, { enabled: boolean }>('eventa:invoke:electron:overseer:guidance:toggle')
-export const electronOverseerGuidanceReset = defineInvokeEventa<{ reset: boolean }, void>('eventa:invoke:electron:overseer:guidance:reset')
+export const electronOverseerGuidanceReset = defineInvokeEventa<{ reset?: boolean }, { reset: boolean }>('eventa:invoke:electron:overseer:guidance:reset')
 
 // Connectors — IDE 连接器管理（vscode / trae / idea 等）
 export type OverseerCorrectionTaskType = 'compile' | 'test' | 'refactor' | 'edit' | 'unknown'

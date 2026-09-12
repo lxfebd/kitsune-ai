@@ -41,6 +41,8 @@ export interface GuidanceService {
   reset: () => Promise<void>
   /** 全部失败记录（统计/展示） */
   getRecords: () => Promise<FailureRecord[]>
+  /** 各规则最近触发指导时间戳（设置页展示） */
+  getLastGuidanceAt: () => Promise<Record<string, number>>
   /** 持久化计数器实例（供测试断言） */
   counter: GuidedFailureCounter
 }
@@ -64,5 +66,6 @@ export function createGuidanceService(options: GuidanceServiceOptions = {}): Gui
     }),
     reset: () => counter.reset(),
     getRecords: () => counter.getRecords(),
+    getLastGuidanceAt: () => counter.getLastGuidanceAt(),
   }
 }

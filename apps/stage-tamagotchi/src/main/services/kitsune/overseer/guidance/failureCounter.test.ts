@@ -153,6 +153,20 @@ describe('GuidedFailureCounter', () => {
     expect(await counter.getRecords()).toHaveLength(0)
   })
 
+  it('getLastGuidanceAt 记录各规则最近触发时间（reset 后清空）', async () => {
+    let t = 0
+    const counter = makeCounter(() => t)
+    const fire = { source: 'zcode', errorMessage: 'File has not been read yet' }
+    for (let i = 0; i < 3; i++) {
+      t += 1_000
+      await counter.recordFailure(fire)
+    }
+    const last = await counter.getLastGuidanceAt()
+    expect(last['zcode-edit-not-read']).toBe(t)
+    await counter.reset()
+    expect(await counter.getLastGuidanceAt()).toEqual({})
+  })
+
   it('持久化：重启（新实例同一目录）后计数保留', async () => {
     let t = 0
     const root = makeTmpRoot()

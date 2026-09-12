@@ -130,6 +130,12 @@ export class GuidedFailureCounter {
       .sort((a, b) => b.lastSeen - a.lastSeen)
   }
 
+  /** 各规则最近触发指导的时间戳（ruleId → epoch ms；调试/设置页展示用） */
+  async getLastGuidanceAt(): Promise<Record<string, number>> {
+    await this.ensureLoaded()
+    return { ...this.state.lastGuidanceAt }
+  }
+
   private async ensureLoaded(): Promise<void> {
     if (this.loaded)
       return

@@ -15,6 +15,7 @@ import {
   electronOverseerStats,
   electronOverseerStatus,
   electronOverseerToggle,
+  type GuidanceEventData,
   type GuidanceRuntimeState,
 } from '../../../../../shared/eventa'
 import { useEnvironmentI18n } from './use-environment-i18n'
@@ -137,19 +138,19 @@ function formatEventTime(ts: number) {
 
 function eventTitle(e: OverseerEvent): string {
   if (e.type === 'guidance') {
-    const d = e.data as Record<string, unknown> | undefined
-    const suggestion = d?.suggestion ?? d?.title
-    if (typeof suggestion === 'string' && suggestion)
-      return suggestion
+    const d = e.data as GuidanceEventData | undefined
+    if (d?.suggestion)
+      return d.suggestion
   }
   return e.source || e.type
 }
 
 function guidanceSteps(e: OverseerEvent): string[] {
-  const d = e.data as Record<string, unknown> | undefined
-  const steps = d?.steps
-  if (Array.isArray(steps))
-    return steps.filter((s): s is string => typeof s === 'string')
+  if (e.type === 'guidance') {
+    const d = e.data as GuidanceEventData | undefined
+    if (Array.isArray(d?.steps))
+      return d.steps.filter((s): s is string => typeof s === 'string')
+  }
   return []
 }
 
@@ -337,6 +338,18 @@ refreshGuidance()
           :icon="'i-solar:trash-bin-minimalistic-bold-duotone'"
           @click="resetGuidance"
         />
+      </div>
+      <div v-if="guidance.threshold" class="flex flex-col gap-0.5 text-[11px] text-neutral-500 dark:text-neutral-400">
+        <span>
+          {{ tn('overseer.guidance.threshold-label') }}：{{ tn('overseer.guidance.threshold-value', { count: guidance.threshold }) }}
+        </span>
+        <span v-if="guidance.windowMs">
+          {{ tn('overseer.guidance.window-label') }}：{{ tn('overseer.guidance.window-value', { minutes: Math.round(guidance.windowMs / 60000) }) }}
+        </span>
+        <span v-if="guidance.cooldownMs">
+          {{ tn('overseer.guidance.cooldown-label') }}：{{ tn('overseer.guidance.cooldown-value', { minutes: Math.round(guidance.cooldownMs / 60000) }) }}
+        </span>
+        <span class="text-neutral-400 dark:text-neutral-500">{{ tn('overseer.guidance.threshold-hint') }}</span>
       </div>
     </div>
 

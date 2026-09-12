@@ -1989,6 +1989,13 @@ pages:
         reset-busy: Clearing...
         records-count: "%{count} failures recorded"
         empty-records: No failures recorded
+        threshold-label: Trigger Threshold
+        window-label: Counting Window
+        cooldown-label: Cooldown
+        threshold-value: Trigger after %{count} repeated failures
+        window-value: "%{minutes} minutes"
+        cooldown-value: "%{minutes} minutes"
+        threshold-hint: To change values, edit the guidance section in config/overseer.yaml and restart.
 
     executor:
       title: Autonomous Executor

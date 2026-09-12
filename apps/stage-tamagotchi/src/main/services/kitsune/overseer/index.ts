@@ -43,6 +43,7 @@ import type {
   PermissionWhitelistEntry,
   VisionCheckRequestPayload,
   VisionCheckResult,
+  GuidanceEventData,
 } from '../../../../shared/eventa'
 
 import type { ConnectorService } from '../connectors'
@@ -696,7 +697,7 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     if (!trigger)
       return
     const localized = guidanceService!.localizeRule(trigger.rule)
-    const guidanceEvent: OverseerEvent = {
+    const guidanceEvent: OverseerEvent<GuidanceEventData> = {
       id: randomUUID(),
       type: OverseerEventType.Guidance,
       source,
@@ -1197,6 +1198,7 @@ ${errorText}`,
   // ——— 操作指导（guidance）运行时控制 IPC ———
   defineInvokeHandler(context, electronOverseerGuidanceState, async (): Promise<GuidanceRuntimeState> => {
     const records = await guidanceService.getRecords()
+    const lastGuidanceAt = await guidanceService.getLastGuidanceAt()
     return {
       enabled: guidanceRuntimeEnabled,
       records: records.slice(0, 50).map(r => ({
@@ -1205,7 +1207,10 @@ ${errorText}`,
         ruleId: r.ruleId,
         lastSeen: r.lastSeen,
       })),
-      lastGuidanceAt: {},
+      lastGuidanceAt,
+      threshold: config.guidance?.threshold,
+      windowMs: config.guidance?.windowMs,
+      cooldownMs: config.guidance?.cooldownMs,
     }
   })
 

@@ -2145,6 +2145,13 @@ pages:
         reset-busy: 清空中...
         records-count: 已记录 %{count} 条失败
         empty-records: 暂无失败记录
+        threshold-label: 触发阈值
+        window-label: 计数窗口
+        cooldown-label: 冷却时间
+        threshold-value: 同类失败 %{count} 次触发
+        window-value: "%{minutes} 分钟"
+        cooldown-value: "%{minutes} 分钟"
+        threshold-hint: 改值请编辑 config/overseer.yaml 的 guidance 段后重启。
     desktop-automation:
       title: 桌面自动化
       error-title: 桌面自动化错误
