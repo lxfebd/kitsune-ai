@@ -89,6 +89,23 @@ export class MacAutomation implements PlatformAutomation {
     }
   }
 
+  async scroll(direction: 'up' | 'down' | 'left' | 'right', amount: number = 100, x?: number, y?: number): Promise<void> {
+    void x
+    void y
+    if (!(await this.checkCliclick())) {
+      throw new Error('cliclick 未安装，滚动操作需要: brew install cliclick')
+    }
+    // cliclick 原生滚轮：sc:±N（垂直）/ sl:±N（水平），正数向上/左滚。
+    if (direction === 'up' || direction === 'down') {
+      const delta = direction === 'up' ? Math.round(amount) : -Math.round(amount)
+      await this.exec('cliclick', [`sc:${delta}`])
+    }
+    else {
+      const delta = direction === 'right' ? -Math.round(amount) : Math.round(amount)
+      await this.exec('cliclick', [`sl:${delta}`])
+    }
+  }
+
   async type(text: string): Promise<void> {
     await this.execAppleScript(`
       tell application "System Events"

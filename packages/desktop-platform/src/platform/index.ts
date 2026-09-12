@@ -1,19 +1,35 @@
 /**
- * 跨平台自动化接口定义。
+ * 跨平台桌面自动化接口定义。
  *
  * 每个平台（Windows、macOS、Linux）需要实现此接口。
+ * 本包为纯 Node 实现，不依赖 Electron——桌宠主进程与 computer-use-mcp 共享。
  */
 
-// 从 shared/eventa 统一导入 WindowInfo 类型
-export type { WindowInfo } from '../../../../../shared/eventa'
-
-import type { WindowInfo } from '../../../../../shared/eventa'
+/** 窗口信息（与 shared/eventa domains/desktop.ts 的 WindowInfo 结构对齐）。 */
+export interface WindowInfo {
+  title: string
+  processName: string
+  pid: number
+  x: number
+  y: number
+  width: number
+  height: number
+  isVisible: boolean
+  isMinimized: boolean
+  isMaximized: boolean
+}
 
 export interface PlatformAutomation {
   // 鼠标操作
   moveTo(x: number, y: number): Promise<void>
   click(button: 'left' | 'right' | 'middle'): Promise<void>
   drag(from: { x: number, y: number }, to: { x: number, y: number }): Promise<void>
+  /**
+   * 在指定位置滚动（不传 x/y 时默认屏幕中心）。
+   * direction: up=向上滚（内容上移）down=向下滚 left=向左滚 right=向右滚。
+   * amount: 滚动量参考值，平台实现自行换算成滚轮刻度。
+   */
+  scroll(direction: 'up' | 'down' | 'left' | 'right', amount?: number, x?: number, y?: number): Promise<void>
 
   // 键盘操作
   type(text: string): Promise<void>

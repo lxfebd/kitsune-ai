@@ -7,7 +7,15 @@
  * @see Mate-Engine/Assets/MATE ENGINE - Scripts/APIs/WinApi.cs
  */
 
-import type { Rectangle } from 'electron'
+import { createRequire } from 'node:module'
+
+/** 屏幕矩形（本地类型，避免共享包依赖 Electron）。 */
+export interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 /**
  * 枚举到的原始窗口信息（屏幕坐标，含 DPI 缩放后的物理像素）。
@@ -16,7 +24,7 @@ export interface EnumeratedWindow {
   hwnd: number
   title: string
   className: string
-  rect: Rectangle
+  rect: Rect
   pid: number
   isVisible: boolean
   isMinimized: boolean
@@ -83,8 +91,11 @@ function ensureInit(): Win32Functions {
     throw new Error('window-enumerator is Windows only')
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const koffi = require('koffi')
+  // ESM 环境（MCP/tsx）没有全局 require：用 createRequire 显式获得，
+  // 兼容 Electron main（CJS）与纯 ESM 进程。
+  const req = createRequire(import.meta.url)
+  const koffi = req('koffi')
+
 
   const user32 = koffi.load('user32.dll')
   const dwmapi = koffi.load('dwmapi.dll')

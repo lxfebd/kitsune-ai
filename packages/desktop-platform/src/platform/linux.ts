@@ -73,6 +73,18 @@ export class LinuxAutomation implements PlatformAutomation {
     await this.exec('xdotool', ['mouseup', '1'])
   }
 
+  async scroll(direction: 'up' | 'down' | 'left' | 'right', amount: number = 100, x?: number, y?: number): Promise<void> {
+    await this.ensureXdotool()
+    if (x !== undefined && y !== undefined)
+      await this.exec('xdotool', ['mousemove', String(x), String(y)])
+    // xdotool click 按钮号：4=滚轮上 5=滚轮下 6=滚轮左 7=滚轮右。
+    // amount 参考像素换算成格数（约每 100px 一格），至少 1 格。
+    const times = Math.max(1, Math.round(Math.abs(amount) / 100))
+    const button = direction === 'up' ? '4' : direction === 'down' ? '5' : direction === 'right' ? '7' : '6'
+    for (let i = 0; i < times; i++)
+      await this.exec('xdotool', ['click', button])
+  }
+
   async type(text: string): Promise<void> {
     await this.ensureXdotool()
     await this.exec('xdotool', ['type', '--clearmodifiers', text])

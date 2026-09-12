@@ -2,7 +2,7 @@
   "name": "@kitsune/computer-use-mcp",
   "type": "module",
   "private": true,
-  "description": "macOS desktop orchestration MCP service for Kitsune AI",
+  "description": "跨平台桌面编排 MCP 服务（win32/darwin/linux），与桌宠共享 @kitsune/desktop-platform 底层实现",
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx --watch src/index.ts",
@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
+    "@kitsune/desktop-platform": "workspace:^",
     "@modelcontextprotocol/sdk": "catalog:",
+    "koffi": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

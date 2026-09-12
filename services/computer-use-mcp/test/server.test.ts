@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
 
 // Spawn the actual MCP server over stdio and talk to it via the MCP client,
 // proving the tools register and respond — not just that the module loads.
@@ -81,5 +81,41 @@ describe('computer-use-mcp server', () => {
     const parsed = JSON.parse(text)
     expect(parsed.ok).toBe(true)
     expect(parsed.stdout).toContain('hello-kitsune')
+  })
+})
+
+describe('mapKeysToPlatform（跨平台键名翻译）', () => {
+  const realPlatform = process.platform
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: realPlatform })
+  })
+  const setPlatform = (p: NodeJS.Platform) => {
+    Object.defineProperty(process, 'platform', { value: p })
+  }
+
+  it('单键统一转大写', async () => {
+    const { mapKeysToPlatform } = await import('../src/index.js')
+    expect(mapKeysToPlatform('Enter')).toBe('ENTER')
+    expect(mapKeysToPlatform('f4')).toBe('F4')
+  })
+
+  it('darwin: Command → CMD，Option → OPTION', async () => {
+    setPlatform('darwin')
+    const { mapKeysToPlatform } = await import('../src/index.js')
+    expect(mapKeysToPlatform('Command+Shift+I')).toBe('CMD+SHIFT+I')
+    expect(mapKeysToPlatform('Option+Click')).toBe('OPTION+CLICK')
+  })
+
+  it('win32: Command → CTRL（DevTools 等跨平台快捷键惯例）', async () => {
+    setPlatform('win32')
+    const { mapKeysToPlatform } = await import('../src/index.js')
+    expect(mapKeysToPlatform('Command+Shift+I')).toBe('CTRL+SHIFT+I')
+    expect(mapKeysToPlatform('Ctrl+C')).toBe('CTRL+C')
+  })
+
+  it('linux: Command → SUPER', async () => {
+    setPlatform('linux')
+    const { mapKeysToPlatform } = await import('../src/index.js')
+    expect(mapKeysToPlatform('Command+Shift+I')).toBe('SUPER+SHIFT+I')
   })
 })

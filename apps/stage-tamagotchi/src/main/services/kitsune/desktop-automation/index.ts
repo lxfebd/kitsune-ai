@@ -6,11 +6,10 @@
  */
 
 import type { FindElementRequestPayload, FindElementResultPayload, WindowInfo } from '../../../../shared/eventa'
-import type { PlatformAutomation } from './platform'
+import { createPlatformAutomation, type PlatformAutomation } from '@kitsune/desktop-platform'
 
 import { randomUUID } from 'node:crypto'
 import { captureScreenshot } from '../overseer/capture'
-import { createPlatformAutomation } from './platform/factory'
 import { assertSafe } from './safety'
 
 // IPC 事件定义（延迟导入避免循环依赖）
@@ -168,44 +167,8 @@ export async function createDesktopAutomationService(options: DesktopAutomationO
     async scroll(direction: 'up' | 'down' | 'left' | 'right', amount: number = 100, x?: number, y?: number) {
       checkStopped()
       assertSafe('scroll', `${direction}:${amount}`)
-      // 获取滚动位置（默认屏幕中心）
-      let scrollX = x
-      let scrollY = y
-      if (scrollX === undefined || scrollY === undefined) {
-        const size = await platform.getScreenSize()
-        scrollX = scrollX ?? Math.round(size.width / 2)
-        scrollY = scrollY ?? Math.round(size.height / 2)
-      }
-      // 移动到滚动位置
-      await platform.moveTo(scrollX, scrollY)
-      // 使用平台原生滚动
-      const { execFile } = await import('node:child_process')
-      const { promisify } = await import('node:util')
-      const execAsync = promisify(execFile)
-      const scrollDelta = direction === 'up' || direction === 'left' ? 1 : -1
-      const scrollAmount = Math.round(amount / 10) * scrollDelta
-      // Windows: 使用 PowerShell mouse_event
-      if (process.platform === 'win32') {
-        const cmd = `Add-Type -AssemblyName System.Windows.Forms; $sig = '[DllImport("user32.dll")]public static extern void mouse_event(uint dwFlags,int dx,int dy,int dwData,int dwExtraInfo)'; Add-Type -MemberDefinition $sig -Name Wheel -Namespace Win32; [Win32.Wheel]::mouse_event(0x0800,0,0,${scrollAmount},0)`
-        await execAsync('powershell', ['-NoProfile', '-NonInteractive', '-Command', cmd], { timeout: 5000 })
-      }
-      // macOS: 使用 cliclick 或 osascript
-      else if (process.platform === 'darwin') {
-        const delta = direction === 'up' || direction === 'down' ? `0,${scrollAmount}` : `${scrollAmount},0`
-        try {
-          await execAsync('cliclick', [`sc:${delta}`])
-        }
-        catch {
-          // 后备方案：使用 osascript
-          const directionCmd = direction === 'up' ? 'scroll row up' : direction === 'down' ? 'scroll row down' : 'scroll column right'
-          await execAsync('osascript', ['-e', `tell application "System Events" to ${directionCmd}`])
-        }
-      }
-      // Linux: 使用 xdotool
-      else if (process.platform === 'linux') {
-        const button = direction === 'up' ? '5' : direction === 'down' ? '4' : direction === 'right' ? '7' : '6'
-        await execAsync('xdotool', ['click', '--window', '0', button])
-      }
+      // 平台原生滚动（win32=koffi SendInput 滚轮事件，不再依赖 PowerShell）
+      await platform.scroll(direction, amount, x, y)
     },
 
     // ========== 屏幕信息 ==========
@@ -319,4 +282,4 @@ export async function createDesktopAutomationService(options: DesktopAutomationO
 
 // 导出平台相关类型
 export type { WindowInfo } from '../../../../shared/eventa'
-export { isPlatformSupported, getCurrentPlatform } from './platform/factory'
+export { isPlatformSupported, getCurrentPlatform } from '@kitsune/desktop-platform'

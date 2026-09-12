@@ -1,0 +1,25 @@
+{
+  "name": "@kitsune/desktop-platform",
+  "type": "module",
+  "private": true,
+  "description": "跨平台桌面自动化底层实现（Windows koffi / macOS AppleScript / Linux xdotool），供桌宠主进程与 computer-use-mcp 共享，消除双实现。",
+  "author": {
+    "name": "Kitsune Project",
+    "email": "contact@kitsune.build"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --maxWorkers=2"
+  },
+  "dependencies": {
+    "koffi": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
+}
