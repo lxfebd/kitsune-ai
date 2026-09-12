@@ -40,3 +40,24 @@ export function mapSenseVoiceEmotion(senseVoiceEmotion: string | undefined): Emo
   const normalized = senseVoiceEmotion.toLowerCase().trim()
   return SENSEVOICE_EMOTION_MAP[normalized] ?? null
 }
+
+/**
+ * SenseVoice 音频事件 → 桌宠情绪映射。
+ *
+ * SenseVoice 音频事件类型：Speech / Music / Applause / Laughter / BGM / Others。
+ * 不是用户说的话，而是环境声音——桌宠给个轻量顺带表情即可（不朗读、不打断）。
+ */
+const SENSEVOICE_EVENT_MAP: Record<string, Emotion> = {
+  'music': Emotion.Think,
+  'applause': Emotion.Happy,
+  'laughter': Emotion.Happy,
+  'bgm': Emotion.Curious,
+  'others': Emotion.Question,
+}
+
+/** 将 SenseVoice 音频事件（Music/Applause/Laughter/BGM/Others）映射为 Emotion，未知事件返回 null。 */
+export function mapSenseVoiceEvent(senseVoiceEvent: string | undefined): Emotion | null {
+  if (!senseVoiceEvent) return null
+  const normalized = senseVoiceEvent.toLowerCase().trim()
+  return SENSEVOICE_EVENT_MAP[normalized] ?? null
+}

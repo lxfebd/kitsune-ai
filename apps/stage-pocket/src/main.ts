@@ -29,7 +29,7 @@ import 'uno.css'
 
 const pinia = createPinia()
 
-// TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
+// TODO(audit): vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
@@ -57,7 +57,7 @@ const app = createApp(App)
 
 app
   .use(MotionPlugin)
-  // TODO: Fix autoAnimatePlugin type error
+  // TODO(audit): Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)

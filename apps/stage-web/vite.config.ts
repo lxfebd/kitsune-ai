@@ -218,7 +218,7 @@ export default defineConfig({
     // 这些模型资源已随 packages/stage-ui/src/assets 入库，无需构建期再远程下载；
     // assets.kitsune.ai 是上游占位域名（解析 ENOTFOUND），开启会在 CI 直接令构建失败。
     // DownloadLive2DSDK(),
-    // TODO: 待资源源确定后更新
+    // TODO(audit): 待资源源确定后更新
     // Download('https://assets.kitsune.ai/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { ... }),
     // Download('https://assets.kitsune.ai/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { ... }),
     // Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { ... }),

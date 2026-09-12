@@ -228,6 +228,7 @@ describe('opfs cache full directory persistence', () => {
       'not-defined-by-settings.txt': 'still cached',
     })
     vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
       blob: async () => zipBlob,
     })))
     const context = {

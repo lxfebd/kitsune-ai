@@ -203,7 +203,7 @@ export function useModulesList() {
     gaming: t('settings.pages.modules.categories.gaming'),
   }))
 
-  // TODO(Makito): We can make this a reactive value from a synthetic store.
+  // TODO(audit): make this a reactive value from a synthetic store (use-modules-list.ts, Makito)
   onMounted(() => {
     getBeatSyncState().then(initialState => beatSyncState.value = initialState)
     const removeListener = listenBeatSyncStateChange(newState => beatSyncState.value = { ...newState })

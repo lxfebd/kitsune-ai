@@ -36,7 +36,7 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
 /**
  * A wrapper for performing optimistic mutations with automatic rollback.
  * Integrates with useAsyncState for loading/error tracking.
- * TODO: use https://pinia-colada.esm.dev/guide/mutations.html instead.
+ * TODO(audit): migrate to pinia-colada mutations when it supports our rollback semantics (use-optimistic.ts)
  */
 export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimisticMutationOptions<T, R, E>) {
   const {

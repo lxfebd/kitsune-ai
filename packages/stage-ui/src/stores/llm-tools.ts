@@ -70,7 +70,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
 
   const activeTools = computed(() => Object.values(toolsByProvider.value).flat())
 
-  // TODO: Track provider support/loading/error state if runtime diagnostics need it later.
+  // TODO(audit): track provider support/loading/error state if runtime diagnostics need it later (llm-tools.ts)
   return {
     activeTools,
     awaitPendingRegistrations,

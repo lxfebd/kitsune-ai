@@ -169,32 +169,7 @@ export function useIdleEyeSaccades() {
     }
 
     if (!vrm.lookAt.target) {
-      // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
-      //   Argument of type 'Object3D<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
-      //     Type 'Object3D<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
-      //
-      // Currently, AFAIK, https://github.com/pmndrs/xr/blob/456aa380206e93888cd3a5741a1534e672ae3106/packages/pointer-events/src/pointer.ts#L69-L100 declares
-      // declare module 'three' {
-      //   interface Object3D {
-      //     setPointerCapture(pointerId: number): void
-      //     releasePointerCapture(pointerId: number): void
-      //     hasPointerCapture(pointerId: number): boolean
-
-      //     intersectChildren?: boolean
-      //     interactableDescendants?: Array<Object3D>
-      //     /**
-      //      * @deprecated
-      //      */
-      //     ancestorsHaveListeners?: boolean
-      //     ancestorsHavePointerListeners?: boolean
-      //     ancestorsHaveWheelListeners?: boolean
-      //   }
-      // }
-      //
-      // And in @tresjs/core v5, it uses the @pmndrs/pointer-events internally.
-      // Somehow the Object3D from @types/three and the one augmented by @pmndrs/pointer-events are not compatible.
-      // This needs to be fixed later.
-      vrm.lookAt.target = new Object3D() as unknown as Object3D
+      vrm.lookAt.target = new Object3D()
     }
 
     vrm.lookAt.target?.position.lerp(fixationTarget!, 1)
@@ -212,32 +187,7 @@ export function useIdleEyeSaccades() {
     if (!vrm?.expressionManager || !vrm.lookAt)
       return
     if (!vrm.lookAt.target) {
-      // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
-      //   Argument of type 'Object3D<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
-      //     Type 'Object3D<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
-      //
-      // Currently, AFAIK, https://github.com/pmndrs/xr/blob/456aa380206e93888cd3a5741a1534e672ae3106/packages/pointer-events/src/pointer.ts#L69-L100 declares
-      // declare module 'three' {
-      //   interface Object3D {
-      //     setPointerCapture(pointerId: number): void
-      //     releasePointerCapture(pointerId: number): void
-      //     hasPointerCapture(pointerId: number): boolean
-
-      //     intersectChildren?: boolean
-      //     interactableDescendants?: Array<Object3D>
-      //     /**
-      //      * @deprecated
-      //      */
-      //     ancestorsHaveListeners?: boolean
-      //     ancestorsHavePointerListeners?: boolean
-      //     ancestorsHaveWheelListeners?: boolean
-      //   }
-      // }
-      //
-      // And in @tresjs/core v5, it uses the @pmndrs/pointer-events internally.
-      // Somehow the Object3D from @types/three and the one augmented by @pmndrs/pointer-events are not compatible.
-      // This needs to be fixed later.
-      vrm.lookAt.target = new Object3D() as unknown as Object3D
+      vrm.lookAt.target = new Object3D()
     }
 
     vrm.lookAt.target?.position.lerp(fixationTarget!, 1)

@@ -225,7 +225,7 @@ async function triggerTransitionAsyncFn(params: StageTransitionCommonParams, nex
     }, transition.duration + totalDuration)
   }
   catch (error) {
-    console.error(error)
+    console.error('[StageTransitionGroup] transition hook error:', error)
   }
   finally {
     // Always remove the navigation hook

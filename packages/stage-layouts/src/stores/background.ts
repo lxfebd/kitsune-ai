@@ -27,7 +27,7 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
-  // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
+  // TODO(audit): STORAGE_PREFIX + key.startsWith 沿用多 localforage 键，结构偏复杂，可收敛为单键记录（background.ts）
   const STORAGE_PREFIX = 'background-'
   const presets: BackgroundItem[] = [
     {

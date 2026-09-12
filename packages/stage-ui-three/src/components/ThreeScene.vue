@@ -325,7 +325,7 @@ const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTa
   * - Lilia: We highly recommend you gather all the store data definition here
   * - Only this root component (ThreeScene) can directly access pinia store
 */
-// TODO: remove the hard-coded pinia store and inject the data from here
+// TODO(audit): remove the hard-coded pinia store and inject the data from here — per Lilia comment above, gathering store data here at the root component is by design; a props/injection contract would need a store-free interface (ThreeScene.vue)
 
 /*
   * Handle upward info flow

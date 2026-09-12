@@ -81,7 +81,7 @@ export async function loadLive2DModelPreview(file: File) {
     return paddingDataUrl
   }
   catch (error) {
-    console.error(error)
+    console.error('[Live2D preview] Failed to generate preview:', error)
     cleanup()
   }
 }

@@ -1985,7 +1985,7 @@ export const useProvidersStore = defineStore('providers', () => {
   // Unified defineProvider() entries always take precedence over legacy hand-written
   // metadata. Legacy entries are kept only as fallback for providers not yet migrated
   // to defineProvider().
-  // TODO: progressively migrate legacy speech/transcription providers to defineProvider()
+  // TODO(audit): progressively migrate legacy speech/transcription providers to defineProvider()
   // and remove the hand-written metadata above entirely.
   for (const [providerId, translated] of Object.entries(translatedProviderMetadata)) {
     providerMetadata[providerId] = translated

@@ -241,7 +241,9 @@ export class OPFSCache {
 
       // In Electron, fetch() to localhost HTTP can fail with net::ERR_FAILED
       // on large files. Use IPC to read the file directly from the main process.
-      const electronIpc = (window as any).electron?.ipcRenderer
+      const electronIpc = typeof window !== 'undefined'
+        ? (window as any).electron?.ipcRenderer
+        : undefined
       if (electronIpc && blobUrl.endsWith('.zip')) {
         const fileName = blobUrl.split('/').pop()!
         const buffer: ArrayBuffer = await electronIpc.invoke('live2d:read-model', fileName)

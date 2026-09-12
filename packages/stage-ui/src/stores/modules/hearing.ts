@@ -258,7 +258,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     try {
       if (features.supportsStreamOutput && streamExecutor) {
-        // TODO: integrate VAD-driven silence detection to stop and restart realtime sessions based on silence thresholds.
+        // TODO(audit): integrate VAD-driven silence detection to stop/restart realtime sessions on silence thresholds (hearing.ts)
         const request = provider.transcription(model, options?.providerOptions)
 
         // Stream branches: emit succeeded with char_count=0 once the

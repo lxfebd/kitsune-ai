@@ -9,8 +9,7 @@ import defaultSkyBoxSrc from '../components/Environment/assets/sky_linekotsi_23_
 import { DEFAULT_CAMERA_POSITION, useThreeCamera } from './camera'
 import { supportedControl, useThreeViewControl } from './view-control'
 
-// TODO: this is for future type injection features
-// TODO: make a separate type.ts
+// TODO(audit): future type injection features — move shared shape types out to a dedicated type.ts (model-store.ts)
 export interface Vec3 { x: number, y: number, z: number }
 export interface SceneBootstrap {
   cacheHit: boolean
@@ -173,7 +172,7 @@ export const useModelStore = defineStore('modelStore', () => {
   const directionalLightPosition = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/position', { x: 0, y: 0, z: -1 })
   const directionalLightTarget = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/target', { x: 0, y: 0, z: 0 })
   const directionalLightRotation = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/rotation', { x: 0, y: 0, z: 0 })
-  // TODO: Manual directional light intensity will not work for other
+  // TODO(audit): manual directional light intensity will not work for other
   //       scenes with different lighting setups. But since the model
   //       is possible to have MeshToonMaterial, and MeshBasicMaterial
   //       without envMap to be able to inherit lighting from HDRI map,
@@ -186,7 +185,7 @@ export const useModelStore = defineStore('modelStore', () => {
   // REVIEW: This is a temporary solution, and will be replaced with
   //         a more flexible lighting system in the future.
   const directionalLightIntensity = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/intensity', 2.02)
-  // TODO: color are the same
+  // TODO(audit): color are the same — hemisphere/directional colors share the same palette; unify when lighting system is redesigned
   const directionalLightColor = useLocalStorage('settings/stage-ui-three/scenes/scene/directional-light/color', '#fffbf5')
 
   const hemisphereSkyColor = useLocalStorage('settings/stage-ui-three/scenes/scene/hemisphere-light/sky-color', '#FFFFFF')

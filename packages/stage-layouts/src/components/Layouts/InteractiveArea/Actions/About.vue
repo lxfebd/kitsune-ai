@@ -11,11 +11,10 @@ const show = ref(false)
 const buildInfo = useBuildInfo()
 
 const aboutLinks = [
-  // TODO: 待 Kitsune 域名确定后更新
+  // TODO(audit): 待 Kitsune 正式域名确定后更新（与 libs/server.ts 的 api.kitsune.ai 兜底同属用户域名决策）
   { label: 'Home', href: 'https://kitsune.ai', icon: 'i-solar:home-smile-outline' },
-  // TODO:
+  // TODO(audit): 同上，域名随正式站点确认
   { label: 'Documentations', href: 'https://kitsune.ai/docs', icon: 'i-solar:document-add-outline' },
-  // TODO: 待仓库地址确认
   { label: 'GitHub', href: 'https://github.com/lxfebd/kitsune-ai', icon: 'i-simple-icons:github' },
 ]
 

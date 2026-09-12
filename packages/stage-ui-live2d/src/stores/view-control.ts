@@ -18,7 +18,9 @@ const formatPercentD1 = (val: number) => `${val.toFixed(1)}%`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`
 
 export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
-  // TODO: allow user to set preferred default
+  // TODO(audit): allow user to set preferred default
+  // position/scale already persist via useLocalStorage; a "reset to user default"
+  // preference would need a settings UI — tracked with the stage editor work.
   x: {
     min: -500,
     max: 500,

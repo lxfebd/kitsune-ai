@@ -20,7 +20,6 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
-import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { defineConfig } from 'vite'
 
@@ -31,9 +30,6 @@ function isEnvTruthy(value: string | undefined | null): boolean {
 
   return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
 }
-
-const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
-const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   optimizeDeps: {
@@ -169,11 +165,15 @@ export default defineConfig({
     VueDevTools(),
 
     DownloadLive2DSDK(),
-    // TODO: 待资源源确定后更新
-    Download('https://assets.kitsune.ai/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
-    Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+
+    // 这些模型资源已随 packages/stage-ui/src/assets 入库，无需构建期再远程下载；
+    // assets.kitsune.ai 是上游占位域名（解析 ENOTFOUND），开启会在缓存缺失时
+    // 令构建直接失败（unplugin-fetch 下载失败会 throw）。与 stage-web 对齐。
+    // TODO(audit): 待资源源确定后更新
+    // Download('https://assets.kitsune.ai/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    // Download('https://assets.kitsune.ai/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    // Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+    // Download('https://assets.kitsune.ai/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
 
     ...isEnvTruthy(process.env.VITE_CAP_SYNC_IOS_AFTER_BUILD ?? '')
       ? [{

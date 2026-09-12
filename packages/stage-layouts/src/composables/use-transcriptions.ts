@@ -97,7 +97,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
         && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 
       if (!isWebSpeechAvailable) {
-        // TODO: also propagate to user
+        // TODO(audit): propagate this failure to the user via UI (toast/settings), not just console (use-transcriptions.ts)
         const errorMsg = 'Web Speech API is not available and no transcription provider is configured. Please go to Settings > Modules > Hearing to configure a transcription provider. '
         console.error(errorMsg, 'Browser support:', {
           hasWindow: typeof window !== 'undefined',

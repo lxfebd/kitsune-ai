@@ -199,7 +199,7 @@ async function startRecording() {
         appendLog('Transcription finished (no speech detected)')
     })
     .catch((error) => {
-      console.error(error)
+      console.error('[aliyun-nls] transcription failed:', error)
       if (error instanceof DOMException && error.name === 'AbortError')
         appendLog('Transcription aborted by user')
       else
@@ -232,7 +232,7 @@ async function startRecording() {
     appendLog('Recording started')
   }
   catch (error) {
-    console.error(error)
+    console.error('[aliyun-nls] failed to start recording:', error)
     appendLog(`Failed to start recording: ${errorMessageFromValue(error)}`, 'error')
     audioStreamController.value?.error(error instanceof Error ? error : new Error(String(error)))
     audioStreamController.value = undefined

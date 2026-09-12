@@ -90,4 +90,46 @@ describe('useVisionInference', () => {
 
     await expectation
   })
+
+  it('honors a per-call timeoutMs override', async () => {
+    stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
+      options?.abortSignal?.addEventListener('abort', () => {
+        reject(options.abortSignal?.reason)
+      }, { once: true })
+    }))
+
+    const { useVisionInference } = await import('./use-vision-inference')
+    const { runVisionInference } = useVisionInference()
+
+    const result = runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      timeoutMs: 5_000,
+    })
+    const expectation = expect(result).rejects.toThrow('Vision inference timed out after 5000ms')
+
+    await vi.advanceTimersByTimeAsync(5_000)
+
+    await expectation
+  })
+
+  it('does not abort when the stream settles before the timeout', async () => {
+    stream.mockImplementation(async (_model, _provider, _messages, options) => {
+      options?.onStreamEvent?.({ type: 'text-delta', text: 'Early result' })
+    })
+
+    const { useVisionInference } = await import('./use-vision-inference')
+    const { runVisionInference } = useVisionInference()
+
+    const result = runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      timeoutMs: 5_000,
+    })
+    const expectation = expect(result).resolves.toBe('Early result')
+
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    await expectation
+  })
 })

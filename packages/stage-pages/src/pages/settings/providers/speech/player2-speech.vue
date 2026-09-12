@@ -65,7 +65,7 @@ onMounted(async () => {
     hasPlayer2.value = res.status === 200
   }
   catch (e) {
-    console.error(e)
+    console.error('[player2-speech] player2 reachability check failed:', e)
     hasPlayer2.value = false
   }
 })

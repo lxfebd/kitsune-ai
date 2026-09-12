@@ -1,5 +1,5 @@
 import type { VRM } from '@pixiv/three-vrm'
-import type { Group, Material, Object3D } from 'three'
+import type { Group, Material } from 'three'
 
 import { VRMUtils } from '@pixiv/three-vrm'
 import { AmbientLight, AnimationMixer, DirectionalLight, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
@@ -11,7 +11,7 @@ function disposePreviewVrm(vrm?: VRM, group?: Group) {
   group?.removeFromParent()
 
   if (vrm) {
-    VRMUtils.deepDispose(vrm.scene as unknown as Object3D)
+    VRMUtils.deepDispose(vrm.scene)
   }
 }
 

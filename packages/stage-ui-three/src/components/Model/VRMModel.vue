@@ -256,7 +256,7 @@ function disposeDetachedVrm(detachedVrm?: VRM, detachedGroup?: Group) {
   detachedGroup?.removeFromParent()
 
   if (detachedVrm)
-    VRMUtils.deepDispose(detachedVrm.scene as unknown as Object3D)
+    VRMUtils.deepDispose(detachedVrm.scene)
 }
 
 function detachVrmGroup(detachedGroup?: Group) {
@@ -357,7 +357,7 @@ function runVrmFrameHooks(context: VrmFrameHookContext) {
       hook.onFrame?.(context)
     }
     catch (error) {
-      console.error(error)
+      console.error('[VRMModel] frame hook error:', error)
       emit('error', error)
     }
   }
@@ -368,7 +368,7 @@ function runVrmFrameRuntimeHook(vrm: VRM, delta: number) {
     vrmFrameRuntimeHook.value?.(vrm, delta)
   }
   catch (error) {
-    console.error(error)
+    console.error('[VRMModel] frame runtime hook error:', error)
     emit('error', error)
   }
 }
@@ -379,7 +379,7 @@ function runVrmDisposeHooks(context: VrmDisposeHookContext) {
       hook.onDispose?.(context)
     }
     catch (error) {
-      console.error(error)
+      console.error('[VRMModel] dispose hook error:', error)
       emit('error', error)
     }
   }
@@ -829,7 +829,7 @@ async function loadModel() {
           }
           else if (isShaderMat(mat)) {
             // --- Shader material, further IBL injection needed ---
-            // TODO: stylised shader injection
+            // TODO(audit): stylised shader injection — Lilia plans to own all injected shader code to avoid double injection & untrusted uploaded-VRM shader behaviour (VRMModel.vue)
             // Lilia: I plan to replace all injected shader code to be my own, so that it can always avoid double injection and unknown user upload VRM injected shader behaviour...
             configureInjectedShaderMaterial(mat)
           }
@@ -891,7 +891,7 @@ async function loadModel() {
       return
 
     emitVrmLoadError(currentLoadReason, loadStartedAt, err)
-    console.error(err)
+    console.error('[VRMModel] load error:', err)
     emit('error', err)
   }
 }
@@ -959,32 +959,8 @@ onMounted(async () => {
     nprProgramVersion.value += 1
     const mode = normalizeEnvMode(envSelect.value)
 
-    // TODO: after bumping up to three 0.180.0 with @types/three 0.180.0,
-    //   Argument of type 'Group<Object3DEventMap>' is not assignable to parameter of type 'Object3D<Object3DEventMap>'.
-    //     Type 'Group<Object3DEventMap>' is missing the following properties from type 'Object3D<Object3DEventMap>': setPointerCapture, releasePointerCapture, hasPointerCapture
-    //
-    // Currently, AFAIK, https://github.com/pmndrs/xr/blob/456aa380206e93888cd3a5741a1534e672ae3106/packages/pointer-events/src/pointer.ts#L69-L100 declares
-    // declare module 'three' {
-    //   interface Object3D {
-    //     setPointerCapture(pointerId: number): void
-    //     releasePointerCapture(pointerId: number): void
-    //     hasPointerCapture(pointerId: number): boolean
-
-    //     intersectChildren?: boolean
-    //     interactableDescendants?: Array<Object3D>
-    //     /**
-    //      * @deprecated
-    //      */
-    //     ancestorsHaveListeners?: boolean
-    //     ancestorsHavePointerListeners?: boolean
-    //     ancestorsHaveWheelListeners?: boolean
-    //   }
-    // }
-    //
-    // And in @tresjs/core v5, it uses the @pmndrs/pointer-events internally.
-    // Somehow the Object3D from @types/three and the one augmented by @pmndrs/pointer-events are not compatible.
-    // This needs to be fixed later.
-    updateNprShaderSetting(vrm.value?.scene as unknown as Object3D, {
+    // three 0.184 + @pmndrs/pointer-events 的类型冲突已随版本升级消除；Group 可直接赋给 Object3D 参数。
+    updateNprShaderSetting(vrm.value?.scene, {
       mode,
       intensity: skyBoxIntensity.value,
       sh: nprIrrSH.value ?? null,

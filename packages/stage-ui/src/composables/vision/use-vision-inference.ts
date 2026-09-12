@@ -15,9 +15,11 @@ export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  /** Override the default 60s cap for this call. */
+  timeoutMs?: number
 }
 
-// TODO: this should be configurable
+/** Default cap for a single vision inference request; overridable per call. */
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
 
 function parseDataUrl(dataUrl: string) {
@@ -78,9 +80,10 @@ export function useVisionInference() {
 
     let buffer = ''
     const abortController = new AbortController()
+    const timeoutMs = input.timeoutMs ?? VISION_INFERENCE_TIMEOUT_MS
     const timeoutHandle = setTimeout(() => {
-      abortController.abort(new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`))
-    }, VISION_INFERENCE_TIMEOUT_MS)
+      abortController.abort(new Error(`Vision inference timed out after ${timeoutMs}ms`))
+    }, timeoutMs)
 
     try {
       await llmStore.stream(activeModel.value, visionProvider, messages, {
@@ -96,7 +99,7 @@ export function useVisionInference() {
       if (abortController.signal.aborted) {
         throw abortController.signal.reason instanceof Error
           ? abortController.signal.reason
-          : new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`)
+          : new Error(`Vision inference timed out after ${timeoutMs}ms`)
       }
       throw error
     }

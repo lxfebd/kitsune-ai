@@ -16,7 +16,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { z } from 'zod'
 
 import { decodeAudioToMono16k } from '../../../audio/decode'
-import { mapSenseVoiceEmotion } from '../../../inference/sensevoice-emotion-map'
+import { mapSenseVoiceEmotion, mapSenseVoiceEvent } from '../../../inference/sensevoice-emotion-map'
 import { defineProvider } from '../registry'
 
 // ---------------------------------------------------------------------------
@@ -141,10 +141,14 @@ export const providerSherpaAsr = defineProvider<SherpaAsrConfig>({
           if (result.emotion) {
             try {
               const { usePetEmotionStore } = await import('../../../../stores/chat/emotion-pet')
+              const { usePetStateStore } = await import('../../../../stores/chat/pet-state')
               const { Emotion } = await import('../../../../constants/emotions')
               const mapped = mapSenseVoiceEmotion(result.emotion)
               if (mapped && mapped !== Emotion.Neutral) {
+                const petStateStore = usePetStateStore()
                 const petEmotionStore = usePetEmotionStore()
+                // 用户情绪同时进入 mood/energy 状态机（与 useOverseerEmotion 的 applyEvent+enqueue 两步一致）
+                petStateStore.applyEvent(mapped, 0.8)
                 petEmotionStore.enqueue({ name: mapped, intensity: 0.8 })
               }
             }
@@ -153,9 +157,32 @@ export const providerSherpaAsr = defineProvider<SherpaAsrConfig>({
             }
           }
 
+          // 4b. 音频事件消费：观众/环境声音（音乐/笑声/掌声）触发顺带表情，不朗读
+          if (result.event) {
+            try {
+              const { usePetEmotionStore } = await import('../../../../stores/chat/emotion-pet')
+              const { usePetStateStore } = await import('../../../../stores/chat/pet-state')
+              const eventEmotion = mapSenseVoiceEvent(result.event)
+              if (eventEmotion) {
+                const petStateStore = usePetStateStore()
+                const petEmotionStore = usePetEmotionStore()
+                petStateStore.applyEvent(eventEmotion, 0.5)
+                petEmotionStore.enqueue({ name: eventEmotion, intensity: 0.5 })
+              }
+            }
+            catch {
+              // 事件消费失败不影响转录结果，静默忽略
+            }
+          }
+
           // 5. 返回标准 OpenAI transcription 格式的 Response
+          //    修复：emotion / event 一并返回，避免被 hearing store 上层吞掉
           return new Response(
-            JSON.stringify({ text: result.text }),
+            JSON.stringify({
+              text: result.text,
+              ...(result.emotion ? { emotion: result.emotion } : {}),
+              ...(result.event ? { event: result.event } : {}),
+            }),
             { status: 200, headers: { 'Content-Type': 'application/json' } },
           )
         },

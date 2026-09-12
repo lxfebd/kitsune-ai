@@ -87,7 +87,7 @@ const projectKitsuneAsciiArt = computed(() => {
   return wideAsciiArt.value
 })
 
-// TODO: replace placeholder https://kitsune.ai with official repo URL once confirmed
+// TODO(audit): replace placeholder https://kitsune.ai with official repo URL once confirmed (用户域名决策，同 About.vue)
 const projectKitsuneMetadata = `
 Kitsune AI Team (https://kitsune.ai) and other contributors
 Open sourced on https://kitsune.ai

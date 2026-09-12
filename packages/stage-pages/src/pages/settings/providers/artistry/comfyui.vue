@@ -22,7 +22,7 @@ const {
 
 const expandedWorkflow = ref<string | null>(null)
 
-// TODO: perhaps electron-vueuse should be ported for this?
+// TODO(audit): port a typed ipcRenderer helper into electron-vueuse for this access pattern (comfyui.vue)
 function getElectronIpcRenderer() {
   return (window as Window & {
     electron?: { ipcRenderer?: unknown }

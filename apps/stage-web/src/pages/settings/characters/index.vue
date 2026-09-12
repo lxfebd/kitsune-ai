@@ -42,7 +42,7 @@ function handleEdit(char: Character) {
 }
 
 function handleDelete(id: string) {
-  // TODO: Remove this
+  // TODO(audit): Remove this — replace native confirm with a proper UI dialog
   // eslint-disable-next-line no-alert
   if (confirm('确定要删除这个角色吗？')) {
     characterStore.remove(id).catch(console.error)
@@ -50,7 +50,7 @@ function handleDelete(id: string) {
 }
 
 function handleActivate(char: Character) {
-  // TODO: Implement activation logic (global store for active character)
+  // TODO(audit): Implement activation logic (global store for active character)
   // eslint-disable-next-line no-console
   console.log('Activate', char.id)
 }

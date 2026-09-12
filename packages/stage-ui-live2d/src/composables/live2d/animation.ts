@@ -25,7 +25,8 @@ export function useLive2DIdleEyeFocus() {
 
     model.focusController.update(now - lastSaccadeAt)
     const coreModel = model.coreModel as any
-    // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+    // TODO(audit): After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+    // Same no-profile fallback as Model.vue: standard Cubism 4 eye ball IDs; Soullink profile path is dynamic.
     coreModel.setParameterValueById('ParamEyeBallX', MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallX'), focusTarget![0], 0.3))
     coreModel.setParameterValueById('ParamEyeBallY', MathUtils.lerp(coreModel.getParameterValueById('ParamEyeBallY'), focusTarget![1], 0.3))
   }

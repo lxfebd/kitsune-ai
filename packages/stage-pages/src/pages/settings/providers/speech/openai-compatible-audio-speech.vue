@@ -61,8 +61,7 @@ const voice = computed({
   },
 })
 
-// TODO: use `useRefHistory` for this
-// Watch provider config changes to sync local refs (for reset functionality)
+// TODO(audit): replace manual watch with `useRefHistory` for reset support (openai-compatible-audio-speech.vue)
 watch(
   () => providers.value[providerId],
   (newConfig) => {

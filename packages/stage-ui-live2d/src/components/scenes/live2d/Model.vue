@@ -329,14 +329,18 @@ async function loadModel() {
       }, 300)
     }
 
-    // Remove eye ball movements from idle motion group to prevent conflicts
-    // This is too hacky
-    // FIXME: it cannot blink if loading a model only have idle motion
+    // Remove eye movements from idle motion group to prevent conflicts with the
+    // forced auto-blink / eye-focus timer. The timer owns eye parameters itself,
+    // so the idle motion must not write them (see useMotionUpdatePluginAutoEyeBlink).
+    // Eye ball + open parameters are stripped here; blink stays on the timer.
     if (motionManager.groups.idle) {
       motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
         motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
+        // TODO(audit): After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
+        // These four IDs are the standard Cubism 4 eye parameters. Soullink profile (parameterMap) already drives eyes
+        // dynamically for profiled models (see loadModelProfile below); this hardcoded list is only the no-profile fallback
+        // and stays until the stage editor lets users remap arbitrary model parameters.
+          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY' || curve.id === 'ParamEyeLOpen' || curve.id === 'ParamEyeROpen') {
             curve.id = `_${curve.id}`
           }
         })
@@ -567,7 +571,9 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
 }
 
 async function setMotion(motionName: string, index?: number) {
-  // TODO: motion? Not every Live2D model has motion, we do need to help users to set motion
+  // TODO(audit): motion? Not every Live2D model has motion, we do need to help users to set motion
+  // Motion selection already persists via localStorage ('selected-runtime-motion-*', see loadModel);
+  // the missing piece is a user-facing picker UI, tracked with the stage editor work.
   if (!model.value) {
     console.warn('Cannot set motion: model not loaded')
     return
@@ -614,7 +620,10 @@ watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
 
-// TODO: This is hacky!
+// TODO(audit): This is hacky!
+// rAF loop re-reads getComputedStyle every frame because the animated theme hue
+// (themeColorsHueDynamic) has no push mechanism; a reactive CSS var subscription
+// would remove the loop. Kept as-is: only runs while dynamic shadow is enabled.
 function updateDropShadowFilterLoop() {
   updateDropShadowFilter()
   if (!live2dShadowEnabled.value) {

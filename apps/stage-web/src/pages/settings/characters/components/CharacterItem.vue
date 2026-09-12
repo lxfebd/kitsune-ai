@@ -18,13 +18,12 @@ const emit = defineEmits<{
   (e: 'delete'): void
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const i18n = computed(() => {
-  // TODO: Use current locale
   if (!props.character.i18n?.length)
     return undefined
-  return props.character.i18n.find(i => i.language === 'en') || props.character.i18n[0]
+  return props.character.i18n.find(i => i.language === locale.value) || props.character.i18n[0]
 })
 
 const name = computed(() => i18n.value?.name || t('stage.settings.characters.unknown'))

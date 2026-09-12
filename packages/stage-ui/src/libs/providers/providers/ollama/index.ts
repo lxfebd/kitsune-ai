@@ -1,6 +1,7 @@
 import { createOllama } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { SERVER_URL } from '../../../server'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
@@ -172,9 +173,10 @@ export const providerOllama = defineProvider<OllamaConfig>({
         mode: 'interval',
         intervalMs: 15_000,
       },
-      connectivityFailureReason: ({ errorMessage }) =>
-        // TODO: 待域名确定后更新
-        `Failed to reach Ollama server, error: ${errorMessage} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=https://kitsune.ai,http://localhost environment variable before launching Ollama server to make this work.`,
+      connectivityFailureReason: ({ errorMessage }) => {
+        const origin = typeof window !== 'undefined' ? window.location.origin : new URL(SERVER_URL).origin
+        return `Failed to reach Ollama server, error: ${errorMessage} occurred.\n\nIf you are using Ollama locally, this is likely the CORS (Cross-Origin Resource Sharing) security issue, where you will need to set OLLAMA_ORIGINS=* or OLLAMA_ORIGINS=${origin},http://localhost environment variable before launching Ollama server to make this work.`
+      },
     })!.validateProvider,
   },
   business: ({ t }) => ({

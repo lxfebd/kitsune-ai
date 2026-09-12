@@ -38,9 +38,9 @@ export const useLLM = defineStore('llm', () => {
 
   async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
     const key = modelKey(model, chatProvider)
-    // TODO(@nekomeowww,@shinohara-rin): we should not register the command callback on every stream anyway...
+    // TODO(audit): don't register the command callback on every stream — hoist registration per provider/session (llm.ts, @nekomeowww,@shinohara-rin)
     const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-      // TODO(@nekomeowww): instruct the LLM to understand what destination is.
+      // TODO(audit): instruct the LLM to understand what destination is — without skill-like prompt injection destinations are wrong/hallucinated (llm.ts, @nekomeowww)
       // Currently without skill like prompt injection, many issues occur.
       // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
       //

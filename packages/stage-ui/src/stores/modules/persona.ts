@@ -498,7 +498,7 @@ export const usePersonaStore = defineStore('persona', () => {
     if (!newCard)
       return
 
-    // TODO: Minecraft Agent, etc
+    // TODO(audit): Minecraft Agent and other platform extensions (persona.ts)
     const extension = resolveKitsuneExtension(newCard)
     if (!extension)
       return

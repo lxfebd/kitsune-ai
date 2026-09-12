@@ -1,6 +1,10 @@
-﻿import { errorMessageFrom } from '@moeru/std'
+﻿import type { CapabilityDescriptor } from '@kitsune/plugin-sdk'
+import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+
+// stage-ui 与 plugin-sdk 共用同一个能力描述类型，避免两端各自维护漂移。
+export type PluginCapabilityState = CapabilityDescriptor
 
 export interface PluginManifestSummary {
   extensionId: string
@@ -15,15 +19,6 @@ export interface PluginManifestSummary {
 export interface PluginRegistrySnapshot {
   root: string
   plugins: PluginManifestSummary[]
-}
-
-// TODO: Replace with re-export of CapabilityDescriptor from
-// @kitsune/plugin-sdk once stage-ui can depend on the SDK.
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
 }
 
 export interface PluginHostSessionSummary {

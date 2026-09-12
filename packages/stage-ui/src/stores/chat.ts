@@ -40,6 +40,30 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
+/**
+ * LLM 调用失败兜底 — 桌宠尴尬表情 + 状态机吸收。
+ *
+ * useLLM().stream 内部已尝试云端兜底，仍失败才把异常抛到这里。
+ * 动态 import 避免与 stores/chat/modules 形成循环依赖；
+ * 非 Electron/无 pinia 环境静默跳过，不影响 chat 语义。
+ */
+function notifyLlmFailure(): void {
+  void import('./chat/emotion-pet').then(({ usePetEmotionStore }) => {
+    void import('../constants/emotions').then(({ Emotion }) => {
+      try {
+        const petEmotion = usePetEmotionStore()
+        // Awkward 是唯一全仓无生产者的表情枚举 — 天生就该表达"我说错话/出丑了"
+        petEmotion.enqueue({ name: Emotion.Awkward, intensity: 1 })
+      }
+      catch {
+        // 失败通知不影响主流程
+      }
+    })
+  }).catch(() => {
+    // 动态 import 失败不影响主流程
+  })
+}
+
 export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@kitsune/core-agent'
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
@@ -120,6 +144,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
       })
 
       llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
+    }
+    catch (error) {
+      // LLM 调用失败/超时（本地 provider 无云端兜底时）→ 桌宠尴尬表情 + 安抚
+      // NOTICE: 复用 llm.ts 兜底后的最终失败（本地失败 + 云端也失败 / 无云端可兜底）
+      notifyLlmFailure()
+      throw error
     }
     finally {
       llmSpan.end()

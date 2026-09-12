@@ -20,7 +20,7 @@ export function createDataSettingsStatusHelpers(emit: DataSettingsStatusEmit) {
   }
 
   function handleActionError(error: unknown) {
-    console.error(error)
+    console.error('[data-settings] action error:', error)
     emitStatus(errorMessageFrom(error) ?? '未知错误', 'error')
   }
 

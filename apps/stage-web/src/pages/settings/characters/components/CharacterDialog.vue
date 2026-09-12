@@ -123,7 +123,7 @@ async function handleSubmit() {
       {
         type: 'llm',
         config: {
-          apiKey: '', // TODO: Handle secrets
+          apiKey: '', // TODO(audit): Handle secrets — server has no secrets storage/encryption API yet (security design decision)
           apiBaseUrl: '',
           llm: {
             model: form.llmModel,
@@ -145,7 +145,7 @@ async function handleSubmit() {
         },
       },
     ],
-    avatarModels: [], // TODO: Add avatar model support
+    avatarModels: [], // TODO(audit): Add avatar model support — creation flow not wired yet
     prompts,
   }
 

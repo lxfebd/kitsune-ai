@@ -1,12 +1,13 @@
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { SERVER_URL } from '../../../server'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 export const OPENROUTER_ATTRIBUTION_HEADERS: Record<string, string> = {
-  'HTTP-Referer': 'https://kitsune.ai/', // TODO: 待域名确定后更新
+  'HTTP-Referer': `${new URL(SERVER_URL).origin}/`,
   'X-OpenRouter-Title': 'Project AIRI',
 }
 

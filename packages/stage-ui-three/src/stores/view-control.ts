@@ -10,7 +10,7 @@ interface ControlConfig { min: number, max: number, step: number, default: numbe
 const formatMetersD2 = (val: number) => `${val.toFixed(2)}m`
 
 export const defaultControlConfig: Record<SupportedControl, ControlConfig> = {
-  // TODO: allow user to set the min/max value
+  // TODO(audit): allow user to set the min/max value — needs a control-panel settings UI (view-control.ts)
   x: {
     min: -10,
     max: 10,

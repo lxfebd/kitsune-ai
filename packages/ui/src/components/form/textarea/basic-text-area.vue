@@ -56,8 +56,7 @@ watch(input, () => {
     // NOTICE: not sure why 4px is required but if not added, when
     // input happened and placeholder now disappeared, the textarea will shrink
     // a little bit and cause the input box to shake.
-    // TODO: find out the root cause and remove this magic number, or at least
-    // reference a more specific source.
+    // TODO(audit): find out the root cause and remove this 4px magic number, or reference a more specific source (basic-text-area.vue)
     textareaHeight.value = `${textareaRef.value.scrollHeight + 4}px`
   })
 }, { immediate: true })

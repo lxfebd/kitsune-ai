@@ -6,7 +6,7 @@ export interface ServerAdminBootstrapContext {
 const SCRIPT_ID = 'kitsune-server-admin-context'
 const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
 
-// TODO: 待域名确定后更新
+// TODO(audit): 待域名确定后更新
 const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://api.kitsune.ai',
   'https://kitsune-server-dev.up.railway.app',

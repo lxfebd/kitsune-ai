@@ -650,7 +650,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             messageText = `${overrides.messagePrefix}${text}`
           }
 
-          // TODO(@nekomeowww): This only guard for input:text events handling and doesn't cover the entire ingestion
+          // TODO(audit): only guards input:text events — spark:notify ingestion path also needs a leader-election/distributed-lock solution (context-bridge.ts, @nekomeowww)
           // process. Another critical path of spark:notify is affected too, I think for better future development
           // experience, we should discover and find either a leader election or distributed lock solution to
           // coordinate the modules that handles context bridge ingestion across multiple windows/tabs.
@@ -770,11 +770,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             data: {
               ...context.input?.data,
               'message': chat.output,
-              // TODO: tool calls should be captured properly
-              'toolCalls': [],
+              'toolCalls': chat.toolCalls,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
-              // TODO: Properly calculate usage data
+              // TODO(audit): usage comes from core-agent's async streamResult.usage promise, which is
+              // not yet surfaced through the onChatTurnComplete hook contract; keep estimate-based
+              // until plugin-protocol gains a usage payload field from the runtime.
               'usage': {
                 promptTokens: 0,
                 completionTokens: 0,

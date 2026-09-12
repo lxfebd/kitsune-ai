@@ -151,8 +151,8 @@ onMounted(async () => {
 
   // hot switch: react to sky box change
   watch(
+    // TODO(audit): skybox blurriness/intensity user options — future settings surface (SkyBox.vue)
     // Actually we can also let user set background blurriness or intensity
-    // TODO: maybe we can open more options for users regarding to the settings of the background in the future
     () => [props.skyBoxSrc],
     ([skyBoxSrc]) => {
       loadEnvironment(skyBoxSrc as string)
