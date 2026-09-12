@@ -1,5 +1,4 @@
-﻿// TODO: 待仓库地址确认
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const appMock = vi.hoisted(() => ({
   getVersion: vi.fn(() => '0.9.0-beta.4'),

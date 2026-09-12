@@ -13,6 +13,7 @@ import {
   electronExecutorStatus,
   electronExecutorStop,
 } from '../../../../../shared/eventa'
+import PlanGraph from '../../../../components/plan-graph/index.vue'
 import { useEnvironmentI18n } from './use-environment-i18n'
 
 const { tn } = useEnvironmentI18n()
@@ -30,6 +31,37 @@ const executorStatus = ref<ExecutorStatus>({ plan: null, currentTaskId: null, cu
 const executorTaskResults = ref<Map<string, TaskResult>>(new Map())
 const executorTaskPersonaMessages = ref<Map<string, string>>(new Map())
 const errorMessage = ref('')
+
+// 图示化：已完成/失败任务 id 集合（PlanGraph 用）
+const completedTaskIds = computed(() => {
+  const set = new Set<string>()
+  for (const [id, r] of executorTaskResults.value) {
+    if (r.ok)
+      set.add(id)
+  }
+  return set
+})
+const failedTaskIds = computed(() => {
+  const set = new Set<string>()
+  for (const [id, r] of executorTaskResults.value) {
+    if (!r.ok)
+      set.add(id)
+  }
+  return set
+})
+
+// 聚合统计：总任务/已完成/失败/当前层
+const executorStats = computed(() => {
+  const plan = executorPlan.value
+  const total = plan?.tasks.length ?? 0
+  return {
+    total,
+    completed: completedTaskIds.value.size,
+    failed: failedTaskIds.value.size,
+    pending: total - completedTaskIds.value.size - failedTaskIds.value.size,
+    level: executorStatus.value.currentLevel ?? 0,
+  }
+})
 
 const executorStatusLabel = computed(() => {
   if (executorBusy.value && !executorStatus.value.isRunning)
@@ -244,54 +276,84 @@ initStatus()
       />
     </div>
 
-    <!-- 计划列表 -->
-    <div v-if="executorPlan" class="flex flex-col gap-2">
-      <div class="grid grid-cols-[auto_auto_1fr_auto_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-2">
-        <span>#</span>
-        <span>{{ tn('executor.table.type') }}</span>
-        <span>{{ tn('executor.table.title') }}</span>
-        <span>{{ tn('executor.table.status') }}</span>
-        <span>{{ tn('executor.table.duration') }}</span>
-      </div>
-      <article
-        v-for="(task, idx) in executorPlan.tasks"
-        :key="task.id"
-        :class="['grid grid-cols-[auto_auto_1fr_auto_auto] gap-2 items-center rounded-xl border px-3 py-2 text-xs', executorStatus.currentTaskId === task.id ? 'border-primary-500/30 bg-primary-500/5' : 'border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02]']"
-      >
-        <span class="font-mono text-neutral-500">{{ idx + 1 }}</span>
-        <span class="rounded-full bg-neutral-200/60 px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
-          {{ task.type === 'cli' ? 'CLI' : 'IDE' }}
-        </span>
-        <span class="truncate">{{ task.title }}</span>
-        <span :class="[
-          'text-[10px] font-medium',
-          executorTaskResults.get(task.id)?.ok ? 'text-emerald-600 dark:text-emerald-400' : executorStatus.currentTaskId === task.id ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-500',
-        ]">
-          {{ executorTaskStatus(task) }}
-        </span>
-        <span class="font-mono text-neutral-500">{{ executorTaskDuration(task) }}</span>
-        <div
-          v-if="executorFormatTaskError(task)"
-          :class="['col-span-full text-[10px] text-red-600 dark:text-red-400']"
-        >
-          {{ executorFormatTaskError(task) }}
-        </div>
-        <div
-          v-if="executorTaskPersonaMessages.get(task.id)"
-          :class="[
-            'col-span-full flex items-start gap-1.5 rounded-md px-2 py-1.5',
-            'bg-rose-50 dark:bg-rose-950/30',
-            'text-[10px] text-rose-700 dark:text-rose-300',
-          ]"
-        >
-          <span class="i-solar:heart-bold mt-0.5 shrink-0 text-xs" />
-          <div class="min-w-0">
-            <span class="font-medium">桌宠安慰：</span>
-            <span>{{ executorTaskPersonaMessages.get(task.id) }}</span>
-          </div>
-        </div>
-      </article>
+    <!-- 计划图示化：聚合统计 -->
+    <div v-if="executorPlan" class="flex items-center gap-3 text-xs">
+      <span class="rounded-full bg-neutral-400/15 px-2 py-0.5 text-neutral-600 dark:text-neutral-300">
+        总任务 {{ executorStats.total }}
+      </span>
+      <span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">
+        已完成 {{ executorStats.completed }}
+      </span>
+      <span class="rounded-full bg-red-500/15 px-2 py-0.5 text-red-700 dark:text-red-300">
+        失败 {{ executorStats.failed }}
+      </span>
+      <span class="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-700 dark:text-sky-300">
+        当前层 L{{ executorStats.level }}
+      </span>
     </div>
+
+    <!-- 计划图示化：DAG 分层任务图 -->
+    <PlanGraph
+      v-if="executorPlan"
+      :tasks="executorPlan.tasks"
+      :active-task-id="executorStatus.currentTaskId"
+      :completed-ids="completedTaskIds"
+      :failed-ids="failedTaskIds"
+    />
+
+    <!-- 计划列表（保留表格作为补充视图，收起为可选） -->
+    <details v-if="executorPlan" class="text-xs">
+      <summary class="cursor-pointer text-neutral-500 dark:text-neutral-400 select-none">
+        任务明细表格
+      </summary>
+      <div class="mt-2 flex flex-col gap-2">
+        <div class="grid grid-cols-[auto_auto_1fr_auto_auto] gap-2 text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400 px-2">
+          <span>#</span>
+          <span>{{ tn('executor.table.type') }}</span>
+          <span>{{ tn('executor.table.title') }}</span>
+          <span>{{ tn('executor.table.status') }}</span>
+          <span>{{ tn('executor.table.duration') }}</span>
+        </div>
+        <article
+          v-for="(task, idx) in executorPlan.tasks"
+          :key="task.id"
+          :class="['grid grid-cols-[auto_auto_1fr_auto_auto] gap-2 items-center rounded-xl border px-3 py-2 text-xs', executorStatus.currentTaskId === task.id ? 'border-primary-500/30 bg-primary-500/5' : 'border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02]']"
+        >
+          <span class="font-mono text-neutral-500">{{ idx + 1 }}</span>
+          <span class="rounded-full bg-neutral-200/60 px-1.5 py-0.5 text-[10px] font-medium uppercase text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            {{ task.type === 'cli' ? 'CLI' : 'IDE' }}
+          </span>
+          <span class="truncate">{{ task.title }}</span>
+          <span :class="[
+            'text-[10px] font-medium',
+            executorTaskResults.get(task.id)?.ok ? 'text-emerald-600 dark:text-emerald-400' : executorStatus.currentTaskId === task.id ? 'text-amber-600 dark:text-amber-400' : 'text-neutral-500',
+          ]">
+            {{ executorTaskStatus(task) }}
+          </span>
+          <span class="font-mono text-neutral-500">{{ executorTaskDuration(task) }}</span>
+          <div
+            v-if="executorFormatTaskError(task)"
+            :class="['col-span-full text-[10px] text-red-600 dark:text-red-400']"
+          >
+            {{ executorFormatTaskError(task) }}
+          </div>
+          <div
+            v-if="executorTaskPersonaMessages.get(task.id)"
+            :class="[
+              'col-span-full flex items-start gap-1.5 rounded-md px-2 py-1.5',
+              'bg-rose-50 dark:bg-rose-950/30',
+              'text-[10px] text-rose-700 dark:text-rose-300',
+            ]"
+          >
+            <span class="i-solar:heart-bold mt-0.5 shrink-0 text-xs" />
+            <div class="min-w-0">
+              <span class="font-medium">桌宠安慰：</span>
+              <span>{{ executorTaskPersonaMessages.get(task.id) }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </details>
 
     <div v-else class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
       {{ tn('executor.no-plan') }}

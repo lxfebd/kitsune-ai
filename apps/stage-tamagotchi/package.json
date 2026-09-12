@@ -52,6 +52,7 @@
     "@intlify/core": "catalog:",
     "@kitsune/bm25-native": "workspace:^",
     "@kitsune/core-character": "workspace:^",
+    "@kitsune/desktop-platform": "workspace:^",
     "@kitsune/emotion-mapper": "workspace:^",
     "@kitsune/font-cjkfonts-allseto": "workspace:^",
     "@kitsune/font-xiaolai": "workspace:^",

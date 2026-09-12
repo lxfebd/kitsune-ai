@@ -139,4 +139,18 @@ describe('createFileLogger', () => {
     const remaining = await readdir(dir)
     expect(remaining).not.toContain(oldName)
   })
+
+  it('close() waits for in-flight writes so no log line is lost', async () => {
+    const logger = await createFileLogger({ logsDir: dir })
+    // 不 sleep：close() 现在必须等在途 appendFile 完成
+    logger.info('[test] flush-me')
+    logger.warn('[test] flush-me-too')
+    await logger.close()
+
+    const files = await readdir(dir)
+    const logFile = files.find(f => f.startsWith('main-'))!
+    const content = await readFile(join(dir, logFile), 'utf-8')
+    expect(content).toContain('[INFO] [test] flush-me')
+    expect(content).toContain('[WARN] [test] flush-me-too')
+  })
 })

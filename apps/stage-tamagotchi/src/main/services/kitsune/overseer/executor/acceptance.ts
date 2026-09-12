@@ -14,6 +14,12 @@ export function createAcceptance(deps: AcceptanceDeps) {
   const fileLogger = getFileLogger()
 
   async function checkCli(task: Task, result: TaskResult): Promise<{ ok: boolean, error?: string }> {
+    // 超时是独立的失败类别 — 优先于 exitCode 判定（TIMEOUT 固定 exitCode=124，
+    // 若先走 exitCode 分支会把它误报成「退出码非 0: 124」）
+    if (result.code === 'TIMEOUT') {
+      fileLogger.debug('[acceptance] checkCli', { eventId: 'checkCli', node: task.id, action: 'timeout', result: result.error })
+      return { ok: false, error: result.error ?? '命令超时' }
+    }
     if (result.exitCode !== 0) {
       fileLogger.debug('[acceptance] checkCli', { eventId: 'checkCli', node: task.id, action: 'exit_code', result: `exit=${result.exitCode}` })
       return { ok: false, error: `退出码非 0: ${result.exitCode}` }

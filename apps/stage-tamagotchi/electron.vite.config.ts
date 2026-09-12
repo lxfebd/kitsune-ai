@@ -184,6 +184,10 @@ export default defineConfig({
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
         },
+        // 与 main 段 external 对齐：@kitsune/tts-hybrid 的 sherpaTtsAdapter 静态引用
+        // require('sherpa-onnx')。渲染进程只用到 engine-registry（listEngines 等），
+        // 从不实例化 SherpaTtsAdapter，外部化后该 require 留在 bundle 中但从不会执行。
+        external: ['sherpa-onnx', 'sherpa-onnx-node', 'sherpa-onnx-wasm'],
       },
     },
 

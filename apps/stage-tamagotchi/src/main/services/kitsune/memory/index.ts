@@ -2,10 +2,13 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 
+import { useLogg } from '@guiiai/logg'
+
 import {
   electronMemoryAddEntry,
   electronMemoryCleanup,
   electronMemoryClearAll,
+  electronMemoryEntryAdded,
   electronMemoryExport,
   electronMemoryExtractAndSave,
   electronMemoryGetProfile,
@@ -36,7 +39,10 @@ import { extractMemoryFromConversation } from '@kitsune/stage-shared/memory'
 import { createMemoryAdapters } from './adapters'
 import { MemoryStore } from './store'
 
+const log = useLogg('main/memory').useGlobalConfig()
+
 export function createMemoryService(params: { context: ReturnType<typeof createContext>['context'] }) {
+  const { context } = params
   const longTermStore = new MemoryStore()
   const shortTermStore = new MemoryStore({
     namespace: 'short-term',
@@ -57,7 +63,20 @@ export function createMemoryService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electronMemoryGetStats, async () => longTermStore.getStats())
   defineInvokeHandler(params.context, electronMemoryListEntries, async payload => longTermStore.listEntries(payload))
-  defineInvokeHandler(params.context, electronMemoryAddEntry, async payload => longTermStore.addEntry(payload))
+  defineInvokeHandler(params.context, electronMemoryAddEntry, async payload => {
+    const entry = await longTermStore.addEntry(payload)
+    // 桌宠回执 — memory_write 工具落盘成功后，桌宠表达"我记住了"（renderer 侧 useMemoryEmotion 消费）
+    if (entry) {
+      context.emit(electronMemoryEntryAdded, {
+        id: entry.id,
+        content: entry.content,
+        type: entry.type,
+        source: entry.source,
+        sessionId: entry.sessionId,
+      })
+    }
+    return entry
+  })
   defineInvokeHandler(params.context, electronMemoryRemoveEntry, async payload => longTermStore.removeEntry(payload.id))
   defineInvokeHandler(params.context, electronMemoryClearAll, async () => longTermStore.clearAll())
   defineInvokeHandler(params.context, electronMemoryCleanup, async () => longTermStore.cleanup())
@@ -72,20 +91,29 @@ export function createMemoryService(params: { context: ReturnType<typeof createC
   defineInvokeHandler(params.context, electronMemoryTestRules, async payload => longTermStore.testRules(payload.text, payload.rules))
 
   // 记忆提取 + 写入（供 chat-sync.ts 流式完成后调用）
-  defineInvokeHandler(params.context, electronMemoryExtractAndSave, async (payload) => {
+  defineInvokeHandler(context, electronMemoryExtractAndSave, async (payload) => {
     const entries = extractMemoryFromConversation(payload.userMessage, payload.assistantMessage)
     let saved = 0
     for (const entry of entries) {
-      await longTermStore.addEntry({
+      const stored = await longTermStore.addEntry({
         content: entry.content,
         type: entry.type,
         source: 'chat',
         sessionId: payload.sessionId,
       })
+      if (stored) {
+        context.emit(electronMemoryEntryAdded, {
+          id: stored.id,
+          content: stored.content,
+          type: stored.type,
+          source: stored.source,
+          sessionId: stored.sessionId,
+        })
+      }
       saved++
     }
     if (saved > 0)
-      console.log(`[memory] extracted ${saved} entries`)
+      log.log(`[memory] extracted ${saved} entries`)
     return { saved }
   })
 
@@ -99,7 +127,7 @@ export function createMemoryService(params: { context: ReturnType<typeof createC
       crossSession: true,
     })
     if (entries.length > 0)
-      console.log(`[memory] search hit: ${entries.length} entries for "${payload.query.slice(0, 30)}"`)
+      log.log(`[memory] search hit: ${entries.length} entries for "${payload.query.slice(0, 30)}"`)
     return entries.map(e => ({ content: e.content }))
   })
 

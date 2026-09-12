@@ -4,6 +4,10 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
+// 服务端账号/鉴权系统当前未启用（apps/server session middleware 降级返回 null）。
+// 页面保留表单 UI，但提交时不再假装登录成功 —— 提示服务端未配置。
+const noticeMessage = ref('')
+
 // Mock account state - replace with actual store
 const isLoggedIn = ref(false)
 const user = ref({
@@ -27,19 +31,15 @@ const isLoginValid = computed(() => {
 
 async function handleLogin() {
   if (!isLoginValid.value) return
-  
+
   isLoading.value = true
+  noticeMessage.value = ''
   try {
-    // TODO: Implement actual login logic with server-sdk
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    isLoggedIn.value = true
-    user.value = {
-      name: 'User',
-      email: loginForm.value.email,
-      avatar: '',
-      plan: 'free',
-    }
+    // 服务端账号后端尚未启用（见 apps/server/src/middlewares/auth.ts 的 sessionMiddleware 降级）。
+    // 接入方式：server 端补 /api/v1/auth/*（better-auth）后，这里用 @kitsune/server-sdk Client 调登录，
+    // 拿到 session 再回填 user。
+    await new Promise(resolve => setTimeout(resolve, 600))
+    noticeMessage.value = t('settings.pages.account.unavailable.message')
   } catch (error) {
     console.error('Login failed:', error)
   } finally {
@@ -78,20 +78,13 @@ const isRegisterValid = computed(() => {
 
 async function handleRegister() {
   if (!isRegisterValid.value) return
-  
+
   isLoading.value = true
+  noticeMessage.value = ''
   try {
-    // TODO: Implement actual registration logic
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    isLoggedIn.value = true
-    user.value = {
-      name: registerForm.value.name,
-      email: registerForm.value.email,
-      avatar: '',
-      plan: 'free',
-    }
-    showRegister.value = false
+    // 同 handleLogin：服务端账号后端未启用，不假装注册成功。
+    await new Promise(resolve => setTimeout(resolve, 600))
+    noticeMessage.value = t('settings.pages.account.unavailable.message')
   } catch (error) {
     console.error('Registration failed:', error)
   } finally {
@@ -198,6 +191,10 @@ async function handleRegister() {
           >
             {{ t('settings.pages.account.login.createAccount', 'Create Account') }}
           </button>
+        </div>
+
+        <div v-if="noticeMessage" class="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+          {{ noticeMessage }}
         </div>
       </div>
       
@@ -312,6 +309,10 @@ async function handleRegister() {
                 {{ t('settings.pages.account.register.create', 'Create Account') }}
               </span>
             </button>
+          </div>
+
+          <div v-if="noticeMessage" class="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            {{ noticeMessage }}
           </div>
         </div>
       </div>

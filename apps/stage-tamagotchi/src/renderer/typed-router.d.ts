@@ -272,9 +272,23 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/settings/connectors/': RouteRecordInfo<
+      '/settings/connectors/',
+      '/settings/connectors',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/settings/data/': RouteRecordInfo<
       '/settings/data/',
       '/settings/data',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/director/': RouteRecordInfo<
+      '/settings/director/',
+      '/settings/director',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -286,9 +300,65 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/settings/executor/': RouteRecordInfo<
+      '/settings/executor/',
+      '/settings/executor',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/group/ops/': RouteRecordInfo<
+      '/settings/group/ops/',
+      '/settings/group/ops',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/group/pet/': RouteRecordInfo<
+      '/settings/group/pet/',
+      '/settings/group/pet',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/group/run/': RouteRecordInfo<
+      '/settings/group/run/',
+      '/settings/group/run',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/group/security/': RouteRecordInfo<
+      '/settings/group/security/',
+      '/settings/group/security',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/group/senses/': RouteRecordInfo<
+      '/settings/group/senses/',
+      '/settings/group/senses',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/health/': RouteRecordInfo<
+      '/settings/health/',
+      '/settings/health',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/settings/kitsune-card/': RouteRecordInfo<
       '/settings/kitsune-card/',
       '/settings/kitsune-card',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/mcp-agent/': RouteRecordInfo<
+      '/settings/mcp-agent/',
+      '/settings/mcp-agent',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -408,6 +478,13 @@ declare module 'vue-router/auto-routes' {
     '/settings/modules/x': RouteRecordInfo<
       '/settings/modules/x',
       '/settings/modules/x',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/overseer/': RouteRecordInfo<
+      '/settings/overseer/',
+      '/settings/overseer',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -734,6 +811,20 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/settings/team/': RouteRecordInfo<
+      '/settings/team/',
+      '/settings/team',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/whitelist/': RouteRecordInfo<
+      '/settings/whitelist/',
+      '/settings/whitelist',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/spotlight': RouteRecordInfo<
       '/spotlight',
       '/spotlight',
@@ -1027,9 +1118,21 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/renderer/pages/settings/connectors/index.vue': {
+      routes:
+        | '/settings/connectors/'
+      views:
+        | never
+    }
     '../../packages/stage-pages/src/pages/settings/data/index.vue': {
       routes:
         | '/settings/data/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/director/index.vue': {
+      routes:
+        | '/settings/director/'
       views:
         | never
     }
@@ -1039,9 +1142,57 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
+    'src/renderer/pages/settings/executor/index.vue': {
+      routes:
+        | '/settings/executor/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/group/ops/index.vue': {
+      routes:
+        | '/settings/group/ops/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/group/pet/index.vue': {
+      routes:
+        | '/settings/group/pet/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/group/run/index.vue': {
+      routes:
+        | '/settings/group/run/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/group/security/index.vue': {
+      routes:
+        | '/settings/group/security/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/group/senses/index.vue': {
+      routes:
+        | '/settings/group/senses/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/health/index.vue': {
+      routes:
+        | '/settings/health/'
+      views:
+        | never
+    }
     '../../packages/stage-pages/src/pages/settings/kitsune-card/index.vue': {
       routes:
         | '/settings/kitsune-card/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/mcp-agent/index.vue': {
+      routes:
+        | '/settings/mcp-agent/'
       views:
         | never
     }
@@ -1144,6 +1295,12 @@ declare module 'vue-router/auto-routes' {
     '../../packages/stage-pages/src/pages/settings/modules/x.vue': {
       routes:
         | '/settings/modules/x'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/overseer/index.vue': {
+      routes:
+        | '/settings/overseer/'
       views:
         | never
     }
@@ -1420,6 +1577,18 @@ declare module 'vue-router/auto-routes' {
     'src/renderer/pages/settings/system/window-shortcuts.vue': {
       routes:
         | '/settings/system/window-shortcuts'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/team/index.vue': {
+      routes:
+        | '/settings/team/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/whitelist/index.vue': {
+      routes:
+        | '/settings/whitelist/'
       views:
         | never
     }

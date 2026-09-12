@@ -15,7 +15,7 @@
 
 import type { BrowserWindow, Rectangle } from 'electron'
 
-import { type EnumeratedWindow, enumerateWindows } from '../../libs/win32/window-enumerator'
+import { type EnumeratedWindow, enumerateWindows } from '@kitsune/desktop-platform'
 import { type TaskbarInfo, getTaskbarInfo, isOverlappingTaskbar } from './taskbar'
 
 // ========== 常量（移植自 Mate-Engine） ==========

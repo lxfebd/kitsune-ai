@@ -13,7 +13,7 @@ import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { errorMessageFrom } from '@moeru/std'
-import { createServer, getLocalIPs } from '@kitsune/server-runtime/server'
+import { createServer, getLocalIPs, SERVER_CHANNEL_DEFAULT_PORT, SERVER_CHANNEL_WS_PATH } from '@kitsune/server-runtime/server'
 import { createServerChannelQrPayload } from '@kitsune/stage-shared/server-channel-qr'
 import { Mutex } from 'async-mutex'
 import { app, ipcMain, session } from 'electron'
@@ -25,6 +25,7 @@ import { z } from 'zod'
 import {
   electronApplyServerChannelConfig,
   electronGetServerChannelConfig,
+  electronGetServerChannelPeers,
   electronGetServerChannelQrPayload,
 } from '../../../../shared/eventa'
 import { createConfig } from '../../../libs/electron/persistence'
@@ -75,7 +76,7 @@ interface ServerChannelCertificateVerifyRequest {
 }
 
 function getServerChannelPort() {
-  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : 6121
+  return env.SERVER_CHANNEL_PORT ? Number.parseInt(env.SERVER_CHANNEL_PORT) : SERVER_CHANNEL_DEFAULT_PORT
 }
 
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
@@ -100,9 +101,7 @@ function getServerChannelQrHosts(config: ElectronServerChannelConfig, serverChan
 
 function createServerChannelUrl(protocol: 'ws' | 'wss', host: string) {
   const urlHost = isIP(host) === 6 ? `[${host}]` : host
-  // TODO: Deduplicate the server channel websocket path with `packages/server-runtime/src/index.ts`
-  // and `packages/server-sdk/src/client.ts` so this does not rely on three separate `/ws` literals.
-  return `${protocol}://${urlHost}:${getServerChannelPort()}/ws`
+  return `${protocol}://${urlHost}:${getServerChannelPort()}${SERVER_CHANNEL_WS_PATH}`
 }
 
 function getServerChannelQrPayload(config: ElectronServerChannelConfig, serverChannel: Server) {
@@ -450,6 +449,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
     onMessage: handler => serverChannel.onMessage(handler),
     sendToPeer: (peerId, message) => serverChannel.sendToPeer(peerId, message),
     listPeerIds: () => serverChannel.listPeerIds(),
+    broadcast: message => serverChannel.broadcast(message),
   }
 }
 
@@ -468,6 +468,10 @@ export async function createServerChannelService(params: { serverChannel: Server
   defineInvokeHandler(context, electronGetServerChannelQrPayload, async () => {
     const config = await getChannelServerConfig()
     return getServerChannelQrPayload(config, params.serverChannel)
+  })
+
+  defineInvokeHandler(context, electronGetServerChannelPeers, async () => {
+    return params.serverChannel.listPeerIds()
   })
 
   defineInvokeHandler(context, electronApplyServerChannelConfig, async (req) => {

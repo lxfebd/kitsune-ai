@@ -97,14 +97,41 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
   let currentDate = formatDate(new Date())
   let fileHandle = await open(join(logsDir, buildLogFileName(currentDate)), 'a')
 
+  // 跨午夜轮转串行化：并发 write() 同日各调 rotateIfNeeded() 时避免同一把
+  // fileHandle 被 close 后另一条 append 仍在上面的竞态（原实现每次直接 close+open）。
+  let rotation: Promise<void> | null = null
   async function rotateIfNeeded(): Promise<void> {
     const today = formatDate(new Date())
     if (today === currentDate)
       return
-    currentDate = today
-    await fileHandle.close().catch(() => {})
-    fileHandle = await open(join(logsDir, buildLogFileName(currentDate)), 'a')
-    await cleanupOldLogs(logsDir, retentionDays)
+    if (rotation) {
+      await rotation
+      return rotateIfNeeded()
+    }
+    rotation = (async () => {
+      currentDate = today
+      await fileHandle.close().catch(() => {})
+      fileHandle = await open(join(logsDir, buildLogFileName(currentDate)), 'a')
+      await cleanupOldLogs(logsDir, retentionDays)
+    })()
+    try {
+      await rotation
+    }
+    finally {
+      rotation = null
+    }
+  }
+
+  // 待写计数：close() 需等在途的 appendFile 完成，避免退出时丢最后几行日志
+  let pendingWrites = 0
+  const flushResolvers: (() => void)[] = []
+  function trackWriteDone(): void {
+    pendingWrites--
+    if (pendingWrites === 0) {
+      const resolvers = flushResolvers.splice(0)
+      for (const resolve of resolvers)
+        resolve()
+    }
   }
 
   function write(level: LogLevel, message: string, fields?: Record<string, unknown>): void {
@@ -112,7 +139,20 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
       return
     const line = formatLogLine(level, message, fields)
     try { console.log(line) } catch { /* EPIPE when pipe closes */ }
-    void rotateIfNeeded().then(() => fileHandle.appendFile(`${line}\n`).catch(() => {}))
+    // 同步代码路径绝不抛：内存/队列已满等情况下追加失败仅丢该行，不影响业务
+    pendingWrites++
+    void (async () => {
+      try {
+        await rotateIfNeeded()
+        await fileHandle.appendFile(`${line}\n`)
+      }
+      catch {
+        // 写盘失败静默（如磁盘满/句柄被轮转关闭），日志不应让主进程崩溃
+      }
+      finally {
+        trackWriteDone()
+      }
+    })()
   }
 
   return {
@@ -120,7 +160,11 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
     info: (m, f) => write('INFO', m, f),
     warn: (m, f) => write('WARN', m, f),
     error: (m, f) => write('ERROR', m, f),
-    close: async () => { await fileHandle.close().catch(() => {}) },
+    close: async () => {
+      if (pendingWrites > 0)
+        await new Promise<void>(resolve => flushResolvers.push(resolve))
+      await fileHandle.close().catch(() => {})
+    },
   }
 }
 

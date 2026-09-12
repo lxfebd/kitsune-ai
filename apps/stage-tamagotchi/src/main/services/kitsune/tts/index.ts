@@ -38,11 +38,12 @@ const DEFAULT_GPT_SOVITS_PORT = 9880
 // ---------------------------------------------------------------------------
 
 /**
- * 返回已安装的 GPT-SoVITS 运行时插件根目录；未安装返回 null。
+ * 返回已安装的 GPT-SoVITS 运行时插件根目录（GPU 版 `gpt-sovits` 或 CPU 精简版
+ * `gpt-sovits-cpu` 任一命中即返回）；都未安装返回 null。
  * 该目录含自带 Python runtime，故任何机器解压后即可运行，无需系统装 Python。
  */
 function resolveInstalledGptSovitsPluginDir(): string | null {
-  return resolvePluginRoot('tts-gptsovits')
+  return resolvePluginRoot('tts-gptsovits') ?? resolvePluginRoot('tts-gptsovits-cpu')
 }
 
 // 持久化配置 schema：dir 为 GPT-SoVITS 安装目录，port 为 HTTP 监听端口（1024-65535），device 为推理设备模式，threads 为 CPU 推理线程数
@@ -417,6 +418,11 @@ export async function startGptSovits(sidecarService: SidecarService): Promise<{ 
     env.OMP_NUM_THREADS = String(threads)
     env.MKL_NUM_THREADS = String(threads)
     env.OPENBLAS_NUM_THREADS = String(threads)
+    // 空闲线程被动等待而非自旋：后台运行时显著降低引擎 CPU 占用与耗电
+    //（OMP_WAIT_POLICY 由 libiomp/mkl 读取；OpenBLAS 无对应变量，线程数钳制已兜底）。
+    env.OMP_WAIT_POLICY = 'PASSIVE'
+    // torch 自带的 intra-op 线程池同样遵守线程钳制，避免 num_threads 超过用户设置
+    env.TORCH_NUM_THREADS = String(threads)
   }
   else if (configuredDevice === 'cuda-half') {
     args.push('-hp')

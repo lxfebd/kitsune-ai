@@ -1,9 +1,10 @@
 import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
+import type { ElectronDesktopAutomationInvokePayload, ElectronDesktopAutomationResult } from '../shared/eventa'
 
 import { execSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import process, { env, platform } from 'node:process'
 
 import { dirname, join } from 'node:path'
@@ -26,18 +27,17 @@ import icon from '../../resources/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
-import { initFileLogger } from './services/kitsune/logger'
+import { getFileLogger, initFileLogger } from './services/kitsune/logger'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import type { OverseerService } from './services/kitsune/overseer'
 import type { SidecarService } from './services/kitsune/sidecar'
-import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
+import { onAppReady, emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { createWindowAuthManagerService } from './services/kitsune/auth'
 import { setupServerChannel } from './services/kitsune/channel-server'
-import { setupBuiltInServer } from './services/kitsune/http-server'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupTray } from './tray'
@@ -48,7 +48,7 @@ import { setupChatWindowReusableFunc } from './windows/chat'
 import { isDesktopOverlayEnabled } from './windows/desktop-overlay/is-desktop-overlay-enabled'
 import { type DevtoolsWindowManager, setupDevtoolsWindow } from './windows/devtools'
 import { registerLive2dModelIpc } from './libs/live2d-file-server'
-import { hasLocalModels, startModelFileServer } from './libs/model-file-server'
+import { hasLocalModels, startModelFileServer, stopModelFileServer } from './libs/model-file-server'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
@@ -128,17 +128,23 @@ console.error = (...args) => safeConsoleWrite(originalConsoleError, args)
 
 // NOTICE: 捕获主进程未捕获异常并写入文件，防止 Electron 默认弹出 "Error" 对话框。
 // 错误同时落盘，便于诊断（logs/uncaught-error.log、logs/unhandled-rejection.log）。
-process.on('uncaughtException', (error) => {
+// 目录懒创建（mkdirSync recursive）：这两个 handler 注册于模块顶层、早于 whenReady
+// 里的 setupFileLogger()，若崩溃发生在 ready 前（单实例守卫/chcp/早期装配失败），
+// 不建目录会导致 writeFileSync 抛 ENOENT 被空 catch 吞掉，崩溃日志静默丢失。
+function appendCrashLog(fileName: string, content: string): void {
   try {
-    writeFileSync(join(app.getPath('userData'), 'logs', 'uncaught-error.log'), `${new Date().toISOString()}\n${error.stack ?? error.message}\n`, { flag: 'a' })
+    const logsDir = join(app.getPath('userData'), 'logs')
+    mkdirSync(logsDir, { recursive: true })
+    writeFileSync(join(logsDir, fileName), content, { flag: 'a' })
   }
   catch { /* ignore */ }
+}
+
+process.on('uncaughtException', (error) => {
+  appendCrashLog('uncaught-error.log', `${new Date().toISOString()}\n${error.stack ?? error.message}\n`)
 })
 process.on('unhandledRejection', (reason) => {
-  try {
-    writeFileSync(join(app.getPath('userData'), 'logs', 'unhandled-rejection.log'), `${new Date().toISOString()}\n${String(reason)}\n`, { flag: 'a' })
-  }
-  catch { /* ignore */ }
+  appendCrashLog('unhandled-rejection.log', `${new Date().toISOString()}\n${String(reason)}\n`)
 })
 
 setGlobalFormat(Format.Pretty)
@@ -238,7 +244,7 @@ app.whenReady().then(async () => {
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          language: currentConfig?.language,
           updateChannel: lane,
         })
       },
@@ -255,10 +261,6 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupServerChannel(dependsOn),
   })
 
-  const kitsuneHttpServer = injeca.provide('modules:kitsune-http-server', {
-    build: async () => setupBuiltInServer({ servers: [] }),
-  })
-
   const godotStageManager = injeca.provide('modules:godot-stage-manager', {
     build: async () => {
       const { setupGodotStageManager } = await import('./services/kitsune/godot-stage')
@@ -271,17 +273,6 @@ app.whenReady().then(async () => {
       const { setupMcpStdioManager } = await import('./services/kitsune/mcp-servers')
       return setupMcpStdioManager()
     },
-  })
-
-  // ComfyUI 改为手动启动：用户在设置页通过 electronComfyuiStart IPC 触发启动，
-  // provide 仅占位保持依赖图完整，不再在 build 阶段调用 startComfyUI。
-  // sidecarServiceRef 供 IPC handler 读取 sidecarService 引用（在下方 invoke 回调中赋值）。
-  injeca.provide('services:comfyui', {
-    build: async () => ({ ready: true }),
-  })
-
-  const memoryService = injeca.provide('services:memory', {
-    build: async () => ({ ready: true }),
   })
 
   const widgetsManager = injeca.provide('windows:widgets', {
@@ -388,10 +379,11 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, kitsuneHttpServer, godotStageManager, pluginHost, mcpStdioManager, memoryService, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig, appConfig },
+    dependsOn: { mainWindow, tray, serverChannel, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig, appConfig },
     callback: async (deps) => {
       // Deferred plugin host initialization: starts the asset HTTP server and
       // loads enabled extensions without blocking the main window dependency chain.
+      pluginHostRef = deps.pluginHost
       void deps.pluginHost.init()
 
       const { context } = createContext(ipcMain)
@@ -413,7 +405,7 @@ app.whenReady().then(async () => {
       // Desktop Automation — 鼠标键盘模拟（桌面自动化），需在 Overseer 之前创建
       const { createDesktopAutomationService } = await import('./services/kitsune/desktop-automation')
       const { getDesktopOverlayWindow } = await import('./windows/desktop-overlay')
-      const { electronDesktopAutomationInvoke, electronFindElementResult } = await import('../shared/eventa')
+      const { electronDesktopAutomationInvoke, electronFindElementResult, electronDesktopAutomationAction } = await import('../shared/eventa')
       const overlayWindow = getDesktopOverlayWindow()
       const desktopAutomation = await createDesktopAutomationService({
         overlayWindow: overlayWindow ?? undefined,
@@ -431,71 +423,102 @@ app.whenReady().then(async () => {
         memoryStore: memoryService.longTermStore,
         personaBuilder: personaService.personaBuilder,
         desktopAutomation,
+        channel: deps.serverChannel,
       })
-      // 注册桌面自动化 IPC 处理器
-      defineInvokeHandler(context, electronDesktopAutomationInvoke, async (req) => {
+      // 桌面自动化 — 单一动作分发核心：双通道（eventa / 字符串保存备用通道）共用，
+      // 避免同一套 switch 逻辑维护两份漂移。
+      const desktopAutomationService = desktopAutomation
+      const runDesktopAction = async (payload: ElectronDesktopAutomationInvokePayload): Promise<ElectronDesktopAutomationResult> => {
         try {
-          const { action, params } = req
+          const { action, params } = payload
+          // 桌宠感知 — 动作开始时广播一次，让桌宠"我在帮你操作"
+          context.emit(electronDesktopAutomationAction, { action, params, phase: 'start' })
+          const result = await runDesktopActionCore(action, params)
+          context.emit(electronDesktopAutomationAction, { action, params, phase: result.ok ? 'done' : 'error', result })
+          return result
+        }
+        catch (error) {
+          // NOTICE: errorMessageFrom converts non-serializable Error objects to plain strings
+          // so the response is always JSON-serializable over IPC (structured clone algorithm).
+          const err = errorMessageFrom(error) ?? String(error)
+          context.emit(electronDesktopAutomationAction, { action: payload.action, params: payload.params, phase: 'error', result: { ok: false, error: err } })
+          return { ok: false, error: err }
+        }
+      }
+
+      // NOTICE: runDesktopActionCore 是 runDesktopAction 的纯分发核心，便于动作广播包裹而避免重复 emit。
+      const runDesktopActionCore = async (action: ElectronDesktopAutomationInvokePayload['action'], params: ElectronDesktopAutomationInvokePayload['params']): Promise<ElectronDesktopAutomationResult> => {
+        try {
           switch (action) {
             case 'click':
-              await desktopAutomation.click(params.button)
+              await desktopAutomationService.click(params.button)
               return { ok: true }
             case 'moveTo':
               if (params.x === undefined || params.y === undefined)
                 return { ok: false, error: '缺少 x/y 坐标' }
-              await desktopAutomation.moveTo(params.x, params.y)
+              await desktopAutomationService.moveTo(params.x, params.y)
               return { ok: true }
             case 'drag':
               if (!params.from || !params.to)
                 return { ok: false, error: '缺少 from/to 坐标' }
-              await desktopAutomation.drag(params.from, params.to)
+              await desktopAutomationService.drag(params.from, params.to)
               return { ok: true }
             case 'type':
               if (!params.text)
                 return { ok: false, error: '缺少 text 内容' }
-              await desktopAutomation.type(params.text)
+              await desktopAutomationService.type(params.text)
               return { ok: true }
             case 'pressKey':
               if (!params.key)
                 return { ok: false, error: '缺少 key' }
-              await desktopAutomation.pressKey(params.key)
+              await desktopAutomationService.pressKey(params.key)
               return { ok: true }
             case 'scroll':
               if (!params.direction)
                 return { ok: false, error: '缺少 direction' }
-              await desktopAutomation.scroll(params.direction, params.amount, params.x, params.y)
+              await desktopAutomationService.scroll(params.direction, params.amount, params.x, params.y)
               return { ok: true }
             case 'screenshot':
-              return { ok: true, result: await desktopAutomation.screenshot() }
+              return { ok: true, result: await desktopAutomationService.screenshot() }
             case 'getCursorPosition':
-              return { ok: true, result: await desktopAutomation.getCursorPosition() }
+              return { ok: true, result: await desktopAutomationService.getCursorPosition() }
             case 'findElement':
               if (!params.description)
                 return { ok: false, error: '缺少 description' }
-              return { ok: true, result: await desktopAutomation.findElement(params.description) }
+              return { ok: true, result: await desktopAutomationService.findElement(params.description) }
             case 'setOverlayInteractive':
               if (params.interactive === undefined)
                 return { ok: false, error: '缺少 interactive' }
-              await desktopAutomation.setOverlayInteractive(params.interactive)
+              await desktopAutomationService.setOverlayInteractive(params.interactive)
               return { ok: true }
             // 窗口管理
             case 'listWindows':
-              return { ok: true, result: JSON.parse(JSON.stringify(await desktopAutomation.listWindows())) }
+              return { ok: true, result: JSON.parse(JSON.stringify(await desktopAutomationService.listWindows())) }
             case 'focusWindow':
-              return { ok: true, result: await desktopAutomation.focusWindow(params.title, params.processName) }
+              if (!params.title && !params.processName)
+                return { ok: false, error: '缺少 title 或 processName' }
+              return { ok: true, result: await desktopAutomationService.focusWindow(params.title, params.processName) }
             case 'maximizeWindow':
-              return { ok: true, result: await desktopAutomation.maximizeWindow(params.title, params.processName) }
+              if (!params.title && !params.processName)
+                return { ok: false, error: '缺少 title 或 processName' }
+              return { ok: true, result: await desktopAutomationService.maximizeWindow(params.title, params.processName) }
             case 'minimizeWindow':
-              return { ok: true, result: await desktopAutomation.minimizeWindow(params.title, params.processName) }
+              if (!params.title && !params.processName)
+                return { ok: false, error: '缺少 title 或 processName' }
+              return { ok: true, result: await desktopAutomationService.minimizeWindow(params.title, params.processName) }
             case 'restoreWindow':
-              return { ok: true, result: await desktopAutomation.restoreWindow(params.title, params.processName) }
+              if (!params.title && !params.processName)
+                return { ok: false, error: '缺少 title 或 processName' }
+              return { ok: true, result: await desktopAutomationService.restoreWindow(params.title, params.processName) }
             case 'closeWindow':
-              return { ok: true, result: await desktopAutomation.closeWindow(params.title, params.processName) }
+              if (!params.title && !params.processName)
+                return { ok: false, error: '缺少 title 或 processName' }
+              return { ok: true, result: await desktopAutomationService.closeWindow(params.title, params.processName) }
             // 应用管理
             case 'launchApp':
               if (!params.command)
                 return { ok: false, error: '缺少 command' }
-              return { ok: true, result: await desktopAutomation.launchApp(params.command, params.args) }
+              return { ok: true, result: await desktopAutomationService.launchApp(params.command, params.args) }
             default:
               return { ok: false, error: `未知操作: ${action}` }
           }
@@ -505,7 +528,10 @@ app.whenReady().then(async () => {
           // so the response is always JSON-serializable over IPC (structured clone algorithm).
           return { ok: false, error: errorMessageFrom(error) ?? String(error) }
         }
-      })
+      }
+
+      // eventa 通道 — web-tools（browser_window.* listWindows 等）与工具调用走这里。
+      defineInvokeHandler(context, electronDesktopAutomationInvoke, (req) => runDesktopAction(req))
       // REVIEW: 诊断 — chat-sync 消息是否到达 authority 窗口
       ipcMain.on('chat-sync-diagnostic', (_event, message: string) => {
         try {
@@ -523,85 +549,9 @@ app.whenReady().then(async () => {
         // 字符串永远可克隆，彻底绕开 V8 structuredClone 对纯对象偶发的序列化失败。
         // 兼容旧版对象格式（容错降级）。
         const payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : payloadJson
-        const { action, params } = payload
-        const clone = (value: unknown) => JSON.parse(JSON.stringify(value))
-        const respond = (value: { ok: boolean, result?: unknown, error?: string }) => JSON.stringify(value)
-        try {
-          switch (action) {
-            case 'click':
-              await desktopAutomation.click(params.button)
-              return respond({ ok: true })
-            case 'moveTo':
-              if (params.x === undefined || params.y === undefined)
-                return respond({ ok: false, error: '缺少 x/y 坐标' })
-              await desktopAutomation.moveTo(params.x, params.y)
-              return respond({ ok: true })
-            case 'drag':
-              if (!params.from || !params.to)
-                return respond({ ok: false, error: '缺少 from/to 坐标' })
-              await desktopAutomation.drag(params.from, params.to)
-              return respond({ ok: true })
-            case 'type':
-              if (!params.text)
-                return respond({ ok: false, error: '缺少 text 内容' })
-              await desktopAutomation.type(params.text)
-              return respond({ ok: true })
-            case 'pressKey':
-              if (!params.key)
-                return respond({ ok: false, error: '缺少 key' })
-              await desktopAutomation.pressKey(params.key)
-              return respond({ ok: true })
-            case 'scroll':
-              if (!params.direction)
-                return respond({ ok: false, error: '缺少 direction' })
-              await desktopAutomation.scroll(params.direction, params.amount, params.x, params.y)
-              return respond({ ok: true })
-            case 'screenshot':
-              return respond({ ok: true, result: await desktopAutomation.screenshot() })
-            case 'getCursorPosition':
-              return respond({ ok: true, result: clone(await desktopAutomation.getCursorPosition()) })
-            case 'findElement':
-              if (!params.description)
-                return respond({ ok: false, error: '缺少 description' })
-              return respond({ ok: true, result: clone(await desktopAutomation.findElement(params.description)) })
-            case 'setOverlayInteractive':
-              if (params.interactive === undefined)
-                return respond({ ok: false, error: '缺少 interactive' })
-              await desktopAutomation.setOverlayInteractive(params.interactive)
-              return respond({ ok: true })
-            case 'listWindows':
-              return respond({ ok: true, result: clone(await desktopAutomation.listWindows()) })
-            case 'focusWindow':
-              if (!params.title && !params.processName)
-                return respond({ ok: false, error: '缺少 title 或 processName' })
-              return respond({ ok: true, result: clone(await desktopAutomation.focusWindow(params.title, params.processName)) })
-            case 'maximizeWindow':
-              if (!params.title && !params.processName)
-                return respond({ ok: false, error: '缺少 title 或 processName' })
-              return respond({ ok: true, result: clone(await desktopAutomation.maximizeWindow(params.title, params.processName)) })
-            case 'minimizeWindow':
-              if (!params.title && !params.processName)
-                return respond({ ok: false, error: '缺少 title 或 processName' })
-              return respond({ ok: true, result: clone(await desktopAutomation.minimizeWindow(params.title, params.processName)) })
-            case 'restoreWindow':
-              if (!params.title && !params.processName)
-                return respond({ ok: false, error: '缺少 title 或 processName' })
-              return respond({ ok: true, result: clone(await desktopAutomation.restoreWindow(params.title, params.processName)) })
-            case 'closeWindow':
-              if (!params.title && !params.processName)
-                return respond({ ok: false, error: '缺少 title 或 processName' })
-              return respond({ ok: true, result: clone(await desktopAutomation.closeWindow(params.title, params.processName)) })
-            case 'launchApp':
-              if (!params.command)
-                return respond({ ok: false, error: '缺少 command' })
-              return respond({ ok: true, result: clone(await desktopAutomation.launchApp(params.command, params.args)) })
-            default:
-              return respond({ ok: false, error: `未知操作: ${action}` })
-          }
-        }
-        catch (error) {
-          return respond({ ok: false, error: errorMessageFrom(error) ?? String(error) })
-        }
+        const result = await runDesktopAction(payload)
+        // 与 resolveDesktopInvoker 配对：出参同样 JSON 序列化，剥除不可克隆值。
+        return JSON.stringify(result)
       })
       // 注册 findElement 视觉定位结果处理器（渲染进程回传）
       defineInvokeHandler(context, electronFindElementResult, async (result) => {
@@ -691,10 +641,11 @@ app.whenReady().then(async () => {
       defineInvokeHandler(context, electronTtsSetEngine, async (payload) => {
         if (!payload?.engine)
           throw new Error('tts set-engine requires engine')
-        // update 整体替换 persistenceMap，需显式保留现有字段避免丢失其它配置
+        // update 整体替换 persistenceMap，需显式保留现有字段避免丢失其它配置；
+        // 缺失字段保持 undefined 原样传递，不制造 'en' 等假值
         const current = deps.appConfig.get()
         deps.appConfig.update({
-          language: current?.language ?? 'en',
+          language: current?.language,
           spotlightShortcutAccelerator: current?.spotlightShortcutAccelerator,
           updateChannel: current?.updateChannel,
           ttsEngine: payload.engine,
@@ -781,37 +732,39 @@ app.whenReady().then(async () => {
         const { getSystemCapabilities } = await import('./services/kitsune/system-capabilities')
         return getSystemCapabilities()
       })
-      // 从本地已解压的引擎目录导入运行时插件
+      // 从本地已解压的引擎目录导入运行时插件（自动识别 GPU / CPU 精简版）
       defineInvokeHandler(context, electronTtsInstallPluginFromLocal, async (payload) => {
         if (!payload?.sourceDir)
           return { success: false, message: '请选择 GPT-SoVITS 引擎目录' }
         const { existsSync } = await import('node:fs')
         if (!existsSync(payload.sourceDir))
           return { success: false, message: `目录不存在: ${payload.sourceDir}` }
-        const { installRuntimePluginFromLocal } = await import('./services/kitsune/runtime-plugins')
+        const { installGptSovitsFromLocalAuto } = await import('./services/kitsune/runtime-plugins')
         try {
-          const dir = await installRuntimePluginFromLocal('tts-gptsovits', payload.sourceDir, (p) => {
+          const { id, dir } = await installGptSovitsFromLocalAuto(payload.sourceDir, (p) => {
             context.emit(electronTtsInstallProgress, { message: p.detail || p.phase })
           })
-          return { success: true, message: 'GPT-SoVITS 引擎导入完成', dir }
+          const variant = id === 'tts-gptsovits-cpu' ? '（CPU 精简版）' : '（GPU 版）'
+          return { success: true, message: `GPT-SoVITS 引擎导入完成 ${variant}`, dir }
         }
         catch (error) {
           return { success: false, message: `导入失败: ${errorMessageFrom(error)}` }
         }
       })
-      // 从本地 ZIP 分卷解压导入运行时插件
+      // 从本地 ZIP 分卷解压导入运行时插件（自动识别 GPU / CPU 精简版）
       defineInvokeHandler(context, electronTtsInstallPluginFromLocalZips, async (payload) => {
         if (!payload?.volumesDir)
           return { success: false, message: '请选择存放 ZIP 分卷的目录' }
         const { existsSync } = await import('node:fs')
         if (!existsSync(payload.volumesDir))
           return { success: false, message: `目录不存在: ${payload.volumesDir}` }
-        const { installRuntimePluginFromLocalZips } = await import('./services/kitsune/runtime-plugins')
+        const { installGptSovitsFromLocalZipsAuto } = await import('./services/kitsune/runtime-plugins')
         try {
-          const dir = await installRuntimePluginFromLocalZips('tts-gptsovits', payload.volumesDir, (p) => {
+          const { id, dir } = await installGptSovitsFromLocalZipsAuto(payload.volumesDir, (p) => {
             context.emit(electronTtsInstallProgress, { message: p.detail || p.phase })
           })
-          return { success: true, message: 'GPT-SoVITS 引擎导入完成', dir }
+          const variant = id === 'tts-gptsovits-cpu' ? '（CPU 精简版）' : '（GPU 版）'
+          return { success: true, message: `GPT-SoVITS 引擎导入完成 ${variant}`, dir }
         }
         catch (error) {
           return { success: false, message: `导入失败: ${errorMessageFrom(error)}` }
@@ -943,6 +896,24 @@ app.whenReady().then(async () => {
           await new Promise<void>((resolve, reject) => {
             yauzl.open(zipPath, { lazyEntries: true }, (err: any, zipfile: any) => {
               if (err) return reject(err)
+              let pendingWrites = 0
+              let entriesDrained = false
+              let drainPromise: (() => void) | undefined
+              // 所有写出完成后才 resolve：等 'finish'（数据已 flush 到磁盘）而非 'close'，
+              // 避免 zipfile 'end'（条目读完）在最后一个写流仍在写盘时触发 resolve，
+              // 导致后续 readdirSync/renameSync 拿到未写完的文件（竞态损坏声线包）。
+              const notifyWriteDone = () => {
+                pendingWrites -= 1
+                if (entriesDrained && pendingWrites === 0)
+                  drainPromise?.()
+              }
+              const resolveWhenDrained = (): void => {
+                entriesDrained = true
+                if (pendingWrites === 0)
+                  resolve()
+                else
+                  drainPromise = resolve
+              }
               zipfile.readEntry()
               zipfile.on('entry', (entry: any) => {
                 // NOTICE:
@@ -963,15 +934,19 @@ app.whenReady().then(async () => {
                   fs.mkdirSync(path.dirname(targetPath), { recursive: true })
                   zipfile.openReadStream(entry, (err2: any, readStream: any) => {
                     if (err2) return reject(err2)
+                    pendingWrites += 1
                     const writeStream = fs.createWriteStream(targetPath)
                     readStream.on('error', (e: any) => reject(e))
                     writeStream.on('error', (e: any) => reject(e))
                     readStream.pipe(writeStream)
-                    writeStream.on('close', () => zipfile.readEntry())
+                    writeStream.on('finish', () => {
+                      notifyWriteDone()
+                      zipfile.readEntry()
+                    })
                   })
                 }
               })
-              zipfile.on('end', () => resolve())
+              zipfile.on('end', resolveWhenDrained)
               zipfile.on('error', (e: any) => reject(e))
             })
           })
@@ -1136,27 +1111,30 @@ app.whenReady().then(async () => {
 
   injeca.start().catch(err => console.error(err))
 
-  // Lifecycle
+  // Lifecycle — 把 whenReady 后的散装配（debugger / 窗口快捷键 / Live2D IPC / 本地模型文件服务）
+  // 收进 onAppReady hook，与 emitAppReady() 配对：hook 从"零注册死 API"变成实际承载这些装配。
+  onAppReady(() => {
+    // Extra
+    openDebugger()
+
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+
+    // Register IPC handler for direct model file access (bypasses HTTP).
+    // The handler starts the HTTP file server on-demand on the first Live2D
+    // model request (R8), so it is no longer started unconditionally here.
+    registerLive2dModelIpc()
+
+    // Start the local model file server if pre-downloaded models exist.
+    // This allows the renderer to fetch ONNX models from localhost (bypassing CORS).
+    if (hasLocalModels()) {
+      startModelFileServer().catch(err => log.withError(err).error('Failed to start model file server'))
+    }
+  })
+
   emitAppReady()
-
-  // Extra
-  openDebugger()
-
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
-
-  // Register IPC handler for direct model file access (bypasses HTTP).
-  // The handler starts the HTTP file server on-demand on the first Live2D
-  // model request (R8), so it is no longer started unconditionally here.
-  registerLive2dModelIpc()
-
-  // Start the local model file server if pre-downloaded models exist.
-  // This allows the renderer to fetch ONNX models from localhost (bypassing CORS).
-  if (hasLocalModels()) {
-    startModelFileServer().catch(err => log.withError(err).error('Failed to start model file server'))
-  }
 }).catch((err) => {
   log.withError(err).error('Error during app initialization')
 })
@@ -1174,6 +1152,12 @@ app.on('window-all-closed', () => {
 
 let appExiting = false
 let overseerService: OverseerService | null = null
+// 插件宿主在主进程装配回调中才初始化，但 handleAppExit 可能在回调执行前被
+// 触发（如启动即退出）。pluginHost 的 dispose() 原只挂在 app.once('before-quit')
+// 上，而 handleAppExit 直接 app.exit() 会绕过 before-quit，导致插件扩展进程/
+// 静态资产服务器残留，因此由退出清理路径显式接管。dispose 幂等：重复调用仅
+// 重跑各组件 dispose（autoReload/kitRuntime/assetSessionCache.clear 等）。
+let pluginHostRef: { dispose: () => Promise<void> } | null = null
 
 // ComfyUI 的进程管理依赖 SidecarService。sidecarService 在 injeca.invoke 回调
 // （app ready 后）才创建，而 electronComfyuiStart/Stop IPC handler 可能在回调执行前
@@ -1210,6 +1194,7 @@ async function handleAppExit() {
 
   await Promise.all([
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
+    logIfError('dispose plugin host', () => pluginHostRef?.dispose()),
     logIfError('stop overseer', () => overseerService?.stop()),
     logIfError('stop ComfyUI', async () => {
       // sidecarService 可能未创建（invoke 回调未执行就退出），此时跳过 stop
@@ -1219,17 +1204,35 @@ async function handleAppExit() {
       await stopComfyUI(sidecarServiceRef)
     }),
     logIfError('stop injeca', () => injeca.stop()),
+    logIfError('stop model file server', async () => {
+      await stopModelFileServer()
+    }),
   ])
 
   // Prevent the global log hook from trying to write to the file after close() is called,
   // which would cause a recursive failure if close() itself throws.
   skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
+  // Daily-rotating logger（main-YYYY-MM-DD.log）flushes in-flight writes on exit
+  await logIfError('flush daily logs', () => getFileLogger().close())
 
   app.exit(exitedNormally ? 0 : 1)
 }
 
-process.on('SIGINT', () => handleAppExit())
+// SIGINT (Ctrl+C / kill -INT)：与 before-quit 路径保持一致的清理。
+// windows/main 的 allowClose 只在 before-quit 里置 true，因此必须先 emit
+// before-quit（让主窗口 close 不再被 preventDefault），再执行共享清理；否则
+// 退出时主窗口 close 被拦截、窗口挂死（仅随进程消亡）。
+process.on('SIGINT', () => {
+  app.emit('before-quit')
+  handleAppExit()
+})
+
+// SIGTERM (kill / 系统关机)：与 SIGINT 走同一清理路径，保证日志 flush 与子进程回收
+process.on('SIGTERM', () => {
+  app.emit('before-quit')
+  handleAppExit()
+})
 
 app.on('before-quit', (event) => {
   event.preventDefault()

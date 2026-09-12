@@ -8,6 +8,7 @@ import { useInferencePreload } from '@kitsune/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@kitsune/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@kitsune/stage-ui/stores/character'
 import { useChatSessionStore } from '@kitsune/stage-ui/stores/chat/session-store'
+import { usePetStateStore } from '@kitsune/stage-ui/stores/chat/pet-state'
 import { usePluginHostInspectorStore } from '@kitsune/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@kitsune/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@kitsune/stage-ui/stores/mods/api/channel-server'
@@ -60,11 +61,21 @@ import {
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { useConnectorEmotion } from './composables/useConnectorEmotion'
+import { useDesktopActionEmotion } from './composables/useDesktopActionEmotion'
+import { useDirectorEmotion } from './composables/useDirectorEmotion'
 import { useExecutorEmotion } from './composables/useExecutorEmotion'
+import { useMemoryEmotion } from './composables/useMemoryEmotion'
+import { useOverseerEmotion } from './composables/useOverseerEmotion'
+import { usePluginLifecycleEmotion } from './composables/usePluginLifecycleEmotion'
+import { useSidecarEmotion } from './composables/useSidecarEmotion'
 import { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } from './stores/chat-sync-lifecycle'
 import { useLlmToolsStore } from '@kitsune/stage-ui/stores/llm-tools'
 import { desktopAutomationTools } from './stores/tools/builtin/desktop-automation'
 import { webTools } from './stores/tools/builtin/web-tools'
+import { executorTools } from './stores/tools/builtin/executor-tools'
+import { directorTools } from './stores/tools/builtin/director-tools'
+import { memoryTools } from './stores/tools/builtin/memory'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
@@ -148,6 +159,22 @@ function createFullStageRuntime() {
   usePerfTracerBridgeStore()
   initializeStageThreeRuntimeTraceBridge()
   useExecutorEmotion()
+  useOverseerEmotion()
+  // 记忆回执 — memory_write / 对话自动抽取落盘后桌宠"我记住了"
+  useMemoryEmotion()
+  // sidecar 状态 — 语音/图像引擎挂了桌宠能感知并开口
+  useSidecarEmotion()
+  // director 裁决 — 桌宠以"总监身份"对自己的审批/打回开口
+  useDirectorEmotion()
+  // 连接器 — IDE 连上/全断时桌宠感知
+  useConnectorEmotion()
+  // 桌面自动化 — 鼠标键盘被代操作时桌宠"在场"
+  useDesktopActionEmotion()
+  // 插件生命周期 — 插件启动失败/能力降级时桌宠感知
+  usePluginLifecycleEmotion()
+  // 情绪状态机 — mood/energy/affection 的 tick 衰减与自发情绪（全局常驻）
+  const petStateStore = usePetStateStore()
+  petStateStore.start()
   void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 
   watch(() => route.path, () => {
@@ -201,6 +228,31 @@ function createFullStageRuntime() {
     llmToolsStore.registerTools('web-tools', tools)
   }).catch((error) => {
     console.warn('[App] Failed to register web tools:', error)
+  })
+
+  // Register executor tools (executor_plan/run/stop/status) globally so chat can
+  // drive the main-process execution loop — closes the chat → executor gap.
+  void executorTools().then((tools) => {
+    llmToolsStore.registerTools('executor', tools)
+  }).catch((error) => {
+    console.warn('[App] Failed to register executor tools:', error)
+  })
+
+  // Register director tools (director_review/approve/reject) globally so chat can
+  // act as the pet's director: review external AI plans from .kitsune/plans/ and
+  // write back verdicts.
+  void directorTools().then((tools) => {
+    llmToolsStore.registerTools('director', tools)
+  }).catch((error) => {
+    console.warn('[App] Failed to register director tools:', error)
+  })
+
+  // Register memory tools (memory_write/search) globally so the LLM can actively
+  // read/write the pet's long-term memory — closes the agent → memory gap.
+  void memoryTools().then((tools) => {
+    llmToolsStore.registerTools('memory', tools)
+  }).catch((error) => {
+    console.warn('[App] Failed to register memory tools:', error)
   })
 
   watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {

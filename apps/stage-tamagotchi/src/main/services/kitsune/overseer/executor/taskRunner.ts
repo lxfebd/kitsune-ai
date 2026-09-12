@@ -14,6 +14,28 @@ const IDE_TIMEOUT_MS: Record<string, number> = {
   run_command: 60_000,
 }
 
+/** 桌面自动化任务外层硬超时 — 每个 desktopAutomation 调用都可能挂起（findElement 视觉推理等），
+ *  修复前无任何兜底，单个调用卡死会无限阻塞整个 executor。 */
+export const DESKTOP_TASK_TIMEOUT_MS = 60_000
+
+/** 执行器超时参数 — 从 overseer.yaml executor 节注入，缺省回退硬编码 */
+export interface RunnerTimeoutParams {
+  ideTimeoutMs?: Record<string, number>
+  desktopTimeoutMs?: number
+}
+
+/** 给一个 Promise 挂上硬性 deadline：先到方获胜。 */
+function withDeadline<V>(promise: Promise<V>, ms: number, label: string): Promise<V> {
+  let timer: NodeJS.Timeout | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer)
+      clearTimeout(timer)
+  })
+}
+
 /**
  * P3：解析 claude --output-format=json 的 stdout（JSON Lines），提取任务结果信号。
  * 与 TaskPusher._augmentStructuredResult 逻辑对齐；解析失败返回 null（调用方静默跳过）。
@@ -55,6 +77,8 @@ interface TaskRunnerDeps {
   context: { on: (event: any, handler: (payload: any) => void) => () => void }
   allowedRoots: string[]
   desktopAutomation?: DesktopAutomationService
+  /** 超时参数（IDE/桌面）— 从 yaml executor 节注入 */
+  timeouts?: RunnerTimeoutParams
 }
 
 // NOTICE: 沙箱校验 — 防止 CLI 任务在 workspace 外执行。
@@ -81,8 +105,10 @@ export function isPathSafe(target: string, allowedRoots: string[]): boolean {
 }
 
 export function createTaskRunner(deps: TaskRunnerDeps) {
-  const { taskPusher, connectors, context, allowedRoots, desktopAutomation } = deps
+  const { taskPusher, connectors, context, allowedRoots, desktopAutomation, timeouts } = deps
   const fileLogger = getFileLogger()
+  const ideTimeouts = { ...IDE_TIMEOUT_MS, ...timeouts?.ideTimeoutMs }
+  const desktopTimeout = timeouts?.desktopTimeoutMs ?? DESKTOP_TASK_TIMEOUT_MS
 
   async function runCliTask(task: CliTask): Promise<TaskResult> {
     // 沙箱校验 — 防止 CLI 任务在 workspace 外执行
@@ -127,6 +153,7 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
       output: result.output,
       error: result.error,
       exitCode: result.exitCode,
+      code: result.code,
       durationMs: Date.now() - start,
       structured,
     }
@@ -148,7 +175,7 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
     }
 
     // 等 task:result 事件回来，按 action 类型动态超时
-    const timeoutMs = IDE_TIMEOUT_MS[task.action] ?? 30_000
+    const timeoutMs = ideTimeouts[task.action] ?? 30_000
     return new Promise<TaskResult>((resolve) => {
       const timer = setTimeout(() => {
         off()
@@ -156,7 +183,10 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
         resolve({ taskId: task.id, ok: false, error: `IDE 响应超时（${timeoutMs / 1000}s）`, durationMs: Date.now() - start })
       }, timeoutMs)
 
-      const off = context.on(electronConnectorTaskResult, (payload: { taskId: string, success: boolean, error?: string }) => {
+      // eventa 的 on handler 收到的是 Eventa<P>（{ id, type, body: P }），
+      // 业务 payload 在 body 字段；task:result 事件由 connectors 服务 emit。
+      const off = context.on(electronConnectorTaskResult, (event) => {
+        const payload = event.body
         if (payload.taskId !== task.id)
           return
         clearTimeout(timer)
@@ -183,69 +213,86 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
       return { taskId: task.id, ok: false, error: `安全限制: ${safetyResult.reason}`, durationMs: 0 }
     }
     const start = Date.now()
+    const timeoutMs = task.timeoutMs ?? desktopTimeout
+    // executeAction 是嵌套函数，TS 不会把外部 null 检查收窄带进去 — 先断言非空
+    const da = desktopAutomation
     try {
+      // 外层硬超时：桌面自动化调用（findElement 视觉推理 / moveTo / 截图）可能无限挂起，
+      // 单个调用卡死不再阻塞整个 executor — 到时返回 TIMEOUT 错误
+      const actionResult = await withDeadline(executeAction(da), timeoutMs, `desktop:${task.action}`)
+      if (!actionResult.ok)
+        return { taskId: task.id, ok: false, error: actionResult.error, durationMs: Date.now() - start }
+      return { taskId: task.id, ok: true, output: actionResult.output, durationMs: Date.now() - start }
+    }
+    catch (error) {
+      const isTimeout = error instanceof Error && error.message.includes('timed out after')
+      return {
+        taskId: task.id,
+        ok: false,
+        error: isTimeout ? `桌面任务超时 (${timeoutMs / 1000}s)` : String(error),
+        code: isTimeout ? 'TIMEOUT' : undefined,
+        durationMs: Date.now() - start,
+      }
+    }
+
+    async function executeAction(da: NonNullable<typeof desktopAutomation>): Promise<{ ok: boolean, error?: string, output?: string }> {
       switch (task.action) {
         case 'click':
-          await desktopAutomation.click(task.params.button)
-          break
+          await da.click(task.params.button)
+          return { ok: true }
         case 'moveTo':
           if (task.params.x === undefined || task.params.y === undefined)
-            return { taskId: task.id, ok: false, error: '缺少 x/y 坐标', durationMs: Date.now() - start }
-          await desktopAutomation.moveTo(task.params.x, task.params.y)
-          break
+            return { ok: false, error: '缺少 x/y 坐标' }
+          await da.moveTo(task.params.x, task.params.y)
+          return { ok: true }
         case 'type':
           if (!task.params.text)
-            return { taskId: task.id, ok: false, error: '缺少 text', durationMs: Date.now() - start }
-          await desktopAutomation.type(task.params.text)
-          break
+            return { ok: false, error: '缺少 text' }
+          await da.type(task.params.text)
+          return { ok: true }
         case 'pressKey':
           if (!task.params.key)
-            return { taskId: task.id, ok: false, error: '缺少 key', durationMs: Date.now() - start }
-          await desktopAutomation.pressKey(task.params.key)
-          break
+            return { ok: false, error: '缺少 key' }
+          await da.pressKey(task.params.key)
+          return { ok: true }
         case 'drag':
           if (!task.params.from || !task.params.to)
-            return { taskId: task.id, ok: false, error: '缺少 from/to', durationMs: Date.now() - start }
-          await desktopAutomation.drag(task.params.from, task.params.to)
-          break
+            return { ok: false, error: '缺少 from/to' }
+          await da.drag(task.params.from, task.params.to)
+          return { ok: true }
         case 'findAndClick': {
           if (!task.params.elementDescription)
-            return { taskId: task.id, ok: false, error: '缺少 elementDescription', durationMs: Date.now() - start }
-          const found = await desktopAutomation.findElement(task.params.elementDescription)
+            return { ok: false, error: '缺少 elementDescription' }
+          const found = await da.findElement(task.params.elementDescription)
           // findElement 返回 { found, elements[] }，坐标在首个匹配元素上
           const pos = found.found ? found.elements[0] : undefined
           if (!pos) {
             fileLogger.warn('[taskRunner] findElement failed, try keyboard fallback for AI input')
             // 视觉定位失败时，尝试 Ctrl+Shift+I（VS Code 系 AI 聊天快捷键）作为 fallback。
-            // 如果仍失败，返回错误不阻塞整体流程。
             try {
-              await desktopAutomation.pressKey('CONTROL+SHIFT+I')
-              return { taskId: task.id, ok: true, durationMs: Date.now() - start }
+              await da.pressKey('CONTROL+SHIFT+I')
+              return { ok: true }
             }
             catch {
-              return { taskId: task.id, ok: false, error: '未找到匹配元素，且键盘快捷键 fallback 失败', durationMs: Date.now() - start }
+              return { ok: false, error: '未找到匹配元素，且键盘快捷键 fallback 失败' }
             }
           }
-          await desktopAutomation.moveTo(pos.x, pos.y)
-          await desktopAutomation.click(task.params.button)
-          break
+          await da.moveTo(pos.x, pos.y)
+          await da.click(task.params.button)
+          return { ok: true }
         }
         case 'screenshot': {
-          const dataUrl = await desktopAutomation.screenshot()
-          return { taskId: task.id, ok: true, output: dataUrl, durationMs: Date.now() - start }
+          const dataUrl = await da.screenshot()
+          return { ok: true, output: dataUrl }
         }
         case 'findElement':
           if (!task.params.elementDescription)
-            return { taskId: task.id, ok: false, error: '缺少 elementDescription', durationMs: Date.now() - start }
-          const element = await desktopAutomation.findElement(task.params.elementDescription)
-          return { taskId: task.id, ok: true, output: JSON.stringify(element), durationMs: Date.now() - start }
+            return { ok: false, error: '缺少 elementDescription' }
+          const element = await da.findElement(task.params.elementDescription)
+          return { ok: true, output: JSON.stringify(element) }
         default:
-          return { taskId: task.id, ok: false, error: `不支持的桌面操作: ${task.action}`, durationMs: Date.now() - start }
+          return { ok: false, error: `不支持的桌面操作: ${task.action}` }
       }
-      return { taskId: task.id, ok: true, durationMs: Date.now() - start }
-    }
-    catch (error) {
-      return { taskId: task.id, ok: false, error: String(error), durationMs: Date.now() - start }
     }
   }
 

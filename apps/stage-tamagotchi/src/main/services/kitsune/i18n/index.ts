@@ -16,7 +16,9 @@ export async function createI18nService(params: { context: ReturnType<typeof cre
   params.i18n.locale(config.get()?.language || 'en')
 
   defineInvokeHandler(params.context, i18nSetLocale, (locale) => {
-    const current = config.get()
+    // update 整体替换：配置文件缺失时 get() 返回 undefined，直接展开会丢掉
+    // language 以外的其它字段（如 ttsEngine），用 `get() ?? {}` 兜底保持原值。
+    const current = config.get() ?? {}
     config.update({ ...current, language: locale as string })
     params.i18n.locale(locale)
   })

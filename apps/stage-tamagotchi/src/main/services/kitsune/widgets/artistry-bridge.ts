@@ -77,16 +77,25 @@ function createRunId(widgetId: string) {
   return `${widgetId}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`
 }
 
-async function downloadImageAsBase64(url: string): Promise<string> {
+const IMAGE_DOWNLOAD_TIMEOUT_MS = 30_000
+
+export async function downloadImageAsBase64(url: string): Promise<string> {
   try {
     log.log(`[Artistry Bridge] Downloading image from: ${url}`)
-    const response = await fetch(url)
-    if (!response.ok)
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
-    const buffer = await response.arrayBuffer()
-    const base64 = Buffer.from(buffer).toString('base64')
-    // NOTICE: Downstream renderer paths consume this via fetch(), which requires a data URL.
-    return `data:image/png;base64,${base64}`
+    const controller = new AbortController()
+    const id = setTimeout(() => controller.abort(), IMAGE_DOWNLOAD_TIMEOUT_MS)
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      if (!response.ok)
+        throw new Error(`Failed to fetch image: ${response.statusText}`)
+      const buffer = await response.arrayBuffer()
+      const base64 = Buffer.from(buffer).toString('base64')
+      // NOTICE: Downstream renderer paths consume this via fetch(), which requires a data URL.
+      return `data:image/png;base64,${base64}`
+    }
+    finally {
+      clearTimeout(id)
+    }
   }
   catch (error: unknown) {
     log.error(`[Artistry Bridge] Failed to download image: ${errorMessageFrom(error)}`)
@@ -222,12 +231,19 @@ export async function generateHeadless(params: {
       log.log(`[Headless] Using callback-based wait logic for provider: ${requestedProvider}`)
       return new Promise<{ imageUrl?: string, base64?: string }>((resolve, reject) => {
         const timeout = 1000 * 60 * 5 // 5 minutes timeout
+        // [BY DESIGN]: 回调到达时先检查 settled — 超时 reject 后不再消费迟到的成功回调
+        // （修复前：5 分钟超时 reject 后 timer 未被清理，迟到回调仍会触发 downloadImageAsBase64）
+        let settled = false
         const timer = setTimeout(() => {
+          settled = true
           reject(new Error('Image generation timed out after 5 minutes.'))
         }, timeout)
 
         provider.setJobCallback(request.extra?.internalJobId as string, async (status) => {
           if (status.status === 'succeeded') {
+            if (settled)
+              return
+            settled = true
             clearTimeout(timer)
             try {
               const base64 = status.imageUrl ? await downloadImageAsBase64(status.imageUrl) : undefined
@@ -238,6 +254,9 @@ export async function generateHeadless(params: {
             }
           }
           else if (status.status === 'failed') {
+            if (settled)
+              return
+            settled = true
             clearTimeout(timer)
             reject(new Error(status.error || 'Generation failed'))
           }

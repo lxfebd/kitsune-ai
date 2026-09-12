@@ -354,7 +354,7 @@ describe('doctor: checkPlugins', () => {
       pluginHost: createMockPluginHost({
         root: '/tmp',
         plugins: [
-          { extensionId: 'ext-1', entrypoints: {}, path: '/tmp/ext-1', enabled: true, loaded: true, isNew: false },
+          { extensionId: 'ext-1', entrypoints: {}, path: '/tmp/ext-1', enabled: true, loaded: true, isNew: false, autoReload: true },
         ],
       }),
     })
@@ -565,7 +565,7 @@ describe('doctor: runAllChecks integration', () => {
     })
     const pluginHost = createMockPluginHost({
       root: '/tmp',
-      plugins: [{ extensionId: 'e1', entrypoints: {}, path: '/tmp', enabled: true, loaded: true, isNew: false }],
+      plugins: [{ extensionId: 'e1', entrypoints: {}, path: '/tmp', enabled: true, loaded: true, isNew: false, autoReload: true }],
     })
 
     const service = createDoctorService({

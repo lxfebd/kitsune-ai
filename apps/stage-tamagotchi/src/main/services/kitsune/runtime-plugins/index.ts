@@ -46,7 +46,7 @@ const pluginRootConfigSchema = object({
 const pluginRootConfigStore = createConfig('runtime-plugins', 'config.json', pluginRootConfigSchema)
 
 /** 运行时插件唯一标识。 */
-export type RuntimePluginId = 'tts-gptsovits' | 'asr-sherpa'
+export type RuntimePluginId = 'tts-gptsovits' | 'tts-gptsovits-cpu' | 'asr-sherpa'
 
 /** 单个分卷信息。 */
 export interface RuntimePluginPart {
@@ -83,12 +83,14 @@ export const RUNTIME_PLUGIN_SOURCE = {
 /** 每个插件在发布源里的 tag 与解压后的根目录名。 */
 const PLUGIN_SOURCE_META: Record<RuntimePluginId, { tag: string, installDir: string }> = {
   'tts-gptsovits': { tag: RUNTIME_PLUGIN_SOURCE.tag, installDir: 'gpt-sovits' },
+  'tts-gptsovits-cpu': { tag: RUNTIME_PLUGIN_SOURCE.tag, installDir: 'gpt-sovits-cpu' },
   'asr-sherpa': { tag: RUNTIME_PLUGIN_SOURCE.tag, installDir: 'sherpa-onnx' },
 }
 
 /** 每个插件的最新已知版本；与打包脚本产物对齐，用于判断是否已装最新。 */
 export const RUNTIME_PLUGIN_VERSIONS: Record<RuntimePluginId, string> = {
   'tts-gptsovits': '1.0.0',
+  'tts-gptsovits-cpu': '1.0.0',
   'asr-sherpa': '1.0.0',
 }
 
@@ -447,6 +449,34 @@ export async function installRuntimePlugin(
 // ---------------------------------------------------------------------------
 
 /**
+ * 探测一个 GPT-SoVITS 引擎目录是 GPU 版还是 CPU 精简版。
+ *
+ * 判据：runtime site-packages/torch/lib 下是否存在 CUDA 运行时 DLL
+ * （cuBLAS/cuDNN/torch_cuda 等）。GPU 版（torch 2.7.0+cu128）必有，
+ * CPU 精简版（torch 2.7.0+cpu wheel）只有 torch_cpu.dll 等 CPU 库。
+ *
+ * @param sourceDir - 引擎根目录
+ * @returns 'tts-gptsovits'（GPU 版）或 'tts-gptsovits-cpu'（CPU 精简版）
+ */
+export function detectGptSovitsVariant(sourceDir: string): 'tts-gptsovits' | 'tts-gptsovits-cpu' {
+  const torchLib = join(sourceDir, 'runtime', 'Lib', 'site-packages', 'torch', 'lib')
+  const CUDA_MARKERS = ['cublas', 'cudnn', 'cudart', 'torch_cuda', 'c10_cuda', 'nvrtc']
+  try {
+    for (const name of readdirSync(torchLib)) {
+      if (!name.endsWith('.dll'))
+        continue
+      const lower = name.toLowerCase()
+      if (CUDA_MARKERS.some(m => lower.includes(m)))
+        return 'tts-gptsovits'
+    }
+  }
+  catch {
+    // torch/lib 缺失时按 CPU 版兜底——识别错误只会慢，不会坏功能（tsc 探测也会降级）
+  }
+  return 'tts-gptsovits-cpu'
+}
+
+/**
  * 从本地已解压好的引擎目录安装运行时插件（绕过网络下载）。
  *
  * 适用场景：
@@ -553,8 +583,10 @@ export async function installRuntimePluginFromLocalZips(
   }
 
   const installDir = PLUGIN_SOURCE_META[id].installDir
+  // NOTICE: `installDir.`（带点）前缀过滤，避免 `gpt-sovits` 误匹配 `gpt-sovits-cpu.*.zip`
+  const volPrefix = `${installDir}.`
   const volFiles = readdirSync(volumesDir)
-    .filter(f => f.startsWith(installDir) && f.endsWith('.zip'))
+    .filter(f => f.startsWith(volPrefix) && f.endsWith('.zip'))
     .sort()
   if (volFiles.length === 0) {
     throw new Error(`未找到 ${installDir}.*.zip 分卷文件`)
@@ -590,4 +622,51 @@ export async function installRuntimePluginFromLocalZips(
     await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined)
     throw error
   }
+}
+
+/**
+ * 从本地目录安装 GPT-SoVITS 引擎，自动识别 GPU / CPU 版别。
+ *
+ * 面向小白的一键入口：用户只需要选引擎目录，不需要知道手里是哪个版本——
+ * 此函数按 torch CUDA DLL 探测结果决定装到 `tts-gptsovits`（GPU 版）还是
+ * `tts-gptsovits-cpu`（CPU 版）。
+ *
+ * @param sourceDir - 本地已解压的引擎根目录
+ * @param onProgress - 进度回调
+ * @returns `{ id, dir }` — 实际安装的插件 id 与根目录
+ */
+export async function installGptSovitsFromLocalAuto(
+  sourceDir: string,
+  onProgress?: (p: RuntimePluginProgress) => void,
+): Promise<{ id: RuntimePluginId, dir: string }> {
+  const id = detectGptSovitsVariant(sourceDir)
+  const dir = await installRuntimePluginFromLocal(id, sourceDir, onProgress)
+  return { id, dir }
+}
+
+/**
+ * 从本地 ZIP 分卷目录安装 GPT-SoVITS 引擎，自动识别 GPU / CPU 版别。
+ *
+ * 分卷命名约定：GPU 版 `gpt-sovits.0001.zip ~ …`，CPU 版 `gpt-sovits-cpu.0001.zip ~ …`。
+ *
+ * @param volumesDir - 存放分卷 ZIP 的目录
+ * @param onProgress - 进度回调
+ * @returns `{ id, dir }` — 实际安装的插件 id 与根目录
+ */
+export async function installGptSovitsFromLocalZipsAuto(
+  volumesDir: string,
+  onProgress?: (p: RuntimePluginProgress) => void,
+): Promise<{ id: RuntimePluginId, dir: string }> {
+  const candidates: RuntimePluginId[] = ['tts-gptsovits', 'tts-gptsovits-cpu']
+  let lastError: unknown | null = null
+  for (const id of candidates) {
+    try {
+      const dir = await installRuntimePluginFromLocalZips(id, volumesDir, onProgress)
+      return { id, dir }
+    }
+    catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError ?? new Error('未找到 gpt-sovits.*.zip 或 gpt-sovits-cpu.*.zip 分卷文件')
 }

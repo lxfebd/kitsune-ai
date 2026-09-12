@@ -97,5 +97,46 @@ describe('weather tool helpers', () => {
 
       vi.unstubAllGlobals()
     })
+
+    it('passes an abort signal with the fetch timeout', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          results: [{ name: 'Tokyo', latitude: 35.68, longitude: 139.69, country: 'Japan', timezone: 'Asia/Tokyo' }],
+        }),
+      })
+
+      await geocodeCity('Tokyo', { fetchImpl: fetchMock as never, timeoutMs: 7000 })
+
+      const signal = fetchMock.mock.calls[0]?.[1]?.signal as AbortSignal | undefined
+      expect(signal).toBeDefined()
+      expect(signal?.aborted).toBe(false)
+    })
+
+    it('translates a hanging fetch into a friendly timeout error instead of hanging the turn', async () => {
+      // 模拟 fetch 永不 resolve：AbortSignal.timeout 到期后抛出 TimeoutError。
+      const neverResolve = vi.fn((_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted due to timeout')
+            err.name = 'TimeoutError'
+            reject(err)
+          })
+        }))
+
+      await expect(geocodeCity('Tokyo', { fetchImpl: neverResolve as never, timeoutMs: 500 }))
+        .rejects.toThrow('地理编码超时')
+    })
+
+    it('translates an AbortError the same way', async () => {
+      const abortingFetch = vi.fn(() => {
+        const err = new Error('The operation was aborted')
+        err.name = 'AbortError'
+        return Promise.reject(err)
+      })
+
+      await expect(geocodeCity('Tokyo', { fetchImpl: abortingFetch as never, timeoutMs: 500 }))
+        .rejects.toThrow('地理编码超时')
+    })
   })
 })

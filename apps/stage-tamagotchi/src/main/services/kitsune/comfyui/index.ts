@@ -52,7 +52,7 @@ const comfyuiConfigStore = createConfig('comfyui', 'config.json', comfyuiConfigS
  *
  * 首次访问时从磁盘加载配置，与 resolveComfyuiDir 共享 comfyuiConfigLoaded 标记。
  */
-function getComfyuiPort(): number {
+export function getComfyuiPort(): number {
   if (!comfyuiConfigLoaded) {
     comfyuiConfigStore.setup()
     comfyuiConfigLoaded = true

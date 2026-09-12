@@ -1,5 +1,5 @@
 import type { Plan, Task, TaskResult } from './planGenerator'
-import { generatePlan } from './planGenerator'
+import { generatePlan, type ToolInventoryItem } from './planGenerator'
 import type { MemoryStore } from '../../memory/store'
 
 export interface PlannerDeps {
@@ -10,6 +10,10 @@ export interface PlannerDeps {
   ) => Promise<{ ok: boolean, plan?: Plan, error?: string }>
   /** 程序性记忆存储 — 供子计划检索历史执行经验 */
   memoryStore?: MemoryStore
+  /** 可用工具清单 — 透传给子计划生成，保证子计划也只能派能执行的活 */
+  toolInventory?: ToolInventoryItem[]
+  /** 规划器参数（调整轮数/任务上限，可选） */
+  params?: PlannerParams
 }
 
 /**
@@ -20,8 +24,22 @@ export interface PlannerDeps {
  * - 所有方法返回 { ok, ... } 结构，失败永不抛出
  * - 调整失败时不阻塞，返回 { ok: false } 让调用方跳过
  */
+
+/** 动态调整最大轮数 — 超出即停止生成替代任务，防「失败→调整→再失败→再调整」死循环 */
+export const MAX_ADJUSTMENTS_PER_PLAN = 3
+/** 单个计划的任务总数上限 — 防止每次调整都塞回多个任务导致任务无限膨胀 */
+export const MAX_TASKS_PER_PLAN = 20
+
+/** 规划器参数 — 从 overseer.yaml executor 节注入，缺省回退硬编码 */
+export interface PlannerParams {
+  maxAdjustments?: number
+  maxTasks?: number
+}
+
 export function createPlanner(deps: PlannerDeps) {
-  const { generateAlternative, memoryStore } = deps
+  const { generateAlternative, memoryStore, toolInventory, params } = deps
+  const maxAdjustments = params?.maxAdjustments ?? MAX_ADJUSTMENTS_PER_PLAN
+  const maxTasks = params?.maxTasks ?? MAX_TASKS_PER_PLAN
 
   /**
    * 动态调整计划 — 非关键任务失败时生成替代方案。
@@ -32,11 +50,21 @@ export function createPlanner(deps: PlannerDeps) {
     failedTask: Task,
     error?: string,
   ): Promise<{ ok: boolean, newTasks?: Task[], error?: string }> {
+    const adjustments = plan.adjustmentCount ?? 0
+    if (adjustments >= maxAdjustments) {
+      return { ok: false, error: `已超过最大调整轮次 (${maxAdjustments})，不再生成替代任务` }
+    }
+    if (plan.tasks.length >= maxTasks) {
+      return { ok: false, error: `计划任务数已达上限 (${maxTasks})，拒绝继续膨胀` }
+    }
     try {
       const requirement = `任务 "${failedTask.title}" 失败（${error ?? '未知错误'}），需要替代方案。\n原需求：${plan.requirement}`
       const result = await generateAlternative(requirement, { failedTask, error })
       if (!result.ok || !result.plan)
         return { ok: false, error: result.error }
+      // 生成一次替代即累计一轮；调用方把新任务 push 进 plan.tasks，
+      // 任务数增长受 MAX_TASKS_PER_PLAN 二次钳制
+      plan.adjustmentCount = adjustments + 1
       return { ok: true, newTasks: result.plan.tasks }
     }
     catch {
@@ -63,7 +91,7 @@ export function createPlanner(deps: PlannerDeps) {
       // 使用父计划第一个任务的 cwd，或回退到 process.cwd()
       // NOTICE: Plan 无顶层 cwd 字段，取第一个 CLI 任务的 cwd 作为子计划的工作目录
       const parentCwd = parentPlan.tasks.find(t => t.type === 'cli')?.cwd ?? process.cwd()
-      const planResult = await generatePlan(requirement, parentCwd, memoryStore)
+      const planResult = await generatePlan(requirement, parentCwd, memoryStore, toolInventory)
       if (!planResult.ok || !planResult.plan)
         return { ok: false, error: planResult.error }
 

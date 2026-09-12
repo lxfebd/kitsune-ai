@@ -175,9 +175,16 @@ export function startModelFileServer(): Promise<void> {
     return Promise.resolve()
 
   return new Promise((resolve, reject) => {
-    server = createServer(handleRequest)
-    server.on('error', reject)
-    server.listen(MODEL_SERVER_PORT, '127.0.0.1', () => {
+    const srv = createServer(handleRequest)
+    server = srv
+    srv.on('error', (error) => {
+      // listen 失败（如端口被占）时清空引用，允许后续调用重试；否则
+      // `if (server)` 会让下一次 startModelFileServer 假启动成功
+      if (server === srv)
+        server = null
+      reject(error)
+    })
+    srv.listen(MODEL_SERVER_PORT, '127.0.0.1', () => {
       console.log(`[model-file-server] Listening on http://127.0.0.1:${MODEL_SERVER_PORT}`)
       console.log(`[model-file-server] Models directory: ${getModelsDir()}`)
       resolve()

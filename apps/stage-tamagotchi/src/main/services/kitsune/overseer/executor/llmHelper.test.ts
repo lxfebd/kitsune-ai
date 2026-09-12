@@ -50,7 +50,7 @@ describe('llmHelper', () => {
 
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ choices: [{ message: { content: 'Hello from primary' } }] }),
+        text: async () => JSON.stringify({ choices: [{ message: { content: 'Hello from primary' } }] }),
       })
 
       const { callLlm } = await import('./llmHelper')
@@ -91,7 +91,7 @@ describe('llmHelper', () => {
         }
         return {
           ok: true,
-          json: async () => ({ choices: [{ message: { content: 'Hello from secondary' } }] }),
+          text: async () => JSON.stringify({ choices: [{ message: { content: 'Hello from secondary' } }] }),
         }
       })
 
@@ -286,6 +286,119 @@ describe('llmHelper', () => {
       finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  describe('fetch timeout (no infinite hang)', () => {
+    it('passes an abort signal bound to timeout_ms to every LLM fetch', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        active_provider: 'primary',
+        providers: {
+          primary: {
+            type: 'openai',
+            base_url: 'https://api.primary.com',
+            model: 'gpt-4',
+            api_key_env: 'PRIMARY_KEY',
+            timeout_ms: 3000,
+          },
+        },
+      }))
+
+      process.env.PRIMARY_KEY = 'test-key'
+
+      let capturedSignal: AbortSignal | undefined
+      globalThis.fetch = vi.fn().mockImplementation(async (_url: string, options: RequestInit) => {
+        capturedSignal = options.signal as AbortSignal | undefined
+        return {
+          ok: true,
+          text: async () => JSON.stringify({ choices: [{ message: { content: 'hi' } }] }),
+        }
+      })
+
+      const { callLlm } = await import('./llmHelper')
+      const result = await callLlm('system', 'user')
+
+      expect(result.ok).toBe(true)
+      expect(capturedSignal).toBeDefined()
+      // AbortSignal.timeout(N) 会在 N 毫秒后触发 abort —— 证明超时信号确实被透传
+      expect(capturedSignal?.aborted).toBe(false)
+      expect(capturedSignal?.reason).toBeUndefined()
+    })
+
+    it('aborts a hanging fetch after timeout_ms, so the turn cannot hang forever', async () => {
+      // AbortSignal.timeout 的 abort 定时器走 Node 内部 timer，vi.useFakeTimers 控制不到，
+      // 必须用真实计时器 + 短 timeout_ms 来验证「挂起的 fetch 最终会被中止、轮次不会永远挂住」。
+      // 4 次尝试各 100ms + 重试退避 1s/2s/4s ≈ 7.4s，把测试超时放宽到 20s。
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        active_provider: 'primary',
+        providers: {
+          primary: {
+            type: 'openai',
+            base_url: 'https://api.primary.com',
+            model: 'gpt-4',
+            api_key_env: 'PRIMARY_KEY',
+            timeout_ms: 100,
+          },
+        },
+      }))
+
+      process.env.PRIMARY_KEY = 'test-key'
+
+      let signal: AbortSignal | undefined
+      let rejectFetch: (reason: unknown) => void
+      globalThis.fetch = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
+        signal = options.signal as AbortSignal | undefined
+        // 挂起永不 resolve 的 fetch，仅监听 abort（真实计时器下 timeout_ms 后触发）
+        return new Promise((_resolve, reject) => {
+          rejectFetch = reject
+          signal?.addEventListener('abort', () => {
+            const err = new Error('The operation was aborted due to timeout')
+            err.name = 'TimeoutError'
+            rejectFetch?.(err)
+          })
+        })
+      })
+
+      const { callLlm } = await import('./llmHelper')
+      const result = await callLlm('system', 'user')
+
+      expect(signal).toBeDefined()
+      expect(signal?.aborted).toBe(true)
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('所有 provider 均失败')
+    }, 20_000)
+
+    it('passes an abort signal to the Anthropic endpoint too', async () => {
+      mockReadFile.mockResolvedValue(JSON.stringify({
+        active_provider: 'primary',
+        providers: {
+          primary: {
+            type: 'anthropic',
+            base_url: 'https://api.anthropic.com',
+            model: 'claude-3',
+            api_key_env: 'ANTHROPIC_KEY',
+            timeout_ms: 5000,
+          },
+        },
+      }))
+
+      process.env.ANTHROPIC_KEY = 'test-key'
+
+      let capturedSignal: AbortSignal | undefined
+      globalThis.fetch = vi.fn().mockImplementation(async (_url: string, options: RequestInit) => {
+        capturedSignal = options.signal as AbortSignal | undefined
+        return {
+          ok: true,
+          json: async () => ({ content: [{ text: 'Hello from Claude' }] }),
+        }
+      })
+
+      const { callLlm } = await import('./llmHelper')
+      const result = await callLlm('system', 'user')
+
+      expect(result.ok).toBe(true)
+      expect(capturedSignal).toBeDefined()
+      expect(capturedSignal?.aborted).toBe(false)
     })
   })
 

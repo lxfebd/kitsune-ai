@@ -4,6 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { useRestoreScroll } from '../composables/use-restore-scroll'
+import { settingsGroups } from '../settings-nav'
+
+// 全局后台桥接 — 不随设置子页面销毁，保证监工执行/桌面动作在任意设置页都可用
+import PermissionConfirmDialog from '../pages/settings/environment/components/PermissionConfirmDialog.vue'
+import VisionCheckBridge from '../pages/settings/environment/components/VisionCheckBridge.vue'
+import FindElementBridge from '../pages/settings/environment/components/FindElementBridge.vue'
 
 // 错误边界 — 捕获子组件渲染错误，阻止错误传播导致整个布局崩溃。
 // 不捕获错误会导致 RouterView 无法渲染后续页面（Vue 3 经典问题）。
@@ -14,15 +20,6 @@ onErrorCaptured((err, _instance, info) => {
   // 返回 false 阻止错误继续向上传播
   return false
 })
-
-interface NavGroup {
-  id: string
-  labelKey: string
-  icon: string
-  to: string
-  match: string[]
-  exclude?: string[]
-}
 
 const route = useRoute()
 const { t } = useI18n()
@@ -38,81 +35,20 @@ watchEffect(() => {
   }
 })
 
-// 侧栏图标统一使用 bold-duotone 风格,保持视觉重量一致
-const navGroups: NavGroup[] = [
-  {
-    id: 'system',
-    labelKey: 'settings.nav.system',
-    icon: 'i-solar:settings-bold-duotone',
-    to: '/settings/system',
-    match: ['/settings/system'],
-  },
-  {
-    id: 'models',
-    labelKey: 'settings.nav.models',
-    icon: 'i-solar:cpu-bolt-bold-duotone',
-    to: '/settings/models',
-    match: ['/settings/models', '/settings/providers/chat', '/settings/providers/vision'],
-  },
-  {
-    id: 'speech',
-    labelKey: 'settings.nav.speech',
-    icon: 'i-solar:microphone-bold-duotone',
-    to: '/settings/modules/speech',
-    match: ['/settings/modules/speech', '/settings/providers/speech'],
-  },
-  {
-    id: 'hearing',
-    labelKey: 'settings.nav.hearing',
-    icon: 'i-solar:microphone-3-bold-duotone',
-    to: '/settings/modules/hearing',
-    match: ['/settings/modules/hearing', '/settings/providers/transcription'],
-  },
-  {
-    id: 'scene',
-    labelKey: 'settings.nav.scene',
-    icon: 'i-solar:gallery-bold-duotone',
-    to: '/settings/scene',
-    match: ['/settings/scene'],
-  },
-  {
-    id: 'modules',
-    labelKey: 'settings.nav.modules',
-    icon: 'i-solar:widget-bold-duotone',
-    to: '/settings/modules',
-    match: ['/settings/modules', '/settings/memory', '/settings/connection', '/settings/kitsune-card'],
-    exclude: ['/settings/modules/speech', '/settings/modules/hearing', '/settings/modules/consciousness', '/settings/modules/vision'],
-  },
-  {
-    id: 'data',
-    labelKey: 'settings.nav.data',
-    icon: 'i-solar:database-bold-duotone',
-    to: '/settings/data',
-    match: ['/settings/data', '/settings/flux'],
-  },
-  {
-    id: 'environment',
-    labelKey: 'settings.nav.environment',
-    icon: 'i-solar:planet-bold-duotone',
-    to: '/settings/environment',
-    match: ['/settings/environment'],
-  },
-  {
-    id: 'sidecar',
-    labelKey: 'settings.nav.sidecar',
-    icon: 'i-solar:server-bold-duotone',
-    to: '/settings/sidecar',
-    match: ['/settings/sidecar'],
-  },
-]
-
+// 侧栏 = 5 个「组合」入口：点击进入卡片页（/settings/group/<id>），页内每成员一张卡片。
+// 组合活动态 = 当前路径命中该组合任一成员页（含组合页自身）。
 const activeGroupId = computed(() => {
   const path = route.path
-  return navGroups.find((group) => {
-    if (group.exclude?.some(p => path === p || path.startsWith(`${p}/`)))
-      return false
-    return group.match.some(p => path === p || path.startsWith(`${p}/`))
-  })?.id
+  const matchedGroup = settingsGroups.find((group) => {
+    if (path === group.to)
+      return true
+    return group.members.some((member) => {
+      if (member.exclude?.some(p => path === p || path.startsWith(`${p}/`)))
+        return false
+      return member.match.some(p => path === p || path.startsWith(`${p}/`))
+    })
+  })
+  return matchedGroup?.id
 })
 
 const parentRoute = computed(() => {
@@ -122,6 +58,10 @@ const parentRoute = computed(() => {
     return '/settings/system/developer'
 
   if (parts.length <= 2)
+    return undefined
+
+  // 组合卡片页（/settings/group/<id>）没有上级实体路由，返回按钮不显示
+  if (parts[1] === 'group')
     return undefined
 
   if (parts[1] === 'providers' && parts.length >= 4)
@@ -178,36 +118,37 @@ function sendWindow(channel: string) {
         </div>
       </div>
 
-      <!-- Navigation -->
+      <!-- Navigation:5 个「组合」入口,点击进入卡片页,不再平铺折叠 -->
       <nav class="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto scrollbar-none">
         <RouterLink
-          v-for="item in navGroups"
-          :key="item.id"
-          :to="item.to"
+          v-for="group in settingsGroups"
+          :key="group.id"
+          :to="group.to"
           :class="[
-            'group relative flex items-center gap-2.5 min-h-[36px] px-3 rounded-lg',
+            'group relative flex items-center gap-2.5 min-h-[38px] px-3 rounded-lg',
             'text-[13px] no-underline transition-all duration-150',
-            activeGroupId === item.id
+            activeGroupId === group.id
               ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
               : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5',
           ]"
         >
           <!-- Active indicator bar -->
           <div
-            v-if="activeGroupId === item.id"
+            v-if="activeGroupId === group.id"
             :class="[
               'absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-5 rounded-full',
               'bg-primary-500 dark:bg-primary-400',
             ]"
           />
           <div :class="[
-            item.icon,
+            group.icon,
             'w-4 h-4 shrink-0 transition-colors duration-150',
-            activeGroupId === item.id
+            activeGroupId === group.id
               ? 'text-primary-500 dark:text-primary-400'
               : 'text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-600 dark:group-hover:text-neutral-300',
           ]" />
-          <span class="truncate">{{ t(item.labelKey) }}</span>
+          <span class="truncate">{{ t(group.labelKey) }}</span>
+          <div class="i-solar:alt-arrow-right-bold-duotone w-3 h-3 shrink-0 ml-auto opacity-40 group-hover:opacity-80 transition-opacity" />
         </RouterLink>
       </nav>
     </aside>
@@ -270,6 +211,15 @@ function sendWindow(channel: string) {
     </main>
   </div>
 
+  <!-- 全局：授权确认弹窗（必须常驻，执行器依赖其确认结果） -->
+  <PermissionConfirmDialog />
+
+  <!-- 后台：视觉校验桥接（无 UI，常驻监听监工视觉校验请求） -->
+  <VisionCheckBridge />
+
+  <!-- 后台：视觉元素定位桥接（无 UI，常驻监听 findElement 桌面动作） -->
+  <FindElementBridge />
+
   <!-- Force UnoCSS icon scanning -->
   <div class="hidden" aria-hidden="true">
     <div class="i-solar:settings-bold-duotone" />
@@ -281,9 +231,19 @@ function sendWindow(channel: string) {
     <div class="i-solar:danger-triangle-bold" />
     <div class="i-solar:widget-bold-duotone" />
     <div class="i-solar:alt-arrow-left-bold-duotone" />
+    <div class="i-solar:alt-arrow-right-bold-duotone" />
     <div class="i-solar:ghost-bold-duotone" />
     <div class="i-solar:planet-bold-duotone" />
     <div class="i-solar:server-bold-duotone" />
+    <div class="i-solar:user-id-bold-duotone" />
+    <div class="i-solar:diagram-up-bold-duotone" />
+    <div class="i-solar:eye-bold-duotone" />
+    <div class="i-solar:health-bold-duotone" />
+    <div class="i-solar:shield-check-bold-duotone" />
+    <div class="i-solar:plug-circle-bold-duotone" />
+    <div class="i-solar:user-bold-duotone" />
+    <div class="i-solar:card-bold-duotone" />
+    <div class="i-solar:link-bold-duotone" />
   </div>
 </template>
 

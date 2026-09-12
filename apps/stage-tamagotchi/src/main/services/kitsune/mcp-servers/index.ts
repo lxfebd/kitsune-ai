@@ -27,15 +27,19 @@ import { app, shell } from 'electron'
 import {
   electronMcpApplyAndRestart,
   electronMcpCallTool,
+  electronMcpGetAgentTemplates,
   electronMcpGetRuntimeStatus,
   electronMcpListTools,
   electronMcpOpenConfigFile,
   electronMcpReadConfigText,
   electronMcpTestServer,
   electronMcpWriteConfigText,
+  type ElectronMcpAgentTemplate,
 } from '../../../../shared/eventa'
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
+import { getElectronMainDirname } from '../../../libs/electron/location'
+import { generateAgentMcpConfig, PET_MCP_HTTP_URL, type McpAgentId } from '../mcpAgentConfig'
 
 interface McpServerSession {
   client: Client
@@ -63,6 +67,18 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
+
+/** 给一个 Promise 挂上硬性 deadline：超时先到 → reject；先到方获胜（race）。 */
+export function withDeadline<V>(promise: Promise<V>, ms: number, label: string): Promise<V> {
+  let timer: NodeJS.Timeout | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer)
+      clearTimeout(timer)
+  })
+}
 
 function getConfigPath() {
   return join(app.getPath('userData'), 'mcp.json')
@@ -179,7 +195,7 @@ export function createMcpStdioManager(): McpStdioManager {
     })
 
     try {
-      await client.connect(transport)
+      await withDeadline(client.connect(transport), mcpRequestMaxTotalTimeoutMsec, `connect ${name}`)
       transport.stderr?.on('data', (data) => {
         const text = data.toString('utf-8').trim()
         if (text) {
@@ -419,17 +435,6 @@ export function createMcpStdioManager(): McpStdioManager {
     let client: Client | null = null
     const stderrChunks: string[] = []
 
-    const withDeadline = <V>(promise: Promise<V>, ms: number, label: string): Promise<V> => {
-      let timer: NodeJS.Timeout | undefined
-      const timeout = new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
-      })
-      return Promise.race([promise, timeout]).finally(() => {
-        if (timer)
-          clearTimeout(timer)
-      })
-    }
-
     try {
       transport = new StdioClientTransport({
         command: payload.config.command,
@@ -552,4 +557,43 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
   defineInvokeHandler(params.context, electronMcpTestServer, async (payload) => {
     return params.manager.testServer(payload)
   })
+
+  defineInvokeHandler(params.context, electronMcpGetAgentTemplates, async () => {
+    return buildAgentTemplates()
+  })
+}
+
+/**
+ * 生成设置页「MCP 接入」卡片所需的各家 agent 配置模板。
+ * stdio 入口指向打包产物 out/main/petMcpServerChild.js（electron.vite 的额外入口，
+ * 见 electron.vite.config.ts rollupOptions.input）；开发态拿不到打包产物时给占位，
+ * 由设置页提示用户先构建。
+ */
+export function buildAgentTemplates(): ElectronMcpAgentTemplate[] {
+  const stdioEntry = getPackagedStdioEntry()
+  const agentIds: McpAgentId[] = ['claude_code', 'cursor', 'trae', 'windsurf', 'zcode', 'opencode']
+  return agentIds.map((agentId) => {
+    const tpl = generateAgentMcpConfig(agentId, stdioEntry)
+    return {
+      agentId,
+      label: tpl.label,
+      mode: tpl.mode,
+      config: tpl.config,
+      configFile: tpl.configFile,
+      configPaths: tpl.configPaths,
+      httpUrl: tpl.mode === 'url' ? PET_MCP_HTTP_URL : undefined,
+    }
+  })
+}
+
+/** 打包后 petMcpServerChild.js 的路径；探测不到（开发态）返回 undefined，模板用占位 */
+function getPackagedStdioEntry(): string | undefined {
+  try {
+    const dirname = getElectronMainDirname()
+    if (!dirname) return undefined
+    return join(dirname, 'petMcpServerChild.js')
+  }
+  catch {
+    return undefined
+  }
 }

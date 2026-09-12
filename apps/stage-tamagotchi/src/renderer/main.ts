@@ -1,4 +1,3 @@
-import type { Plugin } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 
 import Tres from '@tresjs/core'
@@ -49,10 +48,7 @@ const router = createRouter({
 
 createApp(App)
   .use(MotionPlugin)
-  // TODO: Fix autoAnimatePlugin type error
-  // NOTICE: autoAnimatePlugin type definitions don't satisfy Vue's Plugin interface;
-  // cast at the call site until upstream ships compatible types.
-  .use(autoAnimatePlugin as unknown as Plugin)
+  .use(autoAnimatePlugin)
   .use(router)
   .use(pinia)
   .use(PiniaColada)

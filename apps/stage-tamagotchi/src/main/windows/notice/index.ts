@@ -64,10 +64,35 @@ export function setupNoticeWindowManager(params: {
     open: async (payload: RequestWindowPayload) => {
       const handle = await manager.open(payload)
       return await new Promise<boolean>((resolve) => {
+        // NOTICE: The notice page resolves this promise only when the user
+        // clicks a confirm/cancel button (windowAction). If the window is
+        // closed any other way (e.g. the OS close button), no action is ever
+        // sent and the caller's await would hang forever. Resolve as "not
+        // confirmed" when the underlying window session is disposed, with a
+        // timeout as a final safety net.
+        let settled = false
+        let windowClosedTimeout: ReturnType<typeof setTimeout> | undefined
+
+        const finish = (confirmed: boolean) => {
+          if (settled)
+            return
+          settled = true
+          clearTimeout(windowClosedTimeout)
+          resolve(confirmed)
+        }
+
+        windowClosedTimeout = setTimeout(() => {
+          safeClose(handle.window)
+          finish(false)
+        }, 60_000)
+
+        const offline = handle.sessionDisposed(() => finish(false))
+
         defineInvokeHandler(handle.context, noticeWindowEventa.windowAction, (action) => {
           if (!action?.id || action.id !== handle.id)
             return
-          resolve(action.action === 'confirm')
+          offline()
+          finish(action.action === 'confirm')
           safeClose(handle.window)
         })
       })

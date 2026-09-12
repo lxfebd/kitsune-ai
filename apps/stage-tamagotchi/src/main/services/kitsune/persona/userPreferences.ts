@@ -13,11 +13,11 @@ const PREFERENCE_PATTERNS: Array<{ pattern: RegExp, category: string }> = [
   // 语气/风格偏好
   { pattern: /以后.*(这样|这个风格|这种风格|这么回复)/, category: 'style' },
   { pattern: /(记住|记一下).*(回复|风格|语气|模式)/, category: 'style' },
-  { pattern: /(always|from now on).*(reply|style|mode)/i, category: 'style' },
+  { pattern: /(always|from now on).*(reply|replies|style|mode)/i, category: 'style' },
   // 代码风格偏好
-  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?(tab|space|空格|制表符)/i, category: 'code_indent' },
-  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?(camelCase|snake_case|kebab-case|帕斯卡)/i, category: 'code_naming' },
-  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?(const|let|var)/i, category: 'code_variable' },
+  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?\s*(tab|space|空格|制表符)/i, category: 'code_indent' },
+  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?\s*(camelCase|snake_case|kebab-case|帕斯卡)/i, category: 'code_naming' },
+  { pattern: /我(?:喜欢|习惯|偏好)(?:用)?\s*(const|let|var)/i, category: 'code_variable' },
   { pattern: /(单引号|双引号|single quote|double quote)/i, category: 'code_quote' },
   // 交互偏好
   { pattern: /(简洁|详细|简短|长一点|更多细节)/, category: 'response_length' },

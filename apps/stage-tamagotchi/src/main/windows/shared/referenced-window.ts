@@ -16,6 +16,8 @@ export interface ReferencedWindowHandle {
   window: BrowserWindow
   context: ReturnType<typeof createContext>['context']
   eventa: ReturnType<typeof createRequestWindowEventa>
+  /** Registers a callback fired when the underlying window session is disposed (window closed). */
+  sessionDisposed: (listener: () => void) => () => void
 }
 
 export interface ReferencedWindowManager<Payload extends RequestWindowPayload = RequestWindowPayload> {
@@ -35,7 +37,11 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
   createWindow: (id: string) => BrowserWindow
   loadRoute: (window: BrowserWindow, payload: Payload & { id: string }) => Promise<void>
 }): ReferencedWindowManager<Payload> {
-  const windows = new Map<string, { window: BrowserWindow, context: ReturnType<typeof createContext>['context'] }>()
+  const windows = new Map<string, {
+    window: BrowserWindow
+    context: ReturnType<typeof createContext>['context']
+    sessionDisposed: (listener: () => void) => () => void
+  }>()
 
   async function bindContext(id: string, payload: Payload, win: BrowserWindow) {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -43,6 +49,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
     const { context } = createContext(ipcMain, win)
+    const disposers = new Set<() => void>()
 
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
       if (req?.id && req.id !== id)
@@ -58,9 +65,21 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
 
     await setupBaseWindowElectronInvokes({ context, window: win, i18n: params.i18n, serverChannel: params.serverChannel })
 
-    win.on('closed', () => windows.delete(id))
+    win.on('closed', () => {
+      for (const dispose of disposers)
+        dispose()
+      win.emit('session-disposed')
+      windows.delete(id)
+    })
 
-    return { window: win, context }
+    return {
+      window: win,
+      context,
+      sessionDisposed: (listener: () => void) => {
+        disposers.add(listener)
+        return () => disposers.delete(listener)
+      },
+    }
   }
 
   async function open(payload: Payload & { id?: string }): Promise<ReferencedWindowHandle> {
@@ -84,7 +103,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
       throw wrapped
     }
 
-    return { id, window: ctx.window, context: ctx.context, eventa: params.eventa }
+    return { id, window: ctx.window, context: ctx.context, eventa: params.eventa, sessionDisposed: ctx.sessionDisposed }
   }
 
   function close(id: string) {

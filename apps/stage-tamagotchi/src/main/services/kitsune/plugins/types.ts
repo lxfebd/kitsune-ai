@@ -1,6 +1,7 @@
 import type { ExtensionHost, ExtensionManifestV1 } from '@kitsune/plugin-sdk/plugin-host'
 
 import type {
+  PluginLifecycleEventPayload,
   PluginRegistrySnapshot,
   WidgetsAddPayload,
   WidgetSnapshot,
@@ -42,6 +43,12 @@ export interface ExtensionHostService {
    * The snapshot includes a `loading` flag set to true before `init()` completes.
    */
   list: () => Promise<PluginRegistrySnapshot>
+  /**
+   * Tears down the extension host: stops the asset HTTP server, revokes asset
+   * sessions, and disposes kit runtimes. Safe to call on app exit; also wired
+   * to `app.once('before-quit')` for paths that go through `app.quit()`.
+   */
+  dispose: () => Promise<void>
 }
 
 /**
@@ -81,6 +88,11 @@ export interface ExtensionHostGameletWidgetsManager {
  */
 export interface SetupExtensionHostOptions {
   widgetsManager: ExtensionHostGameletWidgetsManager
+  /**
+   * 插件生命周期事件回调 — 插件启动失败/能力降级/被卸载时由 host 服务调用，
+   * 上层（plugins/index.ts）借此通过 eventa 广播给渲染层桌宠。
+   */
+  onPluginLifecycle?: (event: PluginLifecycleEventPayload) => void
 }
 
 /**

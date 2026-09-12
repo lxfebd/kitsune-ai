@@ -15,6 +15,7 @@ import { mkdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import {
   ExtensionHost,
 } from '@kitsune/plugin-sdk/plugin-host'
@@ -291,6 +292,7 @@ export async function setupExtensionHostServiceInternal(
   options: SetupExtensionHostOptions,
 ): Promise<ExtensionHostServiceInternal> {
   const log = useLogg('main/extension-host').useGlobalConfig()
+  const onPluginLifecycle = options.onPluginLifecycle
 
   // Config
   const extensionConfig = createExtensionHostConfigStore()
@@ -311,7 +313,12 @@ export async function setupExtensionHostServiceInternal(
   // Auto-enable built-in local plugins in development only on the very first
   // run (empty config). Once the user toggles enablement, their choice sticks.
   if (!app.isPackaged) {
-    const config = extensionConfig.get()
+    // get() 缺失时返回 undefined，恢复用 schema 默认值兜底，避免重建丢 autoReload/known
+    const config = extensionConfig.get() ?? {
+      enabled: [] as string[],
+      autoReload: [] as string[],
+      known: {} as Record<string, { path: string }>,
+    }
     const isFreshConfig = config.enabled.length === 0 && Object.keys(config.known).length === 0
     if (isFreshConfig) {
       const builtInLocalIds = [`${profile}.local-llm`, `${profile}.local-tts`]
@@ -524,6 +531,12 @@ export async function setupExtensionHostServiceInternal(
       }
       catch (error) {
         log.withError(error).withFields({ extensionId }).error('extension failed to start')
+        onPluginLifecycle?.({
+          kind: 'load-failed',
+          extensionId,
+          reason: errorMessageFrom(error) ?? String(error),
+          updatedAt: Date.now(),
+        })
       }
     }
 

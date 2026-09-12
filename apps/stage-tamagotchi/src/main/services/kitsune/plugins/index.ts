@@ -5,6 +5,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { app, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
+import { electronPluginLifecycleEvent } from '../../../../shared/eventa/plugin/events'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -45,8 +46,13 @@ import { setupExtensionHostServiceInternal } from './host'
  * - macOS: ~/Library/Application Support/${appId}/extensions-v1.json
  */
 export async function setupExtensionHost(options: SetupExtensionHostOptions): Promise<ExtensionHostService> {
-  const hostService = await setupExtensionHostServiceInternal(options)
   const { context } = createContext(ipcMain)
+  const hostService = await setupExtensionHostServiceInternal({
+    ...options,
+    onPluginLifecycle: (event) => {
+      context.emit(electronPluginLifecycleEvent, event)
+    },
+  })
   const invokePluginProtocolListProviders = defineInvoke(context, pluginProtocolListProviders)
 
   defineInvokeHandler(context, electronPluginList, async () => {
@@ -126,6 +132,14 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
       case 'ready':
         return hostService.host.markCapabilityReady(payload.key, payload.metadata)
       case 'degraded':
+        context.emit(electronPluginLifecycleEvent, {
+          kind: 'degraded',
+          extensionId: payload.metadata?.extensionId
+            ? String(payload.metadata.extensionId)
+            : 'unknown',
+          reason: payload.key,
+          updatedAt: Date.now(),
+        })
         return hostService.host.markCapabilityDegraded(payload.key, payload.metadata)
       case 'withdrawn':
         return hostService.host.withdrawCapability(payload.key, payload.metadata)
@@ -147,5 +161,6 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     manifests: hostService.manifests,
     init: () => hostService.init(),
     list: () => hostService.list(),
+    dispose: () => hostService.dispose(),
   }
 }

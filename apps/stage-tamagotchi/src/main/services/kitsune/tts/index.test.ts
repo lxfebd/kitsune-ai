@@ -194,7 +194,7 @@ describe('startGptSovits args/env 分支', () => {
     await rm(tempDir, { recursive: true, force: true })
   })
 
-  it('cpu 档：传 -d cpu -fp + CUDA_VISIBLE_DEVICES 空串 + 三线程变量', async () => {
+  it('cpu 档：传 -d cpu -fp + CUDA_VISIBLE_DEVICES 空串 + 三线程变量 + 被动等待', async () => {
     const { startGptSovits } = await import('./index')
     const { svc, captured } = makeFakeSidecar()
     await startGptSovits(svc)
@@ -204,6 +204,8 @@ describe('startGptSovits args/env 分支', () => {
     expect(cfg.env.OMP_NUM_THREADS).toBeDefined()
     expect(cfg.env.MKL_NUM_THREADS).toBeDefined()
     expect(cfg.env.OPENBLAS_NUM_THREADS).toBeDefined()
+    expect(cfg.env.OMP_WAIT_POLICY).toBe('PASSIVE')
+    expect(cfg.env.TORCH_NUM_THREADS).toBeDefined()
   })
 
   it('cuda 档：传 -d cuda -fp（修复假全精度）', async () => {
@@ -302,5 +304,73 @@ describe('restartGptSovits', () => {
 
     releaseStart({ id: 'gpt-sovits', state: 'running', pid: 1, restartCount: 0, updatedAt: 0 })
     await first
+  })
+})
+
+describe('端口解析 + Python 探测 + 配置变更检测（纯兜底链）', () => {
+  let tempDir: string
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'gptsovits-fallback-test-'))
+    // 恢复 tts 模块的惰性配置加载标志，确保每次用例从磁盘读取全新配置
+    vi.resetModules()
+    configStoreMap.clear()
+    delete process.env.GPT_SOVITS_DIR
+    delete process.env.GPT_SOVITS_PORT
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({
+      ok: true,
+      json: async () => ({ status: 'ready' }),
+    })))
+  })
+
+  afterEach(async () => {
+    delete process.env.GPT_SOVITS_PORT
+    vi.unstubAllGlobals()
+    await rm(tempDir, { recursive: true, force: true })
+  })
+
+  it('getGptSovitsPort 优先持久化配置，其次环境变量，最后默认 9880', async () => {
+    const { getGptSovitsPort } = await import('./index')
+
+    // 配置端口合法 → 配置优先
+    configStoreMap.set('gpt-sovits:config.json', { dir: undefined, port: 9001, device: 'cpu', threads: 4 })
+    expect(getGptSovitsPort()).toBe(9001)
+
+    // 配置端口非法（<1024）→ 落到环境变量
+    configStoreMap.set('gpt-sovits:config.json', { dir: undefined, port: 80, device: 'cpu', threads: 4 })
+    process.env.GPT_SOVITS_PORT = '12345'
+    expect(getGptSovitsPort()).toBe(12345)
+
+    // 配置非法 + 环境变量非法 → 默认
+    process.env.GPT_SOVITS_PORT = 'abc'
+    expect(getGptSovitsPort()).toBe(9880)
+  })
+
+  it('resolveGptSovitsPython 优先 runtime/python.exe，缺失时回退 py launcher', async () => {
+    const { resolveGptSovitsPython } = await import('./index')
+    // Windows 分支：runtime 存在 → 返回该路径
+    const runtimeDir = join(tempDir, 'runtime')
+    await mkdir(runtimeDir, { recursive: true })
+    const pythonExe = join(runtimeDir, 'python.exe')
+    await writeFile(pythonExe, '')
+    expect(resolveGptSovitsPython(tempDir)).toBe(pythonExe)
+
+    // 无 runtime → 回退 'py'（win32 官方安装器默认注册的 launcher）
+    const bareDir = join(tempDir, 'bare')
+    await mkdir(bareDir, { recursive: true })
+    expect(resolveGptSovitsPython(bareDir)).toBe('py')
+  })
+
+  it('setGptSovitsConfig 仅在实际变更且 sidecar 运行时返回 needsRestart', async () => {
+    const { setGptSovitsConfig } = await import('./index')
+    configStoreMap.set('gpt-sovits:config.json', { dir: undefined, port: 9880, device: 'cpu', threads: 4 })
+
+    // 值未变 → 不触发重启
+    const same = await setGptSovitsConfig({ port: 9880 })
+    expect(same.needsRestart).toBe(false)
+
+    // 值变化且 fetch ok（视为运行中）→ 触发重启
+    const changed = await setGptSovitsConfig({ port: 9881 })
+    expect(changed.needsRestart).toBe(true)
   })
 })

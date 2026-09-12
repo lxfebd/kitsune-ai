@@ -6,6 +6,8 @@ import { app } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 
+import { useLogg } from '@guiiai/logg'
+
 import {
   electronPersonaBuildContext,
   electronPersonaGetConfig,
@@ -36,6 +38,8 @@ import { createCharacterRegistry } from '@kitsune/core-character'
 import { getElectronMainDirname } from '../../../libs/electron/location'
 
 import type { MemoryStore } from '../memory/store'
+
+const log = useLogg('main/persona').useGlobalConfig()
 
 export interface PersonaService {
   personaBuilder: PersonaContextBuilder
@@ -115,7 +119,7 @@ export function createPersonaService(params: {
       sessionId: payload?.sessionId,
       input: payload?.input,
     })
-    console.log(`[persona] buildContext mode=${result.mode} source=${result.source} prompt=${result.prompt.length} chars`)
+    log.log(`[persona] buildContext mode=${result.mode} source=${result.source} prompt=${result.prompt.length} chars`)
     return {
       prompt: result.prompt,
       mode: result.mode,

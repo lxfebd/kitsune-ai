@@ -7,6 +7,15 @@ import { getFileLogger } from '../../logger'
 
 const RETRY_DELAYS_MS = [2000, 4000, 8000]
 const MAX_SUBPLAN_DEPTH = 3
+/** 事件载荷里 result.output 的最大字符数 — screenshot data URL（可达数 MB）不再整段进渲染层/日志 */
+const EVENT_RESULT_OUTPUT_MAX_CHARS = 2_000
+
+/** 执行器参数 — 从 overseer.yaml executor 节注入，缺省回退到硬编码默认值 */
+export interface LoopParams {
+  maxConcurrency?: number
+  retryDelaysMs?: number[]
+  maxSubPlanDepth?: number
+}
 
 export interface PlannerInstance {
   adjustPlan: (plan: Plan, failedTask: Task, error?: string) => Promise<{ ok: boolean, newTasks?: Task[], error?: string }>
@@ -36,6 +45,8 @@ interface LoopDeps {
   auditLog?: { append: (entry: { timestamp: string, taskId: string, type: 'cli' | 'ide' | 'desktop', source: string, result: 'success' | 'failure', error?: string, durationMs: number }) => Promise<void> }
   /** 规划器 — 动态调整 + 子计划生成 */
   planner?: PlannerInstance
+  /** 执行器参数（并行度/重试/子计划深度）— 从 yaml executor 节注入 */
+  params?: LoopParams
 }
 
 /**
@@ -56,6 +67,19 @@ function taskSource(task: Task): string {
 }
 
 /**
+ * 事件载荷用 result — 截断过大的 output（如 screenshot 的 base64 data URL）。
+ * 只影响推送给渲染层/日志的事件副本；原 result 用于记忆写入等完整消费。
+ */
+function resultForEvent(result: TaskResult): TaskResult {
+  if (!result.output || result.output.length <= EVENT_RESULT_OUTPUT_MAX_CHARS)
+    return result
+  return {
+    ...result,
+    output: `${result.output.slice(0, EVENT_RESULT_OUTPUT_MAX_CHARS)}\n…[output truncated ${result.output.length - EVENT_RESULT_OUTPUT_MAX_CHARS} chars]`,
+  }
+}
+
+/**
  * Reads `plan.status` through a function call.
  *
  * `plan` is mutated concurrently (stop()/abort paths), so inline comparisons would keep
@@ -67,8 +91,12 @@ function isPlanAborted(plan: Plan): boolean {
 }
 
 export function createLoop(deps: LoopDeps) {
-  const { runner, permission, checkAcceptance, emit, confirmRequest, killRunningTask, onTaskCompleted, onPlanCompleted, onTaskFailed, auditLog, planner } = deps
+  const { runner, permission, checkAcceptance, emit, confirmRequest, killRunningTask, onTaskCompleted, onPlanCompleted, onTaskFailed, auditLog, planner, params: loopParams } = deps
   const fileLogger = getFileLogger()
+  // 从注入参数取重试延迟/子计划深度/最大并行度 — yaml executor 节优先，缺省回退硬编码
+  const retryDelays = loopParams?.retryDelaysMs?.length ? loopParams.retryDelaysMs : RETRY_DELAYS_MS
+  const maxSubPlanDepth = loopParams?.maxSubPlanDepth ?? MAX_SUBPLAN_DEPTH
+  const maxConcurrencyDefault = loopParams?.maxConcurrency ?? 3
 
   let currentPlan: Plan | null = null
   let isRunning = false
@@ -96,7 +124,7 @@ export function createLoop(deps: LoopDeps) {
     if (!planner)
       return
     const currentDepth = parentPlan.nestingLevel ?? 0
-    if (currentDepth >= MAX_SUBPLAN_DEPTH)
+    if (currentDepth >= maxSubPlanDepth)
       return
     if (task.type !== 'cli' || !result.output?.includes('NEED_SUBPLAN:'))
       return
@@ -166,7 +194,7 @@ export function createLoop(deps: LoopDeps) {
     plan: Plan,
     abortSignal: AbortSignal,
   ): Promise<void> {
-    const maxCon = plan.maxConcurrency ?? 3
+    const maxCon = plan.maxConcurrency ?? maxConcurrencyDefault
     const queue = [...level.tasks]
     const pool = new Set<Promise<void>>()
 
@@ -177,12 +205,25 @@ export function createLoop(deps: LoopDeps) {
       // 局部变量 — 避免并行任务间竞态
       let taskError: string | undefined
 
-      for (let attempt = 0; attempt < RETRY_DELAYS_MS.length; attempt++) {
+      for (let attempt = 0; attempt < retryDelays.length; attempt++) {
         if (abortSignal.aborted || isPlanAborted(plan) || stopRequested)
           return
 
         emit('task_started', { taskId: task.id, attempt })
         const result = await runTaskWithPermission(task)
+
+        // 用户拒绝是确定性终态：不再重试（重试=同一任务弹 N 次确认框，
+        // 且 pendingExecutorConfirms 以 task.id 为 key 会被覆盖，旧 timer 造成死锁）
+        if (result.error === '用户拒绝') {
+          taskError = result.error
+          emit('task_failed', { taskId: task.id, attempt, error: result.error, result })
+          if (task.critical) {
+            abortSignal.aborted = true
+            plan.status = 'aborted'
+            emit('plan_aborted', { planId: plan.id, taskId: task.id, error: taskError })
+          }
+          return
+        }
 
         if (result.ok) {
           const accept = await checkAcceptance(task, result)
@@ -193,7 +234,7 @@ export function createLoop(deps: LoopDeps) {
         }
 
         if (result.ok) {
-          emit('task_completed', { taskId: task.id, result })
+          emit('task_completed', { taskId: task.id, result: resultForEvent(result) })
           fileLogger.debug('[loop] task_completed', { eventId: 'task_completed', node: task.id, action: task.type, result: 'success' })
           try { await onTaskCompleted?.(task, result) } catch { /* 忽略 */ }
           await handleSubPlan(task, result, plan, abortSignal)
@@ -201,14 +242,14 @@ export function createLoop(deps: LoopDeps) {
         }
 
         taskError = result.error
-        emit('task_failed', { taskId: task.id, attempt, error: result.error, result })
+        emit('task_failed', { taskId: task.id, attempt, error: result.error, result: resultForEvent(result) })
         fileLogger.debug('[loop] task_failed', { eventId: 'task_failed', node: task.id, action: task.type, result: result.error })
         let personaMessage: string | undefined
         try { personaMessage = await onTaskFailed?.(task, result.error, attempt) } catch { /* 忽略 */ }
         if (personaMessage)
           emit('task_failed', { taskId: task.id, attempt, error: result.error, personaMessage })
-        if (attempt < RETRY_DELAYS_MS.length - 1)
-          await sleep(RETRY_DELAYS_MS[attempt])
+        if (attempt < retryDelays.length - 1)
+          await sleep(retryDelays[attempt])
       }
 
       // 全部重试失败 — 使用局部变量判断，不依赖共享状态

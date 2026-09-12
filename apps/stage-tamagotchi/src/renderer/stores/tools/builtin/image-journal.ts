@@ -35,12 +35,13 @@ function createInvokers() {
   }
 }
 
-type Invokers = ReturnType<typeof createInvokers>
-let invokeCache: Invokers | undefined
+export type ImageJournalInvokers = ReturnType<typeof createInvokers>
+let invokeCache: ImageJournalInvokers | undefined
 
-function getInvokers(): Invokers {
-  if (!invokeCache)
-    invokeCache = createInvokers()
+function resolveInvokers(override?: ImageJournalInvokers): ImageJournalInvokers {
+  if (override)
+    return override
+  invokeCache ??= createInvokers()
   return invokeCache
 }
 
@@ -80,7 +81,7 @@ const imageJournalParams = {
   additionalProperties: false,
 } satisfies JsonSchema
 
-async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
+async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }, deps?: { invokers?: ImageJournalInvokers }) {
   if (!params.prompt?.trim())
     throw new Error('prompt is required for image_journal.create')
 
@@ -105,16 +106,28 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
   const spawnMode = cardArtistry?.spawnMode
   const mode = params.mode || spawnMode || 'inline'
 
-  const { addWidget, generateHeadless } = getInvokers()
+  // 外部网络/生图调用统一超时：任何一环挂起都会让 agent 回合无限期卡住
+  // （与截屏 getSources 无超时同类的"话没说完就停"）。
+  const IMAGE_JOURNAL_TIMEOUT_MS = 60_000
+
+  const { addWidget, generateHeadless } = resolveInvokers(deps?.invokers)
 
   try {
-    const artistryResult = await generateHeadless({
-      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
-      model: artistryConfig.model as string,
-      provider: artistryConfig.provider as string,
-      options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
-      globals: JSON.parse(JSON.stringify(artistryConfig.globals || {})),
-    })
+    let artistryResult: Awaited<ReturnType<typeof generateHeadless>>
+    try {
+      artistryResult = await generateHeadless({
+        prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
+        model: artistryConfig.model as string,
+        provider: artistryConfig.provider as string,
+        options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
+        globals: JSON.parse(JSON.stringify(artistryConfig.globals || {})),
+      }, { signal: AbortSignal.timeout(IMAGE_JOURNAL_TIMEOUT_MS) })
+    }
+    catch (error) {
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+        throw new Error(`图片生成超时（${IMAGE_JOURNAL_TIMEOUT_MS}ms）：生图服务未响应。请重试。`)
+      throw error
+    }
 
     if (artistryResult.error || (!artistryResult.base64 && !artistryResult.imageUrl)) {
       throw new Error(`Failed to generate image: ${artistryResult.error || 'No output received'}`)
@@ -122,11 +135,21 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
 
     let blob: Blob
     if (artistryResult.base64) {
-      const response = await fetch(artistryResult.base64)
-      blob = await response.blob()
+      // 主进程 generateHeadless 返回的 base64 是 data URL（data:image/...;base64,...）。
+      // data URL 直接转 Blob，不需要 fetch；裸 base64 一律视为异常，避免
+      // fetch('裸base64') 抛 URIError 被静默吞成"生成失败"。
+      if (artistryResult.base64.startsWith('data:')) {
+        const [, data = ''] = artistryResult.base64.split(',')
+        blob = new Blob([Uint8Array.from(atob(data), c => c.charCodeAt(0))], { type: 'image/png' })
+      }
+      else {
+        throw new Error('Image generation returned an invalid base64 payload (missing data: prefix).')
+      }
     }
     else {
-      const response = await fetch(artistryResult.imageUrl!)
+      const response = await fetch(artistryResult.imageUrl!, { signal: AbortSignal.timeout(IMAGE_JOURNAL_TIMEOUT_MS) })
+      if (!response.ok)
+        throw new Error(`Failed to download generated image: HTTP ${response.status}`)
       blob = await response.blob()
     }
 
@@ -229,11 +252,11 @@ async function executeSetAsBackground(params: { query?: string }) {
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
-async function executeImageJournalAction(params: any) {
+export async function executeImageJournalAction(params: any, deps?: { invokers?: ImageJournalInvokers }) {
   if (params.action === 'create') {
     if (!params.prompt?.trim())
       throw new Error('prompt is required for image_journal.create')
-    return await executeCreateImageJournalEntry(params)
+    return await executeCreateImageJournalEntry(params, deps)
   }
   if (params.action === 'apply' || params.action === 'set_as_background') {
     if (!params.query?.trim())

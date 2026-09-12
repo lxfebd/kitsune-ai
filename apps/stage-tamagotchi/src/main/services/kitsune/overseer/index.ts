@@ -19,6 +19,15 @@
  * 该包内其余「自主执行链」模块（UnifiedSmartRouter / DecisionEngine /
  * ActionExecutor / RiskController / SuggestionPusher 等）为遗留实现，
  * 已由本文件的 executor 闭环取代，生产路径不再使用（详见该包 index.js 标注）。
+ *
+ * ── 目录结构（D2 拆聚合根后） ──
+ *   index.ts            聚合根：createOverseerService 闭包 + IPC 处理器 + 事件分发
+ *   config.ts           配置读取：ToolConfig / OverseerConfig / ExecutorParams + loadOverseerConfig
+ *   bus.ts              极简 pub/sub 总线（Supervisor ↔ TaskPusher 事件通道）
+ *   reactionMapping.ts  Supervisor 桌宠反应 → OverseerEvent 映射（纯函数）
+ *   coordinator.ts      编排者：拆需求按画像派活 / director.ts 总监评审 / director.watcher.ts
+ *   executor/           执行层：loop / taskRunner / planner / planGenerator / acceptance / llmHelper
+ *   permission.ts       权限白名单模型 / pushFilter.ts 推送过滤 / correctionTracker.ts 修正计数
  */
 
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -42,26 +51,25 @@ import type { MemoryStore } from '../memory/store'
 import type { PersonaContextBuilder } from '@kitsune/persona'
 
 import { randomUUID } from 'node:crypto'
-import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { Supervisor, type PetReaction } from '@kitsune/overseer'
 import { TaskPusher } from '@kitsune/overseer'
-import * as yaml from 'yaml'
+import { stringify } from 'superjson'
 
 import {
-  OverseerEventCategory,
   OverseerEventType,
   OverseerSeverity,
-  type StructuredToolSignal,
   electronOverseerEvent,
   electronOverseerLlmProvider,
   electronOverseerPushWithVerification,
   electronOverseerStats,
   electronOverseerStatus,
   electronOverseerToggle,
+  electronOverseerGuidanceState,
+  electronOverseerGuidanceToggle,
+  electronOverseerGuidanceReset,
   electronOverseerVisionCheck,
   electronOverseerVisionCheckResult,
   electronPermissionConfirm,
@@ -74,6 +82,15 @@ import {
   electronExecutorStop,
   electronExecutorStatus,
   electronExecutorEvent,
+  electronDirectorReview,
+  electronDirectorApprove,
+  electronDirectorReject,
+  electronDirectorEvent,
+  electronDirectorList,
+  electronDirectorDetail,
+  electronCoordinatorSubmit,
+  electronCoordinatorTeam,
+  type GuidanceRuntimeState,
 } from '../../../../shared/eventa'
 import { AuditLog } from './auditLog'
 import { CorrectionTracker } from './correctionTracker'
@@ -82,21 +99,29 @@ import { PermissionModel } from './permission'
 import { PushFilter } from './pushFilter'
 import { checkResult, type CheckResult, type VisionCompareFn } from './resultChecker'
 import { createPetMcpBridge } from '../petMcpBridge'
+import { createPetMcpHttpServer } from '../petMcpHttpServer'
+import { mapPetReportToReaction } from '../petReportMapper'
+import { normalizePetReportActivity } from '../petReportMapper'
+import { McpActivityTracker } from '../mcpActivityTracker'
 import {
   petReactionContractSchema,
   petReactionResultSchema,
+  petReportContractSchema,
   PET_REACTION_SOURCE,
   type PetReactionResult,
 } from '../petContract'
-import { getElectronMainDirname } from '../../../libs/electron/location'
 import { captureScreenshot } from './capture'
 import { createTaskRunner } from './executor/taskRunner'
 import { createLoop } from './executor/loop'
 import { createAcceptance } from './executor/acceptance'
 import { generatePlan } from './executor/planGenerator'
-import type { Task, TaskResult } from './executor/planGenerator'
+import type { Task, TaskResult, ToolInventoryItem } from './executor/planGenerator'
 import { createPlanner } from './executor/planner'
 import { setSyncedProviderConfig } from './executor/llmHelper'
+import { directorReviewLatest, directorApprove, directorReject, listDirectorPlans, getDirectorPlanDetail } from './director'
+import { createDirectorWatcher } from './director.watcher'
+import { createCoordinator } from './coordinator'
+import { createGuidanceService, type GuidanceService, type GuidanceTrigger } from './guidance'
 import { getFileLogger } from '../logger'
 
 type MainContext = ReturnType<typeof createContext>['context']
@@ -105,225 +130,13 @@ type MainContext = ReturnType<typeof createContext>['context']
 const VISION_CHECK_TIMEOUT_MS = 30_000
 const PERMISSION_CONFIRM_TIMEOUT_MS = 60_000
 
-interface ToolConfig {
-  id: string
-  name: string
-  type: string
-  detect?: { processName?: string }
-  events?: string[]
-  enabled: boolean
-  /**
-   * P2：CLI 控制协议声明。yaml 中给工具配了 cli 段，编排层启动时
-   * 就会把它注册进 TaskPusher 运行时注册表，自动获得 autoFix 的 cli 路由：
-   *   cli:
-   *     binary: gemini
-   *     timeoutMs: 60000
-   *     riskLevel: medium
-   *     templates:
-   *       - key: prompt
-   *         args: [--print]
-   *         inputParam: -p
-   */
-  cli?: {
-    binary: string
-    timeoutMs?: number
-    riskLevel?: 'low' | 'medium' | 'high'
-    templates?: Array<{ key: string, label?: string, args?: string[], inputParam?: string | null, maxLen?: number }>
-  }
-}
+import type { OverseerConfig } from './config'
+import { createSimpleBus } from './bus'
+import { mapReactionToEvent } from './reactionMapping'
 
-interface OverseerConfig {
-  version: number
-  /**
-   * 顶层启动开关 — 默认 false。
-   * 控制服务创建时是否自动调用 start()；运行时仍可通过 IPC toggle 主动开启。
-   */
-  enabled: boolean
-  tools: ToolConfig[]
-  /** CLI 任务的合法 cwd 根目录 — 空数组=不限制（向后兼容） */
-  allowedRoots?: string[]
-  /**
-   * 监控器轮询间隔（毫秒）。yaml 未配置时回退到 10000。
-   * 之前 ClaudeCodeMonitor 硬编码 3000ms，频繁触发进程检测与文件读取导致 CPU 偏高；
-   * 提升到 10s 以降低空载开销，状态感知延迟在可接受范围内。
-   */
-  pollInterval?: number
-}
-
-// 配置缺失时的内置降级清单 — 监控 Claude Code / Trae / Cursor / Codex
-const DEFAULT_TOOLS: ToolConfig[] = [
-  { id: 'claude_code', name: 'Claude Code', type: 'process', detect: { processName: 'claude' }, events: ['permission_request', 'task_end', 'task_failed', 'compile_failed', 'test_failed'], enabled: true },
-  { id: 'opencode', name: 'Opencode', type: 'process', detect: { processName: 'opencode' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
-  { id: 'trae', name: 'Trae', type: 'process', detect: { processName: 'trae' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
-  { id: 'cursor', name: 'Cursor', type: 'process', detect: { processName: 'cursor' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
-  { id: 'codex', name: 'OpenAI Codex', type: 'process', detect: { processName: 'codex' }, events: ['permission_request', 'task_end', 'task_failed'], enabled: true },
-]
-
-function defaultConfig(): OverseerConfig {
-  // 默认不自动启动 — 配置缺失时也保持关闭，避免意外监工
-  return { version: 1, enabled: false, tools: DEFAULT_TOOLS.map(t => ({ ...t })), pollInterval: 10000 }
-}
-
-function getConfigPath(): string {
-  // 与 llmHelper.ts 的 getConfigDir() 同路径策略：
-  // 开发环境 → <monorepoRoot>/config/overseer.yaml
-  // 打包环境 → <distRoot>/config/overseer.yaml（由 extraResources 拷入）
-  const electronMainDirname = getElectronMainDirname()
-  const root = join(electronMainDirname, '..', '..', '..', '..')
-  return join(root, 'config', 'overseer.yaml')
-}
-
-export async function loadOverseerConfig(): Promise<OverseerConfig> {
-  const configPath = getConfigPath()
-  try {
-    const raw = await readFile(configPath, 'utf-8')
-    const parsed = yaml.parse(raw) as Partial<OverseerConfig> | null
-    if (parsed?.tools?.length) {
-      return {
-        version: parsed.version ?? 1,
-        // 顶层 enabled 默认 false — yaml 未显式开启时保持关闭
-        enabled: parsed.enabled ?? false,
-        tools: parsed.tools,
-        allowedRoots: parsed.allowedRoots ?? [],
-        // 轮询间隔缺失时回退到 10s，避免回退到旧的 3s 硬编码
-        pollInterval: parsed.pollInterval ?? 10000,
-      }
-    }
-  }
-  catch {
-    // 配置缺失或解析失败 — 使用内置默认配置
-  }
-  return defaultConfig()
-}
-
-/**
- * 将 Supervisor 的桌宠反应映射为 OverseerEvent。
- *
- * P0.3 重构：优先读取感知层透传的结构化信号（hasError/errorMessage/toolName），
- * 直接映射为确定的事件类型与 category，不再依赖关键词猜测；仅当结构化信号
- * 缺失时才回退到关键词兜底（兼容旧 .js 监控器与外部触发源）。
- */
-function mapReactionToEvent(reaction: PetReaction): OverseerEvent {
-  // —— 结构化信号优先（感知层已算出的确定性信息） ——
-  if (reaction.hasError) {
-    const errText = `${reaction.errorMessage ?? ''} ${reaction.message ?? ''} ${reaction.summary ?? ''}`.toLowerCase()
-    let type: OverseerEventType
-    if (/crash|崩溃/.test(errText)) {
-      type = OverseerEventType.ProcessCrash
-    }
-    else if (/timeout|超时/.test(errText)) {
-      type = OverseerEventType.Timeout
-    }
-    else if (/test|测试/.test(errText)) {
-      type = OverseerEventType.TestFailed
-    }
-    else if (/compile|build|编译/.test(errText)) {
-      type = OverseerEventType.CompileFailed
-    }
-    else {
-      type = OverseerEventType.TaskFailed
-    }
-    return {
-      id: randomUUID(),
-      type,
-      source: reaction.source,
-      timestamp: reaction.timestamp,
-      severity: OverseerSeverity.Error,
-      category: OverseerEventCategory.Diagnostic,
-      data: {
-        emotion: reaction.emotion,
-        action: reaction.action,
-        message: reaction.message,
-        summary: reaction.summary,
-        toolName: reaction.toolName,
-        hasError: true,
-        errorMessage: reaction.errorMessage,
-        raw: reaction.raw,
-      } satisfies StructuredToolSignal & Record<string, unknown>,
-    }
-  }
-
-  // —— 无结构化错误 → 关键词兜底（保持向后兼容） ——
-  const text = `${reaction.message} ${reaction.summary}`.toLowerCase()
-  let type: OverseerEventType
-  let severity: OverseerSeverity
-
-  if (/permission|confirm|allow|授权|确认/.test(text)) {
-    type = OverseerEventType.PermissionRequest
-    severity = OverseerSeverity.Warn
-  }
-  else if (/crash|崩溃/.test(text)) {
-    type = OverseerEventType.ProcessCrash
-    severity = OverseerSeverity.Error
-  }
-  else if (/timeout|超时/.test(text)) {
-    type = OverseerEventType.Timeout
-    severity = OverseerSeverity.Error
-  }
-  else if (/test|测试/.test(text) && /fail|error|失败/.test(text)) {
-    type = OverseerEventType.TestFailed
-    severity = OverseerSeverity.Error
-  }
-  else if (/compile|build|编译/.test(text) && /fail|error|失败/.test(text)) {
-    type = OverseerEventType.CompileFailed
-    severity = OverseerSeverity.Error
-  }
-  else if (/fail|error|失败|错误/.test(text)) {
-    type = OverseerEventType.TaskFailed
-    severity = OverseerSeverity.Error
-  }
-  else if (/done|complete|finish|完成|结束/.test(text)) {
-    type = OverseerEventType.TaskEnd
-    severity = OverseerSeverity.Info
-  }
-  else {
-    // 普通状态更新 — 仅更新内部状态，不推送桌宠
-    type = OverseerEventType.StatusUpdate
-    severity = OverseerSeverity.Info
-  }
-
-  return {
-    id: randomUUID(),
-    type,
-    source: reaction.source,
-    timestamp: reaction.timestamp,
-    severity,
-    category: type === OverseerEventType.TaskEnd
-      ? OverseerEventCategory.Lifecycle
-      : (type === OverseerEventType.PermissionRequest ? OverseerEventCategory.Lifecycle : OverseerEventCategory.Diagnostic),
-    data: {
-      emotion: reaction.emotion,
-      action: reaction.action,
-      message: reaction.message,
-      summary: reaction.summary,
-      toolName: reaction.toolName,
-      hasError: reaction.hasError,
-      errorMessage: reaction.errorMessage,
-      raw: reaction.raw,
-    } satisfies StructuredToolSignal & Record<string, unknown>,
-  }
-}
-
-/** Supervisor 内部连接监控器与事件订阅的最小 pub/sub 总线 */
-function createSimpleBus<T = unknown>() {
-  const handlers = new Map<string, Set<(event: T) => void>>()
-  return {
-    subscribe(topic: string, handler: (event: T) => void) {
-      let set = handlers.get(topic)
-      if (!set) {
-        set = new Set()
-        handlers.set(topic, set)
-      }
-      set.add(handler)
-    },
-    publish(topic: string, payload: T) {
-      handlers.get(topic)?.forEach((h) => {
-        try { h(payload) }
-        catch { /* 单个处理器失败不影响其他订阅者 */ }
-      })
-    },
-  }
-}
+export type { ExecutorParams, ToolConfig, OverseerConfig } from './config'
+export { loadOverseerConfig } from './config'
+export { mapReactionToEvent } from './reactionMapping'
 
 export interface OverseerService {
   toggle: (enabled: boolean) => Promise<{ enabled: boolean }>
@@ -338,8 +151,8 @@ export interface OverseerService {
   stop: () => void
 }
 
-export function createOverseerService(params: { context: MainContext, config: OverseerConfig, connectors: ConnectorService, memoryStore?: MemoryStore, personaBuilder?: PersonaContextBuilder, desktopAutomation?: DesktopAutomationService }): OverseerService {
-  const { context, config, connectors, memoryStore: _memoryStore, personaBuilder: _personaBuilder, desktopAutomation } = params
+export function createOverseerService(params: { context: MainContext, config: OverseerConfig, connectors: ConnectorService, memoryStore?: MemoryStore, personaBuilder?: PersonaContextBuilder, desktopAutomation?: DesktopAutomationService, channel?: { broadcast: (message: string) => number } }): OverseerService {
+  const { context, config, connectors, memoryStore: _memoryStore, personaBuilder: _personaBuilder, desktopAutomation, channel } = params
   const log = useLogg('main/overseer').useGlobalConfig()
   const fileLogger = getFileLogger()
   const pushFilter = new PushFilter()
@@ -359,6 +172,24 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     lastEventAt: null,
     perTool: {},
   }
+
+  // MCP 活动上报驱动的「工具运行状态」表 — 解决 MCP 已接入但 UI 仍显示空闲的问题。
+  // 已接入 MCP 的 agent（trae / workbuddy…）的 pet_report 会 touch 这张表；
+  // 状态快照把「文件嗅探 running 或 MCP 活动在窗口内」合并为工具 running。
+  // idle/stopped 上报会让来源立即回落空闲；TTL 与文件嗅探窗口（180s）对齐。
+  const mcpActivity = new McpActivityTracker()
+
+  // 操作指导服务 — 重复失败命中内置规则时给用户可操作修复步骤。
+  // 计数独立持久化（userData/guidance-failure-counter.json），跨会话记忆。
+  // 服务始终创建（状态/重置 IPC 需要），触发开关由 guidanceRuntimeEnabled 门控，
+  // 初始值来自 config.guidance.enabled（yaml 关闭则默认不指导，UI 可实时开启）。
+  const guidanceService: GuidanceService = createGuidanceService({
+    locale: config.guidance?.locale ?? 'zh-Hans',
+    threshold: config.guidance?.threshold,
+    windowMs: config.guidance?.windowMs,
+    cooldownMs: config.guidance?.cooldownMs,
+  })
+  let guidanceRuntimeEnabled = config.guidance?.enabled ?? true
 
   const bus = createSimpleBus()
   // 将 yaml 解析出的 tools[] 传入 Supervisor，由其按 id+enabled 实例化对应监控器；
@@ -398,9 +229,11 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   // ——— 执行层初始化 ———
   const taskPusher = new TaskPusher({ bus })
   // P2：把 yaml 中声明了 cli 协议的工具注册进 TaskPusher 运行时注册表，
-  // 使它们获得与内置 CLI 工具一致的 pushTask / autoFix 能力（provider = 工具 id）
+  // 使它们获得与内置 CLI 工具一致的 pushTask / autoFix 能力（provider = 工具 id）。
+  // perceiveOnly 工具（无 CLI 可执行入口，如 zcode）跳过注册 —— 只感知不派活，
+  // 否则规划器/协调者会给它派任务 → 执行时必然报「不支持的 provider」。
   for (const tool of config.tools) {
-    if (!tool.enabled || !tool.cli?.binary) continue
+    if (!tool.enabled || !tool.cli?.binary || tool.perceiveOnly) continue
     const registered = taskPusher.registerTool(tool.id, {
       name: tool.name,
       binary: tool.cli.binary,
@@ -416,27 +249,51 @@ export function createOverseerService(params: { context: MainContext, config: Ov
       fileLogger.warn('[overseer] CLI 工具注册失败（配置非法）', { toolId: tool.id })
     }
   }
-  const runner = createTaskRunner({ taskPusher, connectors, context, allowedRoots: config.allowedRoots ?? [], desktopAutomation })
+  const runner = createTaskRunner({ taskPusher, connectors, context, allowedRoots: config.allowedRoots ?? [], desktopAutomation, timeouts: config.executor })
   const auditLog = new AuditLog()
   const acceptance = createAcceptance({ visionCompare })
+  // 可用工具清单 — 从 yaml 的 tools[] 派生（perceiveOnly / 无 cli 的工具不进入可派活清单）。
+  // 规划器提示词与 coordinator 拆活都基于这份清单，确保「能派的」与「提示词说有的」一致。
+  const toolInventory: ToolInventoryItem[] = config.tools
+    .filter(t => t.enabled && !t.perceiveOnly && t.cli?.binary)
+    .map(t => ({
+      id: t.id,
+      name: t.name,
+      binary: t.cli!.binary,
+      personality: t.personality
+        ? `${[t.personality.bestFor, t.personality.avoidFor ? `避免: ${t.personality.avoidFor}` : ''].filter(Boolean).join('；')}`
+        : undefined,
+      timeoutMs: t.cli!.timeoutMs,
+    }))
   const planner = createPlanner({
     generateAlternative: async (requirement, context) => {
       return generatePlan(
         `${requirement}\n\n失败上下文:\n失败任务: ${context.failedTask.title}\n错误: ${context.error ?? '未知'}`,
         process.cwd(),
         _memoryStore,
+        toolInventory,
       )
     },
     memoryStore: _memoryStore,
+    toolInventory,
   })
   const pendingExecutorConfirms = new Map<string, { resolve: (r: { approved: boolean, addToWhitelist: boolean }) => void, timer: NodeJS.Timeout }>()
 
   function confirmRequest(task: Task): Promise<{ approved: boolean, addToWhitelist: boolean }> {
     const taskKey = task.id
     return new Promise((resolve) => {
+      // 同一 task.id 的旧请求被覆盖前先清掉旧 timer — 否则旧 timer 到点后
+      // delete(taskKey) 会删掉新请求的条目，用户确认到达时 resolve 已丢失 → 死锁。
+      const previous = pendingExecutorConfirms.get(taskKey)
+      if (previous)
+        clearTimeout(previous.timer)
+
       const timer = setTimeout(() => {
-        pendingExecutorConfirms.delete(taskKey)
-        resolve({ approved: false, addToWhitelist: false })
+        // 仅当条目仍属于本次请求时才删除/解决，避免误伤后一次请求
+        if (pendingExecutorConfirms.get(taskKey)?.timer === timer) {
+          pendingExecutorConfirms.delete(taskKey)
+          resolve({ approved: false, addToWhitelist: false })
+        }
       }, PERMISSION_CONFIRM_TIMEOUT_MS)
       pendingExecutorConfirms.set(taskKey, { resolve, timer })
 
@@ -534,7 +391,88 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     }
   }
 
-  const loop = createLoop({ runner, permission: permissionModel, checkAcceptance: acceptance.checkAcceptance, emit: emitExecutorEvent, confirmRequest, killRunningTask, onTaskCompleted: writeTaskMemory, onPlanCompleted: writePlanMemory, onTaskFailed: generatePersonaFeedback, auditLog, planner })
+  const loop = createLoop({
+    runner,
+    permission: permissionModel,
+    checkAcceptance: acceptance.checkAcceptance,
+    emit: emitExecutorEvent,
+    confirmRequest,
+    killRunningTask,
+    onTaskCompleted: async (task, result) => {
+      await writeTaskMemory(task, result)
+      await coordinatorTaskOutcome(task, result)
+    },
+    onPlanCompleted: writePlanMemory,
+    onTaskFailed: generatePersonaFeedback,
+    auditLog,
+    planner,
+    params: config.executor,
+  })
+
+  // ——— Coordinator 编排者（"头头"的代理人）———
+  // 在 executor 之上统筹：拆需求 → 按画像派给子 agent → 收回结果 → 判断下一步。
+  // 复用 executor 的 generatePlan/runPlan 通道与事件流，不重复造轮子。
+  const coordinator = createCoordinator({
+    inventory: toolInventory,
+    isAgentOnline: (id) => {
+      const s = supervisor.getStatus()
+      return Boolean(s[id]?.isRunning) || mcpActivity.isActive(id)
+    },
+    runPlan: plan => loop.runPlan(plan),
+    getExecutorStatus: () => loop.getStatus(),
+    emit: (type, payload) => emitExecutorEvent(type as ExecutorEventPayload['type'], payload),
+  })
+  // 任务级结果回喂 coordinator（agent_outcome 事件 + 面板 busy 更新）
+  const coordinatorTaskOutcome = async (task: Task, result: TaskResult): Promise<void> => {
+    if (task.type !== 'cli') return
+    coordinator.recordDispatch({
+      taskId: task.id,
+      title: task.title,
+      provider: task.provider,
+      ok: result.ok,
+      error: result.error,
+      at: Date.now(),
+    })
+  }
+
+  // ——— 浏览器视图桥（pet-mcp-bridge /overseer/events SSE + 快照端点）———
+  // 浏览器 view 无 Electron IPC 桥，通过 localhost HTTP 订阅监工事件流。
+  // 在 handleEvent 的两个分支（filtered / pushed）都推送，保证 UI 上完整可见。
+  let bridgeEventSink: ((entry: { event: OverseerEvent, pushed: boolean }) => void) | undefined
+  function pushToBridge(entry: { event: OverseerEvent, pushed: boolean }) {
+    if (bridgeEventSink) {
+      try {
+        bridgeEventSink(entry)
+      }
+      catch {
+        bridgeEventSink = undefined
+      }
+    }
+  }
+  const getStatsSnapshot = () => ({ ...stats, perTool: { ...stats.perTool } })
+
+  // 工具运行状态合并：文件/进程嗅探（supervisor 各 monitor 的 isRunning）
+  // 或 MCP 活动上报在 TTL 窗口内 → running。三处工具状态构建（bridge 快照/
+  // IPC/服务 getStatus）统一走这里，避免分散重复且漏掉 MCP 信号。
+  function buildToolStatusList() {
+    const supervisorStatus = supervisor.getStatus()
+    return config.tools.map(t => ({
+      id: t.id,
+      name: t.name,
+      enabled: t.enabled,
+      running: Boolean(supervisorStatus[t.id]?.isRunning) || mcpActivity.isActive(t.id),
+    }))
+  }
+
+  const getStatusSnapshot = () => {
+    const supervisorStatus = supervisor.getStatus()
+    return {
+      enabled: supervisorStatus.enabled,
+      running: Boolean(supervisorStatus.isRunning),
+      tools: buildToolStatusList(),
+      updatedAt: Date.now(),
+    } satisfies OverseerStatus
+  }
 
   // 外部接入桥：MCP Server 子进程（宿主 spawn）→ HTTP localhost → triggerPetReaction
   // 不污染 channel-server WS（6121 仍只收内部 IPC）。桥常驻监听，独立于 overseer 开关，
@@ -544,8 +482,37 @@ export function createOverseerService(params: { context: MainContext, config: Ov
       const result = await triggerPetReaction(contract)
       return { status: result.status, reason: result.reason }
     },
+    onPetReport: async (report) => {
+      const result = await handlePetReport(report)
+      return { status: result.status, reason: result.reason }
+    },
+    getStats: () => getStatsSnapshot(),
+    getStatus: () => getStatusSnapshot(),
+    onEvent: (handler) => {
+      bridgeEventSink = handler
+      return () => { bridgeEventSink = undefined }
+    },
   })
   petMcpBridge.start()
+
+  // 主进程内嵌 MCP HTTP server — AI agent（Claude Code/Cursor/Trae/Windsurf/ZCode…）
+  // 直接配置 localhost URL 接入，不依赖本机 agent 安装路径（换机零配置成本）。
+  // 与 stdio 子进程桥并列的第二接入方式，工具 handler 直达 handlePetReport /
+  // triggerPetReaction，业务校验/白名单/限流都在同一管线完成。
+  const petMcpHttpServer = createPetMcpHttpServer({
+    onPetReport: async (report) => handlePetReport(report),
+    onPetReaction: async (contract) => {
+      const result = await triggerPetReaction(contract)
+      return { status: result.status, reason: result.reason }
+    },
+  })
+  void petMcpHttpServer.start().catch((err: Error) => {
+    // 端口占用等启动失败不应阻断 overseer 主流程——MCP 接入是可降级能力
+    fileLogger.warn('[overseer] petMcpHttpServer 启动失败（MCP 接入降级，stdio 桥不受影响）', { error: err.message })
+  })
+
+  // 总监模式目录监听 — 对 .kitsune/plans/plans/ 下外部 AI 新计划自动评审
+  const directorWatcher = createDirectorWatcher()
 
   function bumpTool(source: string, pushed: boolean) {
     const entry = stats.perTool[source] ?? { total: 0, pushed: 0 }
@@ -560,10 +527,18 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     stats.eventsTotal += 1
     stats.lastEventAt = event.timestamp
 
+    // ——— 操作指导：重复失败计数（必须放在 pushFilter.shouldPush 之前） ———
+    // pushFilter 按 type:source 去重，重复失败会被白名单吞掉；
+    // 放在这里才能统计到第 2、3 次，做到「重复才指导、且不刷屏」。
+    if (isGuidanceFailure(event))
+      recordGuidanceFailure(event)
+
     if (!pushFilter.shouldPush(event)) {
       stats.eventsFiltered += 1
       bumpTool(event.source, false)
       fileLogger.debug('[overseer] handleEvent', { eventId: event.id, node: event.source, action: event.type, result: 'filtered' })
+      broadcastToChannel(event, false)
+      pushToBridge({ event, pushed: false })
       return
     }
 
@@ -589,7 +564,39 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     stats.eventsPushed += 1
     bumpTool(event.source, true)
     context.emit(electronOverseerEvent, event)
+    broadcastToChannel(event, true)
+    pushToBridge({ event, pushed: true })
     fileLogger.debug('[overseer] handleEvent', { eventId: event.id, node: event.source, action: event.type, result: 'pushed' })
+  }
+
+  /**
+   * 将监工事件广播到 channel-server WS（6121），供浏览器 view（stage-web，无 Electron IPC 桥）订阅。
+   * 封装为 spark:notify 帧，payload.kitsune_overseer 标记来源，UI 侧按 event.id 去重。
+   * 不依赖过滤结果——filtered 事件也广播，让"被白名单拦下"在 UI 上可见。
+   */
+  function broadcastToChannel(event: OverseerEvent, pushed: boolean) {
+    if (!channel)
+      return
+    try {
+      const data = (event.data ?? {}) as Record<string, unknown>
+      const frame = {
+        type: 'spark:notify',
+        data: {
+          id: randomUUID(),
+          eventId: `overseer-${event.id}`,
+          kind: 'reminder',
+          urgency: 'soon',
+          headline: `overseer:${event.source}`,
+          note: data.summary ?? data.message ?? event.type,
+          payload: { kitsune_overseer: true, pushed, event },
+          destinations: ['*'],
+        },
+      }
+      channel.broadcast(stringify(frame))
+    }
+    catch (err) {
+      fileLogger.debug('[overseer] broadcastToChannel', { eventId: event.id, error: err instanceof Error ? err.message : String(err) })
+    }
   }
 
   /**
@@ -626,6 +633,10 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   const reactionRateLimit = new Map<string, number>()
   const REACTION_DEBOUNCE_MS = 5_000
 
+  /** pet_report 高频活动信号的来源级去抖表（与 triggerReaction 分开，互不饿死） */
+  const reportRateLimit = new Map<string, number>()
+  const REPORT_DEBOUNCE_MS = 3_000
+
   /** 判断事件是否属于可自动修复的失败类型 */
   function isAutoFixableFailure(event: OverseerEvent): boolean {
     if (event.severity !== OverseerSeverity.Error)
@@ -635,6 +646,83 @@ export function createOverseerService(params: { context: MainContext, config: Ov
       || event.type === OverseerEventType.TestFailed
       || event.type === OverseerEventType.TaskFailed
     )
+  }
+
+  /**
+   * 是否属于「可触发操作指导」的失败事件 — 与 isAutoFixableFailure 判定一致，
+   * 但要求携带真实错误消息（errorMessage 非空才有指导素材）。
+   */
+  function isGuidanceFailure(event: OverseerEvent): boolean {
+    if (event.severity !== OverseerSeverity.Error)
+      return false
+    if (event.type !== OverseerEventType.CompileFailed
+      && event.type !== OverseerEventType.TestFailed
+      && event.type !== OverseerEventType.TaskFailed
+      && event.type !== OverseerEventType.ProcessCrash
+      && event.type !== OverseerEventType.Timeout)
+      return false
+    const data = event.data as { errorMessage?: unknown, message?: unknown, reason?: unknown } | undefined
+    const err = typeof data?.errorMessage === 'string' && data.errorMessage.trim()
+      ? data.errorMessage
+      : (typeof data?.message === 'string' ? data.message : (typeof data?.reason === 'string' ? data.reason : ''))
+    return err.trim().length > 0
+  }
+
+  /**
+   * 记录失败并触发操作指导（重复失败命中内置规则时）。
+   * 发出 Guidance 事件（事件流卡片 + 桌宠经现有事件→演出管线开口）。
+   * 两条失败入口共用：监控器 handleEvent 与 MCP error 反应。
+   */
+  function recordGuidanceFailure(event: OverseerEvent): void {
+    if (!guidanceRuntimeEnabled)
+      return
+    const data = event.data as { errorMessage?: unknown, message?: unknown, toolName?: unknown, reason?: unknown } | undefined
+    const errorMessage = typeof data?.errorMessage === 'string' && data.errorMessage.trim()
+      ? data.errorMessage
+      : (typeof data?.message === 'string' ? data.message : (typeof data?.reason === 'string' ? data.reason : ''))
+    const toolName = typeof data?.toolName === 'string' ? data.toolName : undefined
+    void guidanceService.recordFailure({
+      source: event.source,
+      errorMessage: errorMessage || extractErrorText(event),
+      toolName,
+    }).then(trigger => emitGuidance(event.source, trigger, errorMessage, toolName))
+  }
+
+  /**
+   * 触发后发出 Guidance 事件 — 事件流卡片 + 桌宠开口统一出口。
+   * trigger 为 null（未达阈值 / 冷却期）时静默返回。
+   */
+  function emitGuidance(source: string, trigger: GuidanceTrigger | null, errorMessage: string, toolName?: string): void {
+    if (!trigger)
+      return
+    const localized = guidanceService!.localizeRule(trigger.rule)
+    const guidanceEvent: OverseerEvent = {
+      id: randomUUID(),
+      type: OverseerEventType.Guidance,
+      source,
+      timestamp: Date.now(),
+      severity: trigger.rule.severity === 'warn' ? OverseerSeverity.Warn : OverseerSeverity.Info,
+      data: {
+        ruleId: trigger.rule.id,
+        suggestion: localized.title,
+        steps: localized.steps,
+        title: localized.title,
+        toolName,
+        errorMessage: errorMessage.slice(0, 200),
+        message: `${localized.title} — 重复失败 ${trigger.count} 次`,
+        summary: localized.title,
+      },
+    }
+    stats.eventsTotal += 1
+    stats.eventsPushed += 1
+    stats.lastEventAt = guidanceEvent.timestamp
+    bumpTool(source, true)
+    context.emit(electronOverseerEvent, guidanceEvent)
+    fileLogger.info('[overseer] guidance triggered', {
+      ruleId: trigger.rule.id,
+      source,
+      count: trigger.count,
+    })
   }
 
   /** 提取事件中的失败原因文本（兼容多种 data 结构） */
@@ -812,6 +900,20 @@ ${errorText}`,
     }
     reactionRateLimit.set(contract.source, nowTs)
 
+    // 3.5) 操作指导钩子 — MCP 直连的 error 型反应不走 handleEvent，这里补计数。
+    //   （pet_report activity='error' 已走 handleEvent → hook ①，无需二次处理）
+    if (guidanceRuntimeEnabled && contract.type === 'error') {
+      const errText = 'errorMessage' in contract && typeof contract.errorMessage === 'string'
+        ? contract.errorMessage
+        : contract.summary
+      const toolName = 'toolName' in contract && typeof contract.toolName === 'string' ? contract.toolName : undefined
+      void guidanceService.recordFailure({
+        source: contract.source,
+        errorMessage: errText,
+        toolName,
+      }).then(trigger => emitGuidance(contract.source, trigger, errText, toolName))
+    }
+
     // 4) v1：模板渲染，零 token 成本，不调 LLM
     const message = `[${contract.type}] ${contract.summary}`
 
@@ -848,12 +950,62 @@ ${errorText}`,
     return petReactionResultSchema.parse({ status: 'queued', reactionId })
   }
 
+  /**
+   * 处理 pet_report 活动上报（MCP HTTP server / stdio 子进程 → petMcpBridge /pet-report）。
+   *
+   * 调用链：safeParse 校验 → 白名单 → 来源级去抖 → mapPetReportToReaction →
+   *        mapReactionToEvent（活动信号优先映射 ToolInvocation/TaskEnd/TaskFailed）→ handleEvent。
+   * 与 triggerPetReaction 的区别：前者是低频闲聊（桌宠开口），这里是高频活动信号
+   * （thinking/executing/…），去抖更短（3s）且互不共享限流表，避免互相饿死。
+   *
+   * @returns petReactionResultSchema：queued=已并入事件流；filtered=被白名单/限流/校验挡下
+   */
+  async function handlePetReport(input: unknown): Promise<PetReactionResult> {
+    // 1) 校验：契约单一真源 .safeParse()
+    const parsed = petReportContractSchema.safeParse(input)
+    if (!parsed.success) {
+      fileLogger.warn('[overseer] handlePetReport: invalid-payload', { error: parsed.error.message })
+      return petReactionResultSchema.parse({ status: 'filtered', reason: 'invalid-payload' })
+    }
+    const report = parsed.data
+
+    // 2) 白名单：source 必须是登记来源（与 triggerPetReaction 同源）
+    if (!PET_REACTION_SOURCE.includes(report.source as any)) {
+      fileLogger.warn('[overseer] handlePetReport: unknown-source', { source: report.source })
+      return petReactionResultSchema.parse({ status: 'filtered', reason: 'unknown-source' })
+    }
+
+    // 2.5) MCP 活跃表：记录活动驱动「运行中」徽标（trae/workbuddy 等 MCP 接入工具）。
+    // 放在限流之前 — 高频上报突发时即使被 3s 去抖挡住，来源仍保持运行状态新鲜。
+    // idle/stopped 会让来源立即回落空闲，不占 TTL 窗口。
+    mcpActivity.touch(report.source, normalizePetReportActivity(report.activity))
+
+    // 3) 来源级去抖：同一 agent 3s 内多条活动上报只透传第一条（细粒度信号没必要全量入事件流）
+    const nowTs = Date.now()
+    const lastTs = reportRateLimit.get(report.source)
+    if (lastTs !== undefined && nowTs - lastTs < REPORT_DEBOUNCE_MS) {
+      fileLogger.debug('[overseer] handlePetReport: rate-limited', { source: report.source, activity: report.activity })
+      return petReactionResultSchema.parse({ status: 'filtered', reason: 'rate-limited' })
+    }
+    reportRateLimit.set(report.source, nowTs)
+
+    // 4) 映射：活动信号 → 结构化 PetReaction（completed/error 语义化，thinking/executing 中性信息）
+    const reaction = mapPetReportToReaction(report)
+
+    // 5) 并入现有事件管线：结构化信号优先 → ToolInvocation/TaskEnd/TaskFailed/StatusUpdate
+    const event = mapReactionToEvent(reaction)
+    handleEvent(event)
+
+    return petReactionResultSchema.parse({ status: 'queued', reactionId: event.id })
+  }
+
   function start() {
     if (running)
       return
     running = true
     supervisor.start()
     petMcpBridge.start()
+    directorWatcher.start()
     log.log('overseer supervisor started')
   }
 
@@ -861,8 +1013,11 @@ ${errorText}`,
     running = false
     supervisor.stop()
     petMcpBridge.stop()
+    void petMcpHttpServer.stop()
     pushFilter.reset()
     reactionRateLimit.clear()
+    reportRateLimit.clear()
+    mcpActivity.clear()
     // 强制终止执行器 — 立即 kill 当前任务
     loop.forceStop()
     // 强杀所有活跃子进程 — 防止应用退出后残留僵尸进程
@@ -884,6 +1039,7 @@ ${errorText}`,
       resolve({ approved: false, addToWhitelist: false })
     }
     pendingExecutorConfirms.clear()
+    directorWatcher.stop()
     log.log('overseer supervisor stopped')
   }
 
@@ -1026,22 +1182,43 @@ ${errorText}`,
 
   defineInvokeHandler(context, electronOverseerStatus, async () => {
     const supervisorStatus = supervisor.getStatus()
-    const tools = config.tools.map(t => ({
-      id: t.id,
-      name: t.name,
-      enabled: t.enabled,
-      running: Boolean(supervisorStatus[t.id]?.isRunning),
-    }))
     return {
       enabled: supervisorStatus.enabled,
       running: Boolean(supervisorStatus.isRunning),
-      tools,
+      tools: buildToolStatusList(),
       updatedAt: Date.now(),
     } satisfies OverseerStatus
   })
 
   defineInvokeHandler(context, electronOverseerStats, async () => {
     return { ...stats, perTool: { ...stats.perTool } } satisfies OverseerStats
+  })
+
+  // ——— 操作指导（guidance）运行时控制 IPC ———
+  defineInvokeHandler(context, electronOverseerGuidanceState, async (): Promise<GuidanceRuntimeState> => {
+    const records = await guidanceService.getRecords()
+    return {
+      enabled: guidanceRuntimeEnabled,
+      records: records.slice(0, 50).map(r => ({
+        source: r.source,
+        count: r.count,
+        ruleId: r.ruleId,
+        lastSeen: r.lastSeen,
+      })),
+      lastGuidanceAt: {},
+    }
+  })
+
+  defineInvokeHandler(context, electronOverseerGuidanceToggle, async (payload): Promise<{ enabled: boolean }> => {
+    guidanceRuntimeEnabled = payload?.enabled ?? true
+    fileLogger.info('[overseer] guidance toggle', { enabled: guidanceRuntimeEnabled })
+    return { enabled: guidanceRuntimeEnabled }
+  })
+
+  defineInvokeHandler(context, electronOverseerGuidanceReset, async (): Promise<{ reset: boolean }> => {
+    await guidanceService.reset()
+    fileLogger.info('[overseer] guidance memory reset')
+    return { reset: true }
   })
 
   // 权限白名单管理 IPC
@@ -1104,7 +1281,7 @@ ${errorText}`,
   defineInvokeHandler(context, electronExecutorGenerate, async (req) => {
     if (!req?.requirement)
       return { ok: false, error: 'requirement 不能为空' }
-    return generatePlan(req.requirement, req.cwd ?? process.cwd(), _memoryStore ?? undefined)
+    return generatePlan(req.requirement, req.cwd ?? process.cwd(), _memoryStore ?? undefined, toolInventory)
   })
 
   defineInvokeHandler(context, electronExecutorRun, async (req) => {
@@ -1125,6 +1302,54 @@ ${errorText}`,
 
   defineInvokeHandler(context, electronExecutorStatus, async () => {
     return loop.getStatus()
+  })
+
+  // ——— 编排者（coordinator）IPC ———
+  defineInvokeHandler(context, electronCoordinatorSubmit, async (req) => {
+    if (!req?.requirement)
+      return { ok: false, error: 'requirement 不能为空' }
+    return coordinator.submit(req.requirement, req.cwd ?? process.cwd())
+  })
+
+  defineInvokeHandler(context, electronCoordinatorTeam, async () => {
+    return coordinator.snapshot()
+  })
+
+  // ——— 总监模式（Director Mode）IPC 处理器 ———
+  defineInvokeHandler(context, electronDirectorReview, async () => {
+    return directorReviewLatest()
+  })
+
+  defineInvokeHandler(context, electronDirectorApprove, async (req) => {
+    if (!req?.planId)
+      return { ok: false, error: 'planId 不能为空' }
+    const result = directorApprove(req.planId, req.reason)
+    // 桌宠以"总监身份"表达 — approve/reject 落盘成功后广播（renderer useDirectorEmotion 消费）
+    if (result.ok && result.verdict) {
+      context.emit(electronDirectorEvent, result.verdict)
+    }
+    return result
+  })
+
+  defineInvokeHandler(context, electronDirectorReject, async (req) => {
+    if (!req?.planId)
+      return { ok: false, error: 'planId 不能为空' }
+    const result = directorReject(req.planId, req.reason)
+    if (result.ok && result.verdict) {
+      context.emit(electronDirectorEvent, result.verdict)
+    }
+    return result
+  })
+
+  // 总监页只读查询 — 计划列表 / 单个详情
+  defineInvokeHandler(context, electronDirectorList, async () => {
+    return listDirectorPlans()
+  })
+
+  defineInvokeHandler(context, electronDirectorDetail, async (req) => {
+    if (!req?.planId)
+      return { plan: null, verdict: null, reviewMarkdown: null, error: 'planId 不能为空' }
+    return getDirectorPlanDetail(req.planId)
   })
 
   /** 反向任务推送 — 不经过滤策略，立即下发到渲染进程 */
@@ -1165,7 +1390,7 @@ ${errorText}`,
       return {
         enabled: supervisorStatus.enabled,
         running: Boolean(supervisorStatus.isRunning),
-        tools: config.tools.map(t => ({ id: t.id, name: t.name, enabled: t.enabled, running: Boolean(supervisorStatus[t.id]?.isRunning) })),
+        tools: buildToolStatusList(),
         updatedAt: Date.now(),
       }
     },

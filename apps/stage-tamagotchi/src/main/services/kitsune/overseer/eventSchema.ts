@@ -29,4 +29,8 @@ export const PUSHABLE_EVENTS: ReadonlySet<OverseerEventType> = new Set([
   OverseerEventType.TestFailed,
   OverseerEventType.ProcessCrash,
   OverseerEventType.Timeout,
+  // 工具级活动信号（thinking/executing/coding）— 桌宠/事件流可见任务进度
+  OverseerEventType.ToolInvocation,
+  // 操作指导 — 重复失败命中内置规则，桌宠给用户修复步骤
+  OverseerEventType.Guidance,
 ])

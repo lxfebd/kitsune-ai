@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'path'
 import * as yaml from 'yaml'
+import { useLogg } from '@guiiai/logg'
 import { getElectronMainDirname } from '../../../../libs/electron/location'
+
+const log = useLogg('main/llm-helper').useGlobalConfig()
 
 export interface ProviderConfig {
   type: string
@@ -13,6 +16,11 @@ export interface ProviderConfig {
 }
 
 const FETCH_RETRY_DELAYS_MS = [1000, 2000, 4000]
+
+// 兜底超时：providers.yaml 未配置 timeout_ms 时给每个 LLM fetch 加 60s 上限。
+// 之前 fetch 无 signal，provider 挂起时整个 agent 回合会无限期卡住（与截屏
+// getSources 无超时同类）。超时错误走重试循环，最后一次仍失败才返回。
+const DEFAULT_LLM_TIMEOUT_MS = 60_000
 
 async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -49,12 +57,14 @@ async function loadFallbackProviders(): Promise<ProviderConfig[]> {
 }
 
 function callLlmWithProvider(
-  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number, type?: string },
+  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number, type?: string, timeoutMs?: number },
   systemPrompt: string,
   userPrompt: string,
 ): Promise<{ ok: boolean, text?: string, error?: string }> {
+  const timeoutMs = provider.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS
+
   if (provider.type === 'anthropic') {
-    return callAnthropicApi(provider, systemPrompt, userPrompt)
+    return callAnthropicApi({ ...provider, timeoutMs }, systemPrompt, userPrompt)
   }
 
   const url = `${provider.baseUrl.replace(/\/+$/, '')}/chat/completions`
@@ -71,14 +81,15 @@ function callLlmWithProvider(
     'content-type': 'application/json',
   }
 
-  return fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) }, provider.model)
+  return fetchWithRetry(url, { method: 'POST', headers, body: JSON.stringify(body) }, provider.model, timeoutMs)
 }
 
 async function callAnthropicApi(
-  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number },
+  provider: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number, timeoutMs?: number },
   systemPrompt: string,
   userPrompt: string,
 ): Promise<{ ok: boolean, text?: string, error?: string }> {
+  const timeoutMs = provider.timeoutMs ?? DEFAULT_LLM_TIMEOUT_MS
   const url = `${provider.baseUrl.replace(/\/+$/, '')}/v1/messages`
   const body = {
     model: provider.model,
@@ -95,7 +106,12 @@ async function callAnthropicApi(
   let lastError = ''
   for (const [_attempt, delayMs] of FETCH_RETRY_DELAYS_MS.entries()) {
     try {
-      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) })
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      })
       if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
         const errText = await resp.text().catch(() => '')
         return { ok: false, error: `Anthropic HTTP ${resp.status}: ${errText.slice(0, 200)}` }
@@ -111,7 +127,7 @@ async function callAnthropicApi(
       const text = data.content?.[0]?.text
       if (!text)
         return { ok: false, error: 'Anthropic 返回空内容' }
-      console.log(`[llm] Anthropic 200 ${provider.model} → ${text.length} chars`)
+      log.log(`Anthropic 200 ${provider.model} → ${text.length} chars`)
       return { ok: true, text }
     }
     catch (err) {
@@ -128,17 +144,19 @@ async function callAnthropicApi(
  * 重试策略：
  * - 4xx（除 429）不重试，直接返回错误
  * - 5xx / 429 重试，最多 3 次（指数退避 1s/2s/4s）
- * - 网络错误（fetch throw）重试，最多 3 次
+ * - 网络错误（fetch throw，含超时）重试，最多 3 次
  */
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
   model: string,
+  timeoutMs: number,
 ): Promise<{ ok: boolean, text?: string, error?: string }> {
   let lastError = ''
   for (const [_attempt, delayMs] of FETCH_RETRY_DELAYS_MS.entries()) {
     try {
-      const resp = await fetch(url, options)
+      // AbortSignal.timeout 保证单个 LLM 请求不会无限期挂起回合（见 DEFAULT_LLM_TIMEOUT_MS）。
+      const resp = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) })
       if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
         const errText = await resp.text().catch(() => '')
         return { ok: false, error: `LLM HTTP ${resp.status}: ${errText.slice(0, 200)}` }
@@ -150,11 +168,29 @@ async function fetchWithRetry(
         await sleep(waitMs)
         continue
       }
-      const data = await resp.json()
+            let data: any
+      try {
+        // 统一先读 text() 再解析：部分中转站（one-api/new-api 风格）在 JSON 响应后
+        // 追加 `data: [DONE]`，直接 resp.json() 会失败，且失败后 body 已被消费，
+        // 后续 text() 会拿到空串。这里一次读入，剥离 SSE 尾巴后解析。
+        const raw = await resp.text()
+        const cleaned = raw.replace(/\ndata: \[DONE\]\s*$/, '').trim()
+        data = cleaned ? JSON.parse(cleaned) : null
+      }
+      catch (parseErr) {
+        lastError = `解析响应失败: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`
+        await sleep(delayMs)
+        continue
+      }
+      if (!data) {
+        lastError = 'LLM 响应为空'
+        await sleep(delayMs)
+        continue
+      }
       const text = data.choices?.[0]?.message?.content
       if (!text)
         return { ok: false, error: 'LLM 返回空内容' }
-      console.log(`[llm] HTTP 200 ${model} → ${text.length} chars`)
+      log.log(`HTTP 200 ${model} → ${text.length} chars`)
       return { ok: true, text }
     }
     catch (err) {
@@ -169,12 +205,12 @@ async function fetchWithRetry(
  * 调云端 LLM 非流式 chat completion。
  *
  * 优先使用 renderer 同步过来的聊天 provider 配置（含 API key），
- * 未同步时才回退到 providers.yaml 静态文件 + 环境变量。
+ * 该 provider 失败时回退到 providers.yaml 静态文件 + 环境变量（兜底）。
  */
 export async function callLlm(
   systemPrompt: string,
   userPrompt: string,
-  activeProviderOverride?: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number } | null,
+  activeProviderOverride?: { baseUrl: string, model: string, apiKey: string, maxCompletionTokens?: number, timeoutMs?: number } | null,
 ): Promise<{ ok: boolean, text?: string, error?: string }> {
   const syncedConfig = getSyncedProviderConfig()
 
@@ -182,7 +218,7 @@ export async function callLlm(
     const result = await callLlmWithProvider(syncedConfig, systemPrompt, userPrompt)
     if (result.ok)
       return result
-    return { ok: false, error: `provider ${syncedConfig.model}: ${result.error}` }
+    // 同步的聊天 provider 失败时不直接放弃，继续走 providers.yaml 兜底
   }
 
   if (activeProviderOverride) {
@@ -207,7 +243,7 @@ export async function callLlm(
       continue
     }
     const result = await callLlmWithProvider(
-      { baseUrl: provider.base_url, model: provider.model, apiKey, maxCompletionTokens: provider.max_completion_tokens, type: provider.type },
+      { baseUrl: provider.base_url, model: provider.model, apiKey, maxCompletionTokens: provider.max_completion_tokens, type: provider.type, timeoutMs: provider.timeout_ms },
       systemPrompt,
       userPrompt,
     )

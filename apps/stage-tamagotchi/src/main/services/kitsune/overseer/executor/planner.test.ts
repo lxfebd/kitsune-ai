@@ -99,6 +99,42 @@ describe('createPlanner', () => {
 
       expect(result.ok).toBe(false)
     })
+
+    it('rejects adjustment beyond round limit (B1 无限调整防护)', async () => {
+      const generateAlternative = vi.fn().mockResolvedValue({ ok: true, plan: { tasks: [makeTask({ id: 'new-1' })] } })
+      const planner = createPlanner({ generateAlternative })
+      const plan = makePlan({ adjustmentCount: 3 }) // 已达上限
+
+      const result = await planner.adjustPlan(plan, makeTask(), 'boom')
+
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('最大调整轮次')
+      expect(generateAlternative).not.toHaveBeenCalled()
+    })
+
+    it('increments adjustmentCount on each successful adjustment', async () => {
+      const generateAlternative = vi.fn().mockResolvedValue({ ok: true, plan: { tasks: [makeTask({ id: 'new-1' })] } })
+      const planner = createPlanner({ generateAlternative })
+      const plan = makePlan()
+
+      await planner.adjustPlan(plan, makeTask())
+      expect(plan.adjustmentCount).toBe(1)
+      await planner.adjustPlan(plan, makeTask())
+      expect(plan.adjustmentCount).toBe(2)
+    })
+
+    it('rejects adjustment when task count hits cap (B1 任务数上限)', async () => {
+      const generateAlternative = vi.fn().mockResolvedValue({ ok: true, plan: { tasks: [makeTask({ id: 'new-1' })] } })
+      const planner = createPlanner({ generateAlternative })
+      // 任务数已达上限 20
+      const plan = makePlan({ tasks: Array.from({ length: 20 }, (_, i) => makeTask({ id: `t${i}` })) })
+
+      const result = await planner.adjustPlan(plan, makeTask(), 'boom')
+
+      expect(result.ok).toBe(false)
+      expect(result.error).toContain('任务数已达上限')
+      expect(generateAlternative).not.toHaveBeenCalled()
+    })
   })
 
   describe('generateSubPlan', () => {
@@ -142,6 +178,7 @@ describe('createPlanner', () => {
       expect(generatePlan).toHaveBeenCalledWith(
         expect.any(String),
         '/project/src',
+        undefined,
         undefined,
       )
     })

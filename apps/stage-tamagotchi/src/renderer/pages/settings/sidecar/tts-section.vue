@@ -154,6 +154,10 @@ const currentState = computed<SidecarState>(() => ttsStatus.value?.state ?? 'sto
 const isRunning = computed(() => currentState.value === 'running' || currentState.value === 'starting')
 const isBusy = computed(() => starting.value || stopping.value)
 
+// 引擎是否已就位：getGptSovitsConfig().dir 会解析到已安装的运行时插件
+// （GPU 版 gpt-sovits 或 CPU 精简版 gpt-sovits-cpu），非空即代表引擎已可用。
+const engineReady = computed(() => Boolean(dirInput.value))
+
 const isPortValid = computed(() => {
   const p = portInput.value
   return p !== undefined && Number.isInteger(p) && p >= 1024 && p <= 65535
@@ -694,6 +698,20 @@ onMounted(() => {
       配置已变更，需重启 GPT-SoVITS 才能生效。
     </Callout>
 
+    <!-- 引擎未安装引导（小白第一步） -->
+    <Callout v-if="!engineReady && !isRunning && !installProgress" theme="primary" label="首次使用">
+      <div class="flex flex-col gap-2">
+        <span>
+          还没有安装语音引擎。GPT-SoVITS 引擎（约 5~9GB，含内置 Python）不随安装包分发，
+          需要先获取引擎包再导入。
+        </span>
+        <span class="text-[10px] opacity-75">
+          步骤：① 下载引擎分卷（推荐无独显/AMD 显卡用户选「CPU 精简版」约 4.9GB；NVIDIA 显卡用户选「GPU 版」约 8.5GB）
+          → ② 不点击「选择目录」，直接用下方两个「离线导入」按钮之一选择下载好的分卷目录或解压后的引擎目录 → ③ 重启服务。
+        </span>
+      </div>
+    </Callout>
+
     <!-- 安装目录配置 -->
     <div :class="CARD">
       <div class="flex flex-col gap-1">
@@ -768,7 +786,7 @@ onMounted(() => {
           离线导入引擎（已解压目录）
         </span>
         <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
-          已从 GitHub Release 手动下载 GPT-SoVITS 分卷并解压完成？选择解压后的引擎目录，应用会自动校验并导入，无需联网下载。
+          已从 Release 手动下载引擎并解压完成？选择解压后的引擎目录，应用会自动识别是 GPU 版还是 CPU 精简版并导入，无需联网下载。
         </span>
       </div>
       <div class="flex items-end gap-2 mt-1">
@@ -790,7 +808,7 @@ onMounted(() => {
           离线导入引擎（ZIP 分卷）
         </span>
         <span class="text-[10px] text-neutral-500 dark:text-neutral-400">
-          已从 GitHub Release 手动下载 GPT-SoVITS 分卷（gpt-sovits.0001.zip ~ 0006.zip）但未解压？选择存放这些 ZIP 分卷的目录，应用会自动解压并导入，无需联网下载。
+          已从 Release 手动下载引擎分卷但未解压？选择存放分卷 ZIP 的目录（GPU 版 gpt-sovits.0001.zip ~ …，CPU 版 gpt-sovits-cpu.0001.zip ~ …），应用会自动识别并解压导入，无需联网下载。
         </span>
       </div>
       <div class="flex items-end gap-2 mt-1">

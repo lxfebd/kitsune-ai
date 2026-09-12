@@ -109,9 +109,32 @@ function resolveScreenSourcesInvoker() {
 // NOTICE: 统一截图入口，通过 eventa 调用 desktopCapturer.getSources。
 // 与 screen_screenshot / screen_perceive / screen_analyze 共享。
 // 不缓存：每次工具调用都重新截屏，避免视觉分析拿到过期画面。
+//
+// 超时与尺寸红线（2026-09-10 修复「截屏后没下文」）：
+// 1) getSources 在 Electron #44504 场景下可能长时间挂起（9/10 概率拿到空/黑缩略图），
+//    无超时会让整个 agent 回合无限期卡住（模型说完"我截屏看看"就再无下文）。
+//    这里强制 10s 超时并随 IPC 传入 abortSignal，超时抛可识别错误。
+// 2) 显式指定 thumbnailSize，避免走 Electron 默认 150×150 缩略图 —— 视觉模型
+//    在 150×150 上分辨不清小字/小控件，导致「看了图却说不出内容」。
+const SCREENSHOT_TIMEOUT_MS = 10_000
+const SCREENSHOT_MAX_WIDTH = 1280
+const SCREENSHOT_MAX_HEIGHT = 720
+
 async function captureScreenshotViaEventa(): Promise<string> {
   const invoker = resolveScreenSourcesInvoker()
-  const sources = await invoker({ types: ['screen'] as Electron.SourcesOptions['types'] })
+  let sources: Awaited<ReturnType<typeof invoker>>
+  try {
+    sources = await invoker({
+      types: ['screen'] as Electron.SourcesOptions['types'],
+      thumbnailSize: { width: SCREENSHOT_MAX_WIDTH, height: SCREENSHOT_MAX_HEIGHT },
+    }, { signal: AbortSignal.timeout(SCREENSHOT_TIMEOUT_MS) })
+  }
+  catch (error) {
+    const msg = String(error)
+    if (msg.includes('TimeoutError') || msg.includes('AbortError') || msg.includes('timeout'))
+      throw new Error(`截屏超时（${SCREENSHOT_TIMEOUT_MS}ms）：desktopCapturer.getSources 未返回。请重试。`)
+    throw error
+  }
   if (!sources || sources.length === 0)
     throw new Error('未找到可用屏幕')
   const thumbnail = sources[0].thumbnail
@@ -245,8 +268,11 @@ interface FindElementViaRendererResult {
  * 渲染进程内完成 UI 元素定位：截图 → 视觉推理 → JSON 解析。
  * 替代主进程 findElement 的 context.emit 往返，避免大截图 payload 的
  * structuredClone 序列化失败。
+ *
+ * @param visionTimeoutMs 视觉推理超时上限。desktop_wait 每轮传入剩余预算，
+ *   避免单轮"截图+推理"最坏 70s 远超参数承诺的 timeout。
  */
-async function findElementViaRenderer(description: string): Promise<FindElementViaRendererResult> {
+async function findElementViaRenderer(description: string, visionTimeoutMs?: number): Promise<FindElementViaRendererResult> {
   const imageDataUrl = await captureScreenshotViaEventa()
   const { useVisionInference } = await import('@kitsune/stage-ui/composables')
   const { runVisionInference } = useVisionInference()
@@ -257,6 +283,7 @@ async function findElementViaRenderer(description: string): Promise<FindElementV
       imageDataUrl,
       workloadId: 'screen:ui-automation',
       promptOverride: FIND_ELEMENT_PROMPT_TEMPLATE(description),
+      ...(visionTimeoutMs ? { timeoutMs: visionTimeoutMs } : {}),
     })
   }
   catch (error) {
@@ -390,6 +417,57 @@ const launchAppParams = z.object({
 // ---------------------------------------------------------------------------
 // Tool definitions
 // ---------------------------------------------------------------------------
+
+/**
+ * desktop_wait 执行循环：轮询视觉定位直到找到目标或超时。
+ *
+ * 导出以便单元测试验证「轮内预算」语义：单轮"截图(≤10s) + 视觉推理(默认≤60s)"
+ * 最坏 70s，若不做预算，模型传一个 60s 的 timeout 会实际等 2-3 轮（分钟级）才
+ * 返回，远超参数承诺。每轮视觉推理超时取剩余预算，保证整轮不越过 timeout 上界。
+ */
+export async function executeDesktopWait(
+  input: { description: string, timeout?: number, interval?: number },
+  deps: { findElement?: (description: string, visionTimeoutMs?: number) => Promise<FindElementViaRendererResult> } = {},
+) {
+  const { description, timeout = 10000, interval = 1000 } = input
+  const findElement = deps.findElement ?? ((d, t) => findElementViaRenderer(d, t))
+  const startTime = Date.now()
+  let attempts = 0
+
+  while (Date.now() - startTime < timeout) {
+    // 轮内预算：本轮视觉推理超时取"剩余预算"，保证整轮不越过 timeout 上界。
+    const remainingBudget = timeout - (Date.now() - startTime)
+    if (remainingBudget <= 0)
+      break
+
+    attempts++
+
+    // 视觉定位元素（渲染进程内直接推理，推理受剩余预算约束）
+    const findResult = await findElement(description, remainingBudget)
+    if (findResult.found && findResult.elements.length > 0) {
+      return {
+        ok: true,
+        found: true,
+        element: findResult.elements[0],
+        attempts,
+        elapsed: Date.now() - startTime,
+      }
+    }
+
+    // 等待后重试
+    if (Date.now() - startTime < timeout) {
+      await new Promise(resolve => setTimeout(resolve, interval))
+    }
+  }
+
+  return {
+    ok: false,
+    found: false,
+    error: `等待超时: "${description}"`,
+    attempts,
+    elapsed: Date.now() - startTime,
+  }
+}
 
 export async function desktopAutomationTools(): Promise<Tool[]> {
   return Promise.all([
@@ -744,37 +822,7 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       parameters: normalizeNullableAnyOf(await toJsonSchema(waitParams) as JsonSchema),
       execute: async (input) => {
         const { description, timeout = 10000, interval = 1000 } = input as { description: string, timeout?: number, interval?: number }
-        const startTime = Date.now()
-        let attempts = 0
-
-        while (Date.now() - startTime < timeout) {
-          attempts++
-
-          // 视觉定位元素（渲染进程内直接推理）
-          const findResult = await findElementViaRenderer(description)
-          if (findResult.found && findResult.elements.length > 0) {
-            return {
-              ok: true,
-              found: true,
-              element: findResult.elements[0],
-              attempts,
-              elapsed: Date.now() - startTime,
-            }
-          }
-
-          // 等待后重试
-          if (Date.now() - startTime < timeout) {
-            await new Promise(resolve => setTimeout(resolve, interval))
-          }
-        }
-
-        return {
-          ok: false,
-          found: false,
-          error: `等待超时: "${description}"`,
-          attempts,
-          elapsed: Date.now() - startTime,
-        }
+        return executeDesktopWait({ description, timeout, interval })
       },
     }))(),
 

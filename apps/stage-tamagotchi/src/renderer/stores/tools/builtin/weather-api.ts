@@ -92,9 +92,34 @@ export function mapWmoCode(code: number, isNight: boolean): { conditionCode: str
   return mapped
 }
 
-export async function geocodeCity(city: string): Promise<{ name: string, latitude: number, longitude: number, country: string }> {
+// 外部网络调用统一超时：open-meteo 若挂起，无 signal 的 fetch 会让整个 agent
+// 回合无限期卡住（与截屏 getSources 无超时同类的"话没说完就停"）。
+const WEATHER_FETCH_TIMEOUT_MS = 10_000
+
+interface WeatherFetchOptions {
+  /** 单次请求超时（毫秒）。测试注入用，生产默认 10s。 */
+  timeoutMs?: number
+  /** 注入 fetch 实现（测试用）。 */
+  fetchImpl?: typeof fetch
+}
+
+/** 把 abort/超时错误翻译成可诊断的中文提示，其余错误原样上抛。 */
+function asWeatherNetworkError(error: unknown, label: string): never {
+  if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError'))
+    throw new Error(`${label}超时（${WEATHER_FETCH_TIMEOUT_MS}ms）：open-meteo 未响应。请重试。`)
+  throw error
+}
+
+export async function geocodeCity(city: string, options: WeatherFetchOptions = {}): Promise<{ name: string, latitude: number, longitude: number, country: string }> {
+  const fetchImpl = options.fetchImpl ?? fetch
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`
-  const res = await fetch(url)
+  let res: Response
+  try {
+    res = await fetchImpl(url, { signal: AbortSignal.timeout(options.timeoutMs ?? WEATHER_FETCH_TIMEOUT_MS) })
+  }
+  catch (error) {
+    asWeatherNetworkError(error, '地理编码')
+  }
 
   if (!res.ok)
     throw new Error(`Geocoding request failed: ${res.status}`)
@@ -108,8 +133,9 @@ export async function geocodeCity(city: string): Promise<{ name: string, latitud
   return { name: result.name, latitude: result.latitude, longitude: result.longitude, country: result.country }
 }
 
-export async function fetchWeather(city: string): Promise<WeatherData> {
-  const geo = await geocodeCity(city)
+export async function fetchWeather(city: string, options: WeatherFetchOptions = {}): Promise<WeatherData> {
+  const fetchImpl = options.fetchImpl ?? fetch
+  const geo = await geocodeCity(city, options)
 
   const params = new URLSearchParams({
     latitude: String(geo.latitude),
@@ -119,7 +145,7 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
     forecast_days: '1',
   })
 
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+  const res = await fetchImpl(`https://api.open-meteo.com/v1/forecast?${params}`, { signal: AbortSignal.timeout(options.timeoutMs ?? WEATHER_FETCH_TIMEOUT_MS) })
 
   if (!res.ok)
     throw new Error(`Weather request failed: ${res.status}`)

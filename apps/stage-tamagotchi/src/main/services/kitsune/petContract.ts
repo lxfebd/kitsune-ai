@@ -32,10 +32,20 @@
 import { z } from 'zod'
 
 // ─── 来源白名单 ───
+// 与 config/*/tools.yaml 的监工工具枚举、overseer.yaml 的 tools[].id 对齐。
+// MCP 上报通道（pet_report / triggerReaction）任何来源都必须先过这张表，
+// 否则 overseer 的 triggerPetReaction 会以 unknown-source 过滤掉。
 export const PET_REACTION_SOURCE = [
   'claude_code',
   'cursor',
   'trae',
+  'windsurf',
+  'zcode',
+  'workbuddy',
+  'opencode',
+  'codex',
+  'aider',
+  'lobster',
   'vscode_task',
   'manual',
 ] as const
@@ -151,6 +161,42 @@ celebrate：有明确的好事发生了（构建通过、PR 合并、测试全�
 info：    以上句式都填不出来，且你认为桌宠应该知道这件事但不需要它做出评价或行动。
           如果你能填出任何一个句式，就不要选 info。info 是兜底，不是默认。
 `
+
+// ─── 活动上报契约（pet_report 工具）───
+// 与 triggerReaction（意义时刻的闲聊反应）并列的第二类信号：
+//   triggerReaction — 事件型，低频，桌宠开口说话（celebrate/critique/warn/…）
+//   pet_report      — 活动型，高频，让监工知道 agent 此刻在干什么（thinking/executing/…）
+// 两套契约分离，避免「每执行一个工具都触发桌宠说话」与「监工看不到细粒度状态」互相污染。
+// activity 取值与 packages/kitsune-overseer/src/activityStates.js 的 STATE 枚举保持一致
+// （明细见 petReportMapper，那里用 mapToUnifiedState 归一化到统一状态集）。
+
+export const PET_REPORT_ACTIVITY = [
+  'idle',
+  'thinking',
+  'coding',
+  'executing',
+  'building',
+  'testing',
+  'completed',
+  'error',
+  'stopped',
+  'code_changed',
+] as const
+
+export const petReportContractSchema = z.object({
+  source: z.enum(PET_REACTION_SOURCE)
+    .describe('上报来源的 agent 标识（与监工的 tool id 一致）。'),
+  activity: z.enum(PET_REPORT_ACTIVITY)
+    .describe('此刻的统一活动状态：thinking=思考 / executing=执行工具 / coding=写代码 / completed=一批工作完成 / error=失败 / building=构建 / testing=测试运行中。'),
+  message: z.string().max(2000).optional()
+    .describe('一句话说明在干什么（素材，非必填——有它监工事件流更好看）。'),
+  tool: z.string().max(200).optional()
+    .describe('正在执行的工具名（如 Bash / Edit / Read），非必填。'),
+  errorMessage: z.string().max(2000).optional()
+    .describe('activity=error 时的报错信息。'),
+})
+
+export type PetReportContract = z.infer<typeof petReportContractSchema>
 
 // ─── 返回值 ───
 
