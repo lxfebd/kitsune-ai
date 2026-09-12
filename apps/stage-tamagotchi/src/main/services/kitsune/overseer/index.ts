@@ -719,6 +719,10 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     stats.lastEventAt = guidanceEvent.timestamp
     bumpTool(source, true)
     context.emit(electronOverseerEvent, guidanceEvent)
+    // 与 handleEvent 的推送语义一致：浏览器视图（6121 WS / 6122 SSE）也要能
+    // 看到 guidance 事件卡，否则只有主套 UI 的事件流可见（可观测性缺口）。
+    broadcastToChannel(guidanceEvent, true)
+    pushToBridge({ event: guidanceEvent, pushed: true })
     fileLogger.info('[overseer] guidance triggered', {
       ruleId: trigger.rule.id,
       source,
