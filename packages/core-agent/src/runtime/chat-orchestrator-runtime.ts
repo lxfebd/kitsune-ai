@@ -368,7 +368,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     const sendingCreatedAt = now()
 
-    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
+    // (audit) Bucket keys are stable per extension/module source; a replaced
+    // extension leaves its old bucket behind and the snapshot here keeps
+    // feeding it to prompt composition. Pruning needs an unload signal the
+    // registry itself does not see — expose a per-source `remove` on
+    // ContextRegistry (or a full reset on extension change) when the first
+    // real unload path lands.
     const streamingMessageContext: ChatStreamEventContext = {
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: createId() },
       contexts: deps.context.snapshot(),

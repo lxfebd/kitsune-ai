@@ -16,15 +16,9 @@
  * 以下模块构成「老自主执行链」（Supervisor → UnifiedSmartRouter → DecisionEngine →
  * ActionExecutor → RiskController → SuggestionPusher 等），属于遗留实现：
  *   @deprecated 已被 apps/stage-tamagotchi 的 services/kitsune/overseer（TypeScript 编排层）
- *   的 executor/{loop,taskRunner,planner,acceptance} + permission 取代。生产路径不再调用，
- *   仅保留供 *.test.js 运行与历史参考。后续清理时可直接移除此导出组并删除对应文件。
- * 遗留模块清单（仅 test 引用，生产路径不引用，且相关文件已不在仓库中）：UnifiedSmartRouter,
- * DecisionEngine, ActionExecutor, RiskController, SuggestionPusher, ProjectImprover,
- * CodeReviewer, AgenticTaskRunner, AutonomousAgentLoop, AutonomousTaskStore, AgentToolKit,
- * LLMEnhancer, LlDbAutoRecorder, LlDbRuleChecker, ProactiveNotifier, ArchDuplicationDetector,
- * DisturbancePolicy, BaseEventHandler, TaskPlanner。（注：原清单中的 MonitorStore 与
- * IdleDetector 并非死代码——supervisor.js 在运行时 require 二者，属活跃依赖，已保留。）
- * 上述遗留文件已于 2026-08-07 整体移出 src/（当时的历史归档目录不在当前仓库中，不可还原），
+ *   的 executor/{loop,taskRunner,planner,acceptance} + permission 取代。生产路径不再调用。
+ * 遗留自主执行链文件已于 2026-08-07 整体移出 src/（历史归档目录不在当前仓库中，不可还原）。
+ * 注：MonitorStore 与 IdleDetector 并非死代码——supervisor.js 在运行时 require 二者，属活跃依赖。
  */
 
 const { Supervisor } = require('./supervisor')
@@ -35,31 +29,6 @@ const { GenericAiToolMonitor, TOOL_PRESETS } = require('./genericAiToolMonitor')
 const { Live2dStateBridge, loadEmotionMapping, DEFAULT_MAPPING_PATH } = require('./live2dStateBridge')
 const { mapToUnifiedState } = require('./activityStates')
 
-// ── 遗留自主执行链：不再导出（详见本文件顶部架构边界说明）──
-// 这些模块构成老监工时代的「自主执行链」，已被 TS 编排层取代，生产路径不使用。
-// 保留文件本身供 *.test.js 本地运行与历史参考，但停止对外暴露，防止新代码误用。
-// const { SuggestionPusher } = require('./suggestionPusher')
-// const { MonitorStore } = require('./monitorStore')
-// const { IdleDetector } = require('./idleDetector')
-// const { DisturbancePolicy, PRIORITY_LEVELS } = require('./disturbancePolicy')
-// const { TaskStore } = require('./taskStore')
-// const { TaskPlanner, AVAILABLE_TOOLS } = require('./taskPlanner')
-// const { ActionExecutor } = require('./actionExecutor')
-// const { RiskController } = require('./riskController')
-// const { ProactiveNotifier } = require('./proactiveNotifier')
-// const { UnifiedSmartRouter } = require('./unifiedSmartRouter')
-// const { AutonomousAgentLoop } = require('./autonomousAgentLoop')
-// const { AutonomousTaskStore } = require('./autonomousTaskStore')
-// const { AgenticTaskRunner } = require('./agenticTaskRunner')
-// const { AgentToolKit } = require('./agentToolKit')
-// const { CodeReviewer } = require('./codeReviewer')
-// const { ProjectImprover } = require('./projectImprover')
-// const { ArchDuplicationDetector } = require('./archDuplicationDetector')
-// const { LLMEnhancer } = require('./llmEnhancer')
-// const { LlDbAutoRecorder } = require('./llDbAutoRecorder')
-// const { LlDbRuleChecker } = require('./llDbRuleChecker')
-// const { BaseEventHandler, SILENT_EVENTS } = require('./baseEventHandler')
-// const { RISK_LEVELS, EVENT_RULES } = require('./routeConfig')
 
 module.exports = {
   // ── 当前主进程生产路径实际消费的节点 ──

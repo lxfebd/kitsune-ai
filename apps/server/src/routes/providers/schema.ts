@@ -9,8 +9,7 @@ export const InsertUserProviderConfigSchema = createInsertSchema(schema.userProv
 export const SystemProviderConfigSchema = createSelectSchema(schema.systemProviderConfigs)
 export const InsertSystemProviderConfigSchema = createInsertSchema(schema.systemProviderConfigs)
 
-// TODO: Replace these schemas with explicit HTTP request DTOs.
-// validated/validationBypassed are server-managed state and should not be client-writable.
+// TODO(audit): Replace these schemas with explicit HTTP request DTOs — createInsertSchema-derived bodies still leak server-managed fields at the API boundary.
 export const CreateProviderConfigSchema = object({
   id: optional(string()),
   definitionId: string(),
@@ -20,10 +19,9 @@ export const CreateProviderConfigSchema = object({
   validationBypassed: optional(boolean()),
 })
 
-// TODO: Restrict updates to user-editable fields only.
+// PATCH is restricted to user-editable fields; validated/validationBypassed are
+// server-managed state (set by validation flows) and must not be client-writable.
 export const UpdateProviderConfigSchema = object({
   name: optional(string()),
   config: optional(record(string(), string())),
-  validated: optional(boolean()),
-  validationBypassed: optional(boolean()),
 })

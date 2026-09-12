@@ -11,7 +11,9 @@
 const fs = require('node:fs');
 const fsp = fs.promises;
 const path = require('path');
-const { execFile } = require('node:child_process');
+// 动态访问 childProcess.execFile（而非解构）：测试可注入 execFile 桩验证进程检测，
+// 不依赖真实系统进程表。
+const childProcess = require('node:child_process');
 const { mapToUnifiedState } = require('./activityStates');
 
 // ── 常量 ──
@@ -141,7 +143,14 @@ class GenericAiToolMonitor {
    */
   constructor({ toolKey, config: customConfig, bus, logger } = {}) {
     this.toolKey = toolKey || 'unknown';
-    this.config = customConfig || TOOL_PRESETS[this.toolKey] || TOOL_PRESETS.cursor;
+    // 未知名工具不再静默回落 Cursor 预设，避免把任意工具当成 Cursor 上报（误判来源之一）。
+    // 改用空预设：进程/日志检测自然返回"未运行"，而不再是假的"Cursor 运行中"。
+    this.config = customConfig || TOOL_PRESETS[this.toolKey] || {
+      name: this.toolKey,
+      processPatterns: [this.toolKey],
+      outputPatterns: {},
+      logPaths: [],
+    };
     this.bus = bus;
     this.logger = logger || console;
     this.isRunning = false;
@@ -313,27 +322,38 @@ class GenericAiToolMonitor {
 
   /**
    * 通过进程列表检测（辅助）。
-   * Windows 上 tasklist 过滤，Unix 上 pgrep。
+   * Windows 上取全量 tasklist 后按进程名子串匹配（与 TraeMonitor 同一方案）。
+   * 不能依赖 `tasklist /FI` 的退出码：无匹配进程时 tasklist 仍输出
+   * "信息: 没有运行的任务匹配指定标准。"（本地化提示行）且退出码为 0，
+   * 若按"stdout 非空即命中"会恒真 → 所有工具永远显示运行中（已修复）。
+   * Unix 上 pgrep -f 无匹配时退出码为 1，err 分支即可正确返回 false。
    */
   _detectByProcessList() {
     return new Promise((resolve) => {
       let cmd, args;
+      const pattern = (this.config.processPatterns || [])[0];
+      if (!pattern) {
+        resolve(false);
+        return;
+      }
       if (process.platform === 'win32') {
         cmd = 'tasklist';
-        const pattern = (this.config.processPatterns || [])[0];
-        args = ['/FI', `IMAGENAME eq ${pattern}*`, '/FO', 'CSV', '/NH'];
+        args = ['/FO', 'CSV', '/NH'];
       } else {
         cmd = 'pgrep';
-        const pattern = (this.config.processPatterns || [])[0];
         args = ['-f', pattern];
       }
-      execFile(cmd, args, { timeout: PROCESS_TIMEOUT }, (err, stdout) => {
+      childProcess.execFile(cmd, args, { timeout: PROCESS_TIMEOUT }, (err, stdout) => {
         if (err) { resolve(false); return; }
-        resolve(stdout.trim().length > 0);
+        if (process.platform === 'win32') {
+          const output = stdout.toLowerCase();
+          resolve(output.includes(pattern.toLowerCase()));
+        } else {
+          resolve(stdout.trim().length > 0);
+        }
       });
     });
   }
-
   // 异步日志读取 + 文件大小保护，避免阻塞主线程和OOM
   async _readLogs() {
     const logPathFns = this.config.logPaths || [];

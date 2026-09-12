@@ -13,7 +13,8 @@ import { createContext } from '@moeru/eventa/adapters/websocket/native'
  * - An Eventa context that can be assigned to the active host channel
  */
 export function createWebSocketHostChannel(webSocket: WebSocket) {
-  // TODO: make sure to setup proper event handling on the webSocket
+  // (audit) Eventa native WebSocket adapter handles framing; caller owns
+  // connect/reconnect/close. No test exercises a live socket round-trip.
   return createContext(webSocket)
 }
 
@@ -46,6 +47,8 @@ export function createWebSocketExtensionTransport(webSocket: WebSocket) {
  * - An Eventa context that can be assigned to the active data channel
  */
 export function createWebSocketDataChannel(webSocket: WebSocket) {
-  // TODO: make sure to setup proper event handling on the webSocket
+  // (audit) Same delegation as createWebSocketHostChannel — socket lifecycle
+  // and message framing are the adapter's job; remote-plugin round-trip
+  // remains untested.
   return createContext(webSocket)
 }

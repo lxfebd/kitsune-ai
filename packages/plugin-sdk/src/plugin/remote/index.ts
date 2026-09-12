@@ -1,8 +1,9 @@
 /**
  * Setup the remote plugin scope.
  *
- * TODO: now sure how this should be implemented, but perhaps it should call packages/plugin-sdk/src/channels to setup remote channels
- * first? Then probably some other initialization steps.
+ * (audit) Intentional scaffold: in-process remote plugins already run through
+ * `src/channels` + `src/plugin-host`; this entry point stays for a future
+ * out-of-process runtime whose transport contract is not fixed yet.
  */
 export async function setupRemotePluginScope() {
 

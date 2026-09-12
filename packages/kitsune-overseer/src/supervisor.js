@@ -6,6 +6,8 @@
 
 const { ClaudeCodeMonitor } = require('./claudeCodeMonitor');
 const { TraeMonitor } = require('./traeMonitor');
+const { ZCodeMonitor } = require('./zcodeMonitor');
+const { WorkbuddyMonitor } = require('./workbuddyMonitor');
 const { GenericAiToolMonitor, TOOL_PRESETS } = require('./genericAiToolMonitor');
 const { MonitorStore } = require('./monitorStore');
 const { IdleDetector } = require('./idleDetector');
@@ -52,6 +54,10 @@ class Supervisor {
         monitor = new ClaudeCodeMonitor({ bus, eventBus, pollInterval: this.pollInterval });
       } else if (id === 'trae') {
         monitor = new TraeMonitor({ bus, eventBus });
+      } else if (id === 'zcode') {
+        monitor = new ZCodeMonitor({ bus, eventBus, pollInterval: this.pollInterval });
+      } else if (id === 'workbuddy') {
+        monitor = new WorkbuddyMonitor({ bus, eventBus, pollInterval: this.pollInterval });
       } else {
         // 通用工具：优先用 TOOL_PRESETS[id] 提供的进程/日志/输出模式；
         // yaml 中新增但 TOOL_PRESETS 未覆盖的工具会落到 GenericAiToolMonitor 内部兜底（cursor 预设）
@@ -196,9 +202,17 @@ class Supervisor {
   _handleGenericReaction(toolName, status, summary) {
     if (!this.enabled || !this.isRunning) return;
     const monitor = this.monitors[toolName];
-    const reaction = monitor ? monitor._suggestReaction(status) : null;
+    // 各 Monitor 命名不一（_suggestReaction / _suggestPetReaction），
+    // 缺失方法时静默返回 undefined 会让该工具的桌宠反应整条丢链。
+    // 这里统一兜底，保证任何命名都能取到反应。
+    const suggest = monitor && (monitor._suggestReaction || monitor._suggestPetReaction);
+    if (typeof suggest !== 'function') return;
+    const reaction = suggest.call(monitor, status);
     if (!reaction?.message) return;
-    this._emitPetReaction(reaction, toolName, summary, status);
+    // activity 透传（reaction.activity 为 monitor 侧显式提供的状态值，
+    // 缺失时回退 status.activity，供给编排层映射事件类型）
+    const activity = reaction.activity || status.activity || 'idle';
+    this._emitPetReaction(reaction, toolName, summary, activity);
   }
 
   /**
@@ -232,6 +246,7 @@ class Supervisor {
         toolName: reaction.toolName,
         hasError: reaction.hasError,
         errorMessage: reaction.errorMessage,
+        activity: activity || 'idle',
       }); } catch (err) {
         console.error('[监工] onPetReaction 错误:', err.message);
       }

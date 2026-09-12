@@ -19,7 +19,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { createClient as createBetterWsClient } from '@kitsune/better-ws'
 import { createCrossWsConnector } from '@kitsune/better-ws/client/crossws'
 import { isTerminalAuthenticationServerErrorMessage, parseServerErrorMessage } from '@kitsune/server-shared'
-import { MessageHeartbeat, MessageHeartbeatKind } from '@kitsune/server-shared/types'
+import { MessageHeartbeat, MessageHeartbeatKind, SERVER_CHANNEL_DEFAULT_PORT, SERVER_CHANNEL_WS_PATH } from '@kitsune/server-shared/types'
 
 import { parseEvent, stringifyEvent } from './codec'
 
@@ -171,7 +171,7 @@ function createDefaultProtocolConnector<C>(url: string): ClientConnector<WebSock
 }
 
 function normalizeOptions<C>(options: ClientOptions<C>): NormalizedClientOptions<C> {
-  const url = options.url ?? 'ws://localhost:6121/ws'
+  const url = options.url ?? `ws://localhost:${SERVER_CHANNEL_DEFAULT_PORT}${SERVER_CHANNEL_WS_PATH}`
   const extension = options.extension ?? { id: options.name }
   const identity = options.identity ?? {
     id: createInstanceId(),

@@ -2,6 +2,21 @@
 
 Concise but detailed reference for contributors working across the Kitsune AI monorepo. Improve code when you touch it; avoid one-off patterns.
 
+## Documentation Index（进入项目先定位）
+
+| 文档 | 回答什么问题 |
+|---|---|
+| [project-overview.md](./project-overview.md) | 项目是什么、由哪些部分组成、文档索引 |
+| [architecture.md](./architecture.md) | 分层架构与数据流（感知→编排→表现；Overseer 主链路） |
+| [DESIGN.md](./DESIGN.md) | 视觉规则：主题令牌、字体、组件样式约定 |
+| [development.md](./development.md) | 命令、开发流、回归清单 |
+| [component-api.md](./component-api.md) | 组件 API 导航与契约 |
+| [TODO.md](./TODO.md) | 当前任务、优先级、进度 |
+| [user-guide.md](./user-guide.md) | 使用者功能说明 |
+| [PROJECT-MAP.md](./PROJECT-MAP.md) | 代码级地图：核心链路逐行说明、目录职责、已知缺口 |
+
+> 新增/改动代码时优先同步这些文档；发现文档与代码不一致，记入 [PROJECT-MAP.md §9](./PROJECT-MAP.md)。
+
 ## Tech Stack (by surface)
 
 - **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, ESLint.

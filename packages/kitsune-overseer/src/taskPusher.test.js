@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { TaskPusher, TOOL_ALLOWLIST } from './taskPusher.js'
 
@@ -127,5 +127,45 @@ describe('TaskPusher P3 结构化结果解析', () => {
     expect(result.ok).toBe(true)
     expect(result.structured).toMatchObject({ parsed: false })
     spawnSpy.mockRestore()
+  })
+})
+
+describe('TaskPusher spawnCommand 超时分支', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('超时分支返回 exitCode=124 且 output/partialOutput 均截断', async () => {
+    vi.useFakeTimers()
+    // 用 vi.doMock 在重新加载前替换 spawn，返回可手动触发的假 child。
+    // kill 模拟「发信号后子进程退出」→ 同步触发 close，让超时分支确定性 resolve
+    // （避免墙钟断言在全量并行跑时抖动）。
+    vi.resetModules()
+    vi.doMock('node:child_process', () => {
+      const { EventEmitter } = require('node:events')
+      function fakeSpawn() {
+        const child = new EventEmitter()
+        child.stdout = new EventEmitter()
+        child.stderr = new EventEmitter()
+        child.pid = 999
+        child.kill = vi.fn(() => child.emit('close', null))
+        return child
+      }
+      return { spawn: fakeSpawn }
+    })
+
+    const { TaskPusher: TP2 } = await import('./taskPusher.js')
+    const tp = new TP2()
+    const promise = tp.spawnCommand('node', ['-e', 'sleep(5)'], '/tmp', 100)
+    // 推进 100ms → 超时定时器触发 → kill → close → 走 timedOut 分支
+    await vi.advanceTimersByTimeAsync(100)
+    const result = await promise
+
+    expect(result).toMatchObject({ ok: false, code: 'TIMEOUT' })
+    expect(result.exitCode).toBe(124)
+    expect(typeof result.output).toBe('string')
+    expect(typeof result.partialOutput).toBe('string')
+    expect(result.output.length).toBeLessThanOrEqual(10000)
+    expect(result.partialOutput.length).toBeLessThanOrEqual(3000)
   })
 })

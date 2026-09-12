@@ -17,8 +17,6 @@ export const character = pgTable(
     version: text('version').notNull(),
     coverUrl: text('cover_url').notNull(),
 
-    // TODO: json patch?
-
     // NOTICE: bare creatorId / ownerId is intentional — no FK to user.id.
     // better-auth hard-deletes the user row; a cascade would wipe these
     // soft-delete archive rows.

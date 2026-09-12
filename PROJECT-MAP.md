@@ -87,7 +87,10 @@
 
 **sidecar 基础设施**：`src/main/services/kitsune/sidecar/`（spawn、JSON-RPC + 二进制帧线路协议 `protocol.ts`、自动重启预算与降级、串行锁）。
 
-**运行时插件**（模型/引擎按需下载）：`src/main/services/kitsune/runtime-plugins/` —— `tts-gptsovits`（~6.4GB，自带 Python runtime，分卷 zip）与 `asr-sherpa`，GitHub Release 下载 + sha512 校验，解压到 `userData/runtime-plugins/<id>/`；支持本地 ZIP 分卷离线导入（设置页入口）。打包脚本：`scripts/package-runtime-plugins.ts` / `publish-runtime-plugins.ts`。
+**运行时插件**（模型/引擎按需下载）：`src/main/services/kitsune/runtime-plugins/` —— `tts-gptsovits`（GPU 版，installDir `gpt-sovits`）与 `tts-gptsovits-cpu`（CPU 精简版，installDir `gpt-sovits-cpu`）、`asr-sherpa`，GitHub Release 下载 + sha512 校验，解压到 `userData/runtime-plugins/<id>/`；支持本地 ZIP 分卷离线导入（设置页入口）。2026-09-09 已从 v2Pro 成品 `resources/gpt-sovits(/cpu)` 打出正式分卷：GPU 版 7 卷 8.28GiB、CPU 版 4 卷 4.73GiB（`dist/runtime-plugins/release/`，含 manifest）。导入自动识别版别：`detectGptSovitsVariant()` 按 torch/lib 有无 CUDA DLL 判定，UI 两个离线导入入口均走 `installGptSovitsFromLocal(Auto)`；`resolveGptSovitsDir()` 任一版命中即返回。全套 IPC、测试、typecheck 通过。打包脚本：`scripts/package-runtime-plugins.ts`（`tts-gptsovits`/`tts-gptsovits-cpu`）/ `publish-runtime-plugins.ts`。
+**nvidia50 存档引擎实机落地（2026-09-09，RTX 5090 全链路验证通过）**：`E:\agentpet\open\GPT-SoVITS-v2pro-20250604-nvidia50\`（22GB，官方仓库结构，torch 2.7.0+cu128）经 `scripts/slim-gptsovits-archived.ts`（--source/--out 定制排除）瘦身为 `apps/stage-tamagotchi/resources/gpt-sovits`（90019 文件 / 15.13 GiB）。GPU 档（-d cuda）与 CPU 档（CUDA_VISIBLE_DEVICES=''+ -d cpu，显存 0 占用）均实机启动并真实合成：艾丽妮(zh)/妮芙(ja) 三语（中/日/英，跨语言克隆+pypinyin+pyopenjtalk+cmudict）全部出音频。上游适配 3 处固化进脚本：chinese2.py `is_g2pw` 硬编码 True→补丁切 pypinyin（G2PW 权重已剔）、api.py fallback 默认指向 s2G488k/s2D488k（恢复保留 192M）、-mt wav 实际返回 Ogg Vorbis 注意消费侧。
+
+**三版分发精简（2026-09-09 第二轮）**：进一步产出独立分发包——`resources/gpt-sovits`（**GPU 版 8.5GB**：CUDA torch 4.8G + 剔非推理包 + 删 `.venv` 5.6G 冗余）与 `resources/gpt-sovits-cpu`（**纯 CPU 版 4.9GB**：torch 换官方 CPU wheel 2.7.0+cpu 206MB→1.2G，`cuda: False`）。剔除非推理包 ~1.4G（onnxruntime/mecab_ko/eunjeon/ipadic 韩语/gradio/av/pyarrow/pandas/faiss/cmake/modelscope/fairseq/tensorboard/onnx/ctranslate2/torch_directml 等）。**保留推理硬依赖**（逐个验证）：wordfreq→split_lang 语言检测（日文还要 mecab+ipadic）、torio→torchaudio、numba/llvmlite/sklearn→librosa、sympy/mpmath→transformers hubert、matplotlib→t2s_lightning_module。两版三语（中/日/英）实机合成全过，CPU 档硬规则 `is_half=false`（config.py 默认 is_half=True，否则 sv fbank half 报错）。**AMD 结论**：Windows 原生无官方 AMD 路径（install.sh ROCm 仅 Linux/WSL2；torch_directml 0.2.0 要求 torch==2.0.0 与 2.7 ABI 不兼容且推理零引用），AMD 用户用 CPU 版。验证音频留存 `docs/tts-verification/slim3-*.wav`。
 
 ### 3.3 Live2D 舞台
 
@@ -152,7 +155,7 @@
 | --- | --- |
 | `config/` | 默认 profile `default/`（providers.yaml 含 `xiaomi-claude`/`local`、skills.yaml、tools.yaml、voice-policy.yaml、mcp.yaml、desktop-live2d.json、live2d-presets.yaml）+ `yachiyo/` + `overseer.yaml`。`KITSUNE_PROFILE` 环境变量切换 profile。 |
 | `.agents/skills/` | 25 个 AI agent skill（agent-browser、ai-agent-dev、eventa、hono-server、injeca-di、live2d-renderer、plugin-development、monorepo-manager、pnpm、testing-vitest、tts-asr-pipeline、vue、three.js-3d…）。 |
-| `scripts/` | `download-asr-models.ps1`（sherpa SenseVoice/Paraformer INT8）、`download-whisper-model.ps1`、`perf-monitor.ps1`、`serve-models.mjs`、`mod-pack.ts`（VRM .kitsune-mod 打包）、`package-runtime-plugins.ts`/`publish-runtime-plugins.ts`、`oxlint-staged.mjs`、`list-module-loc.mjs`。 |
+| `scripts/` | `download-asr-models.ps1`（sherpa SenseVoice/Paraformer INT8）、`download-whisper-model.ps1`、`perf-monitor.ps1`、`serve-models.mjs`、`mod-pack.ts`（VRM .kitsune-mod 打包）、`package-runtime-plugins.ts`/`publish-runtime-plugins.ts`（含 `--slim` 精简分卷）、`slim-gptsovits.ts`（全量分卷→精简引擎目录，双档 --slim/--cpu-only）、`oxlint-staged.mjs`、`list-module-loc.mjs`。 |
 | `.github/workflows/` | `ci.yml`（lint + build-test matrix）；`release.yml`（tag `v*`/手动选 win|linux|all；electron-builder `--publish never` + node 脚本生成 `latest-x64.yml`/`latest-x64-linux.yml` + `gh release create` 发布并校验）。 |
 | `nix/` + `flake.nix` | Nix 打包（pnpm_10 + fetchPnpmDeps）+ devShell（pnpm、python314）+ `fhs` devShell（NixOS 跑 Electron 的系统库）。 |
 | `.tool-versions` | `nodejs 24.13.0`（asdf）。 |

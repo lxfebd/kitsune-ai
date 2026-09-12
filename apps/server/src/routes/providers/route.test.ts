@@ -156,6 +156,26 @@ describe('providerRoutes', () => {
     expect(res.status).toBe(200)
   })
 
+  it('patch /:id should ignore server-managed validated fields (strip, not persist)', async () => {
+    const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
+    const providerId = providers[0].id
+
+    const res = await app.fetch(new Request(`http://localhost/${providerId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Name', validated: true, validationBypassed: true }),
+      headers: { 'Content-Type': 'application/json' },
+    }), { user: testUser } as any)
+
+    // valibot object() strips unknown keys by default — the request is accepted but the
+    // server-managed state is not written (client cannot self-authorize a provider).
+    expect(res.status).toBe(200)
+
+    const updated = await providerService.findUserConfigById(providerId)
+    expect(updated?.name).toBe('Name')
+    expect(updated?.validated).not.toBe(true)
+    expect(updated?.validationBypassed).not.toBe(true)
+  })
+
   it('delete /:id should soft delete provider', async () => {
     const providers = await providerService.findUserConfigsByOwnerId(testUser.id)
     const providerId = providers[0].id

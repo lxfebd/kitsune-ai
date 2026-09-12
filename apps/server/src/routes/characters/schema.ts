@@ -75,8 +75,7 @@ const DateSchema = pipe(
 )
 
 export const CreateCharacterSchema = object({
-  // TODO: Replace createInsertSchema-derived request bodies with explicit HTTP DTO schemas.
-  // The current shape still leaks persistence fields such as ownerId/creatorId into the API boundary.
+  // TODO(audit): Replace createInsertSchema-derived request bodies with explicit HTTP DTO schemas — current shape leaks persistence fields (ownerId/creatorId) into the API boundary
   character: createInsertSchema(schema.character, {
     creatorId: optional(string()),
     ownerId: optional(string()),
@@ -107,8 +106,7 @@ export const CreateCharacterSchema = object({
   }))),
 })
 
-// TODO: Split update request schema from DB insert schema.
-// This route should reject server-managed fields like id/ownerId/creatorId/timestamps instead of allowing them here.
+// TODO(audit): Split update request schema from DB insert schema — should reject server-managed fields (id/ownerId/creatorId/timestamps) at the HTTP boundary
 export const UpdateCharacterSchema = object({
   ...createInsertSchema(schema.character, {
     id: optional(string()),

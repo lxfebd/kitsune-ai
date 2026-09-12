@@ -42,14 +42,83 @@ nav:
   scene: Scene
   data: Data
   modules: Modules
+  director: Director Review
+  executor: Executor
+  overseer: Overseer
+  team: My AI Team
   environment: Environment
+  health: Health Check
+  whitelist: Permissions
+  connectors: Connectors
+  mcp-agent: MCP Access
   sidecar: Local Services
-settings-groups:
+  account: Account
+  connection: Connection
+  kitsune-card: Kitsune Card
+  group:
+    pet: Desktop Pet
+    senses: Models & Senses
+    run: Autonomous Runs
+    security: Security & Permissions
+    ops: Connections & Ops
+groups:
   core: Core Settings
   features: Features
   data: Data Management
   advanced: Advanced Options
   other: Other
+  pet:
+    description: Appearance, behavior, and data of the desktop pet
+  senses:
+    description: Model engines, speech, and dictation input
+  run:
+    description: Plan, execute autonomously, and overseer review
+  security:
+    description: Environment adaptation and permission control
+  ops:
+    description: Connectors, local services, and health checks
+  not-found: Settings group not found
+  cards:
+    system:
+      description: General appearance, shortcuts, and developer options
+    scene:
+      description: Stage scene and background settings
+    modules:
+      description: Plugin modules, memory, and integrations
+    data:
+      description: Data management, import/export, and reset
+    account:
+      description: Account and login status
+    kitsune-card:
+      description: Character card presets and appearance
+    models:
+      description: Model engines and API providers
+    speech:
+      description: Speech synthesis engines and voices
+    hearing:
+      description: Voice input, dictation, and transcription
+    connection:
+      description: Remote connection and server channel
+    director:
+      description: Review and decide on AI plans
+    executor:
+      description: Execute tasks and track plan progress
+    overseer:
+      description: Overseer stats and live event stream
+    team:
+      description: Sub-agent roster and dispatch status
+    environment:
+      description: Desktop automation and developer tools
+    whitelist:
+      description: Permission whitelist management
+    connectors:
+      description: IDE connectors and external tools
+    mcp-agent:
+      description: Let AI agents report status to the pet over MCP
+    sidecar:
+      description: GPT-SoVITS and ComfyUI local services
+    health:
+      description: System health checks and auto-repair
 about:
   title: Project
   build-info: Build Information
@@ -550,6 +619,8 @@ pages:
     info:
       title: About Accounts
       description: Your account allows you to sync settings across devices, access Flux credits for AI services, and manage your character library.
+    unavailable:
+      message: Account backend is not enabled on the server yet. Cloud sync, Flux credits and character library management will be available once the server auth API is connected.
   models:
     description: Live2D, VRM, etc.
     title: Models
@@ -1736,6 +1807,11 @@ pages:
       label: Auth Token
       description: Security token required by remote clients that connect to this gateway. When left empty, Kitsune AI generates a new token automatically.
       placeholder: Auto-generate
+    connected-remotes:
+      label: Connected Remotes
+      description: Remote peers currently connected to this machine over the server channel (IDE connectors / Pocket / bots)
+      connected: Connected
+      none: None
     qr:
       title: Connect from Stage Pocket
       description: Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
@@ -1780,6 +1856,55 @@ pages:
         reconnect: Reconnect
         disable: Disable
         enable: Enable
+    mcp-agent:
+      title: MCP Access
+      description: Let your AI agent (Claude Code / Cursor / Trae / Windsurf / ZCode...) report work status to the pet over MCP, without depending on your local dev environment path.
+      intro: The pet exposes an MCP service on this machine that agents connect to via localhost. Copy the config into your agent's MCP config file, then reconnect to start reporting.
+      http-url-label: Service URL
+      http-url-hint: URL-capable agents all point to this address; it stays the same across machines (127.0.0.1).
+      mode:
+        url: URL
+        stdio: stdio
+      mode-hint:
+        url: Connect via localhost URL (recommended, stable across machines)
+        stdio: Connect via local child process (this machine only)
+      config-file-label: Config file
+      config-paths-label: Possible config paths
+      packaged-entry-hint: Packaged STDIO entry lives under the install dir ({entry})
+      copy: Copy config
+      copied: Copied
+      copy-failed: Copy failed, please select and copy manually
+      copy-hint: Click to copy the JSON snippet and paste it into the agent's MCP config file.
+    team:
+      title: My AI Team
+      description: You are the boss; the pet is your dispatcher. The roster shows who is online, who is working, and what each sub-agent is good at. Hand a requirement to the coordinator and it will break the work into pieces, assign them by profile, and report results back here.
+      error-title: Team panel error
+      roster-title: Roster
+      empty: No dispatchable tools. Configure cli.binary and enable tools in config/overseer.yaml (perceive-only tools are not listed).
+      fields:
+        name: Member
+        status: Status
+        profile: Profile
+        last: Last dispatch
+      status:
+        online: Online
+        offline: Offline
+        busy: Working
+        dispatchable: Dispatchable
+        perceive-only: Perceive-only
+        never: Never dispatched
+      outcome:
+        ok: Success
+        failed: Failed
+      hint: Dispatching does not control the sub-agent window; each agent receives an independent task through CLI (or API) and progress is visible here.
+      delegate-title: Delegate to the team
+      delegate-placeholder: Describe the requirement, e.g. "Optimize src/auth.ts performance and rewrite the failing related tests"...
+      delegate: Decompose & dispatch
+      delegating: Decomposing...
+      stop: Stop execution
+      stopping: Stopping...
+      plan-summary: Decomposed into {taskCount} tasks for {agentCount} members
+      no-executor: Coordination needs an LLM provider configured first (see active_provider's api_key_env in providers.yaml).
     agent-api:
       title: Agent API Adapters
       description: Push tasks directly to open APIs (Cloud Code / OpenCode / Trae Builder). API keys are encrypted on disk and masked in the UI.
@@ -1854,6 +1979,16 @@ pages:
       tools-title: Listening Tools
       tool-running: Running
       tool-idle: Idle
+      guidance:
+        title: Operational Guidance
+        description: When the same kind of tool failure recurs, the pet suggests actionable fix steps.
+        enable-label: Enable Guidance
+        enable: Enable
+        disable: Disable
+        reset: Clear Failure Memory
+        reset-busy: Clearing...
+        records-count: "%{count} failures recorded"
+        empty-records: No failures recorded
 
     executor:
       title: Autonomous Executor

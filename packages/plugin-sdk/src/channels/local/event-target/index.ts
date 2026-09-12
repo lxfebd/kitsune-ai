@@ -13,7 +13,9 @@ import { createContext } from '@moeru/eventa/adapters/event-target'
  * - An Eventa context that can be assigned to the active host channel
  */
 export function createEventTargetHostChannel(eventTarget: EventTarget) {
-  // TODO: implement actual event target based host channel
+  // (audit) Adapter wiring is delegated to createContext; in-process transport
+  // round-trips are not exercised by any test yet — add one when a real
+  // browser-like host lands.
   return createContext(eventTarget)
 }
 
@@ -46,6 +48,7 @@ export function createEventTargetExtensionTransport(eventTarget: EventTarget) {
  * - An Eventa context that can be assigned to the active data channel
  */
 export function createEventTargetDataChannel(eventTarget: EventTarget) {
-  // TODO: implement actual event target based data channel
+  // (audit) Same delegation as createEventTargetHostChannel — unverified
+  // in-process data-plane round-trip, no test coverage yet.
   return createContext(eventTarget)
 }

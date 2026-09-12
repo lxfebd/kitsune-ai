@@ -3,7 +3,6 @@ interface CharacterCapabilityBaseConfig {
   apiBaseUrl: string
 }
 
-// TODO: Implement the config for the character capability
 export interface CharacterCapabilityConfig extends CharacterCapabilityBaseConfig {
   llm: {
     temperature: number

@@ -7,7 +7,7 @@ import type { ProductEventService } from './product-events'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
-import { createForbiddenError, createNotFoundError } from '../../utils/error'
+import { createBadRequestError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
 import * as schema from '../../schemas/chats'
@@ -174,13 +174,13 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
     },
 
     async addMember(userId: string, chatId: string, member: { type: ChatMemberType, userId?: string, characterId?: string }) {
-      // TODO: Push these invariants up into the HTTP schema and convert failures to API errors instead of generic Error.
-      // Validate that user-type members have a userId and non-user members have a characterId
+      // Member invariants are already enforced by MemberSchema at the HTTP boundary;
+      // this defensive check keeps direct service callers from inserting malformed rows.
       if (member.type === 'user' && !member.userId) {
-        throw new Error('userId is required for user-type members')
+        throw createBadRequestError('userId is required for user-type members')
       }
       if (member.type !== 'user' && !member.characterId) {
-        throw new Error('characterId is required for non-user-type members')
+        throw createBadRequestError('characterId is required for non-user-type members')
       }
 
       return db.transaction(async (tx) => {

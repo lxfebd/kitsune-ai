@@ -404,6 +404,10 @@ class TaskPusher {
             ok: false,
             error: `命令超时 (${timeoutMs / 1000}s)`,
             code: 'TIMEOUT',
+            // exitCode 固定 124（GNU timeout 的默认退出码），让上游识别为「超时」而非「退出码非 0: undefined」
+            exitCode: 124,
+            output: stdout.substring(0, 10000),
+            stderr: stderr.substring(0, 2000),
             partialOutput: stdout.substring(0, 3000),
           });
           return;

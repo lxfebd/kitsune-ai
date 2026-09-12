@@ -297,7 +297,7 @@ async function handleInvoiceEvent(
     metadata: invoice.metadata ? JSON.stringify(invoice.metadata) : null,
   })
 
-  // TODO: implement subscription-based flux crediting when subscriptions are enabled
+  // TODO(audit): implement subscription-based flux crediting when subscriptions are enabled — creditFlux already exists for one-time purchases
   if (invoice.status === 'paid' && invoice.amount_paid && subscriptionId)
     logger.withFields({ userId: customer.userId, invoiceId: invoice.id, amountPaid: invoice.amount_paid }).warn('Subscription invoice paid but flux crediting for subscriptions is not yet implemented')
 }

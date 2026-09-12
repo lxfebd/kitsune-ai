@@ -47,6 +47,13 @@ export type {
 } from './gptsovitsAdapter.js';
 export { GPTSoVITSAdapter } from './gptsovitsAdapter.js';
 
+// Sherpa TTS 适配器及其配置（本地 VITS 模型,进程内 WASM）
+export type {
+  SherpaTtsAdapterConfig,
+  SherpaTtsModelConfig,
+} from './sherpaTtsAdapter.js';
+export { SherpaTtsAdapter } from './sherpaTtsAdapter.js';
+
 // TTS 降级链及其配置
 export type { FallbackChainConfig } from './ttsFallbackChain.js';
 export { TTSFallbackChain } from './ttsFallbackChain.js';

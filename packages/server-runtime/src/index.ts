@@ -30,6 +30,8 @@ import {
 import {
   MessageHeartbeat,
   MessageHeartbeatKind,
+  SERVER_CHANNEL_DEFAULT_PORT,
+  SERVER_CHANNEL_WS_PATH,
 } from '@kitsune/server-shared/types'
 import { H3 } from 'h3'
 import { nanoid } from 'nanoid'
@@ -243,7 +245,7 @@ export function setupApp(options?: AppOptions): SetupAppResult {
   })
 
   // === Registries & Orchestrators ===
-  // TODO: Move protocol-neutral peer registry, consumer selection, and heartbeat
+  // TODO(audit): Move protocol-neutral peer registry, consumer selection, and heartbeat
   // primitives into `@kitsune/better-ws/server` so server-runtime only owns
   // Kitsune authentication, registry sync, route policy, and extension events.
   const peers = new Map<string, AuthenticatedPeer>()
@@ -1116,7 +1118,7 @@ export function setupApp(options?: AppOptions): SetupAppResult {
     healthCheckInterval = undefined
   }
 
-  app.get('/ws', toH3Handler(wsServer, {
+  app.get(SERVER_CHANNEL_WS_PATH, toH3Handler(wsServer, {
     readMessage(message: CrossWsMessage) {
       return { text: () => message.text() }
     },

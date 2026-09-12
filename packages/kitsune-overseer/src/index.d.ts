@@ -15,6 +15,8 @@ export interface PetReaction {
   toolName?: string
   hasError?: boolean
   errorMessage?: string
+  /** 感知层显式上报的统一活动状态（thinking/executing/completed/error…），编排层据此映射事件类型 */
+  activity?: string
   /** 感知层原始信号超出 schema 定义时的兜底通道 */
   raw?: unknown
 }

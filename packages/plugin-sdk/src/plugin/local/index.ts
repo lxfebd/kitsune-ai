@@ -1,8 +1,10 @@
 /**
  * Setup the local plugin scope.
  *
- * TODO: now sure how this should be implemented, but perhaps it should call packages/plugin-sdk/src/channels to setup local channels
- * first? Then probably some other initialization steps.
+ * (audit) Intentional scaffold: the final shape depends on the local host
+ * runtime that lands first. Until then, wiring channel scopes here would
+ * guess the contract — the plugin-host runtime (`src/plugin-host`) is the
+ * live path today.
  */
 export async function setupLocalPluginScope() {
 

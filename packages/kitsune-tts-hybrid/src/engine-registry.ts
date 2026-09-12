@@ -27,7 +27,7 @@
  */
 
 /** TTS 引擎类型 */
-export type TtsEngineType = 'local-sidecar' | 'cloud-http' | 'system-builtin'
+export type TtsEngineType = 'local-sidecar' | 'local-model' | 'cloud-http' | 'system-builtin'
 
 /** TTS 引擎定义 */
 export interface TtsEngineDefinition {
@@ -156,4 +156,11 @@ registerEngine({
   id: 'system',
   name: '系统 TTS',
   type: 'system-builtin',
+})
+
+/** Sherpa TTS 本地引擎（VITS 模型,进程内 WASM,无 sidecar） */
+registerEngine({
+  id: 'sherpa-tts',
+  name: 'Sherpa TTS（本地）',
+  type: 'local-model',
 })

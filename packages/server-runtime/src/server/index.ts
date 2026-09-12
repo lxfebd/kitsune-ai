@@ -8,9 +8,12 @@ import { networkInterfaces } from 'node:os'
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
 import { createH3CrossWsPlugin } from '@kitsune/better-ws/server/h3'
+import { SERVER_CHANNEL_DEFAULT_PORT } from '@kitsune/server-shared/types'
 import { serve } from 'h3'
 
 import { normalizeLoggerConfig, setupApp } from '..'
+
+export { SERVER_CHANNEL_DEFAULT_PORT, SERVER_CHANNEL_WS_PATH } from '@kitsune/server-shared/types'
 
 export interface ServerOptions extends AppOptions {
   port?: number
@@ -42,6 +45,14 @@ export interface Server {
   sendToPeer: (peerId: string, message: string) => boolean
   /** Lists all currently connected peer ids. */
   listPeerIds: () => string[]
+  /**
+   * Server-originated broadcast: sends one pre-serialized text frame to every
+   * connected peer. Unlike `sendToPeer`, this is meant for events injected by
+   * the host process (not routed through peer message routing).
+   *
+   * Returns the number of peers the frame was accepted by.
+   */
+  broadcast: (message: string) => number
 }
 
 function isAddressInUseError(error: unknown) {
@@ -116,7 +127,7 @@ export function getLocalIPs(): string[] {
  * - Lifecycle helpers for starting, stopping, restarting, and updating server options
  */
 export function createServer(opts?: ServerOptions): Server {
-  let options = merge<ServerOptions>({ port: 6121, hostname: '127.0.0.1' }, opts)
+  let options = merge<ServerOptions>({ port: SERVER_CHANNEL_DEFAULT_PORT, hostname: '127.0.0.1' }, opts)
 
   const { appLogFormat, appLogLevel } = normalizeLoggerConfig(options)
   const log = useLogg('@kitsune/server-runtime/server').withLogLevelString(appLogLevel).withFormat(appLogFormat)
@@ -291,5 +302,15 @@ export function createServer(opts?: ServerOptions): Server {
     },
     sendToPeer: (peerId, message) => activeApp?.sendToPeer(peerId, message) ?? false,
     listPeerIds: () => activeApp?.listPeerIds() ?? [],
+    broadcast: (message) => {
+      if (!activeApp)
+        return 0
+      let sent = 0
+      for (const peerId of activeApp.listPeerIds()) {
+        if (activeApp.sendToPeer(peerId, message))
+          sent += 1
+      }
+      return sent
+    },
   }
 }

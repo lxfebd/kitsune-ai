@@ -1,4 +1,5 @@
 ﻿import type { WebSocketEvent } from '@kitsune/server-shared/types'
+import { SERVER_CHANNEL_WS_PATH } from '@kitsune/server-shared/types'
 
 import type { Peer } from './types'
 
@@ -75,9 +76,9 @@ function createPeer(id: string) {
 }
 
 function wsHandler() {
-  const handler = h3Mocks.handlers.get('/ws') as TestWebSocketHandler | undefined
+  const handler = h3Mocks.handlers.get(SERVER_CHANNEL_WS_PATH) as TestWebSocketHandler | undefined
   if (!handler) {
-    throw new Error('Expected setupApp to register a /ws websocket handler.')
+    throw new Error(`Expected setupApp to register a ${SERVER_CHANNEL_WS_PATH} websocket handler.`)
   }
 
   return handler

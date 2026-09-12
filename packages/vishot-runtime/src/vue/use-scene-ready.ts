@@ -23,7 +23,7 @@ export function useSceneReady(sources: string[]): void {
       markScenarioReady()
     }
     catch (error) {
-      console.error(error)
+      console.error('[use-scene-ready] failed to await scene readiness:', error)
     }
   })
 }

@@ -40,14 +40,83 @@ nav:
   scene: 场景设置
   data: 数据管理
   modules: 插件模块
+  director: 总监评审
+  executor: 自主执行
+  overseer: 监工
+  team: 我的 AI 团队
   environment: 环境适配
+  health: 健康检查
+  whitelist: 权限白名单
+  connectors: 连接器
+  mcp-agent: MCP 接入
   sidecar: 本地服务
-settings-groups:
+  account: 账号
+  connection: 连接
+  kitsune-card: Kitsune 卡片
+  group:
+    pet: 桌宠本体
+    senses: 模型与感官
+    run: 自主运行
+    security: 安全与权限
+    ops: 连接与运维
+groups:
   core: 核心设置
   features: 功能特性
   data: 数据管理
   advanced: 高级选项
   other: 其他
+  pet:
+    description: 桌宠本体的外观、行为与数据
+  senses:
+    description: 模型引擎、语音与听写输入
+  run:
+    description: 制定计划、自主执行与监工评审
+  security:
+    description: 环境适配与权限控制
+  ops:
+    description: 连接器、本地服务与健康检查
+  not-found: 未找到该设置组合
+  cards:
+    system:
+      description: 通用外观、快捷键与开发者选项
+    scene:
+      description: 舞台场景与背景设置
+    modules:
+      description: 插件模块、记忆体与集成连接
+    data:
+      description: 数据管理、导入导出与重置
+    account:
+      description: 账号与登录状态
+    kitsune-card:
+      description: 角色卡预设与形象配置
+    models:
+      description: 模型引擎与 API 提供商
+    speech:
+      description: 语音合成引擎与声线
+    hearing:
+      description: 语音输入、听写与转写
+    connection:
+      description: 远程连接与服务器通道
+    director:
+      description: 对 AI 计划进行评审与裁决
+    executor:
+      description: 自主执行任务与计划进度
+    overseer:
+      description: 监工统计与实时事件流
+    team:
+      description: 子 agent 花名册与派活状态
+    environment:
+      description: 桌面自动化与开发调试工具
+    whitelist:
+      description: 权限白名单管理
+    connectors:
+      description: IDE 连接器与外部工具
+    mcp-agent:
+      description: 让 AI agent 通过 MCP 主动向桌宠上报状态
+    sidecar:
+      description: GPT-SoVITS 与 ComfyUI 本地服务
+    health:
+      description: 系统健康检查与自动修复
 about:
   title: 项目
   build-info: 应用构建信息
@@ -151,8 +220,9 @@ dialogs:
     last-submitted-preview: 提交前预览
 language:
   title: 语言
-  description: >
-    界面语言。你也可以稍后再设置角色语言。
+  description: '界面语言。你也可以稍后再设置角色语言。
+
+    '
 controls-island:
   icon-size:
     title: 控制岛图标大小
@@ -187,7 +257,7 @@ appearance:
   motion-intensity:
     title: 动效强度
     description: 界面过渡动画的强度。
-    off: 关闭
+    false: 关闭
     reduced: 减弱
     normal: 标准
 analytics:
@@ -200,7 +270,8 @@ model-select:
   panel-callout:
     support-status-header: 同时支持 2D 与 3D 模型
     support-status: 点击 {select-button} 选择或导入模型。当前支持 {zip}（Live2D 模型）和 {vrm}（VRM 模型）。
-    model-type-example: Neuro-sama 使用 Live2D Inc 开发的 2D 模型框架，而 Grok Ani（Grok Companion）使用 VRM / MMD 开放格式的 3D 模型。
+    model-type-example: Neuro-sama 使用 Live2D Inc 开发的 2D 模型框架，而 Grok Ani（Grok Companion）使用
+      VRM / MMD 开放格式的 3D 模型。
   select-model:
     title: 模型选择器
     button: 选择模型
@@ -317,8 +388,9 @@ live2d:
   expressions:
     title: 表情
     override-toggle: 表情系统
-    sdk-preset-preserved-notice: >
-      禁用时保留 SDK 表情管理器和眨眼功能。
+    sdk-preset-preserved-notice: '禁用时保留 SDK 表情管理器和眨眼功能。
+
+      '
     no-expression: 此模型没有可用的表情。
     llm-integration-wip: LLM 工具集成尚未接入。
     save-default: 保存表情默认值
@@ -407,7 +479,8 @@ pages:
         scenario: 错误：必须提供一个情境。
         systemprompt: 错误：请提供系统提示。
         posthistoryinstructions: 错误：必须提供消息历史后的提示。
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+        invalid_artistry_json: 'Error: Artistry provider options contains invalid
+          JSON.'
       none: None
       persona-tab:
         title: 角色人格
@@ -723,11 +796,13 @@ pages:
       description: 一起玩 Minecraft！
       title: 我的世界 Minecraft
       enable: 启用我的世界集成
-      enable-description: 在 Chat 界面 中包含 Minecraft 自己的上下文和认知，并保持 Passive runtime visibility 启用。
+      enable-description: 在 Chat 界面 中包含 Minecraft 自己的上下文和认知，并保持 Passive runtime visibility
+        启用。
       configured: 我的世界已正确配置！
       read-only:
         title: 只读外壳
-        description: 目前此 Minecraft 管理界面将作为一个被动的外壳。你可以在这里观察运行状态，但服务配置仍然存在于 Minecraft 服务文件中。
+        description: 目前此 Minecraft 管理界面将作为一个被动的外壳。你可以在这里观察运行状态，但服务配置仍然存在于 Minecraft
+          服务文件中。
       setup:
         title: 配置
         description: 你可以在下面的文件中找到设置 Minecraft bot 的说明
@@ -763,7 +838,8 @@ pages:
             manual-description: 输入要使用的转录模型（例如 'whisper-1'、'gpt-4o-transcribe'）
           confidence-threshold:
             title: 置信度阈值
-            description: 筛选低信任的文字记录以减少语音识别的幻觉。值靠近 0 更严格；拖动到左边以禁用。 仅对支持 Whisper API 的提供者有效（例如，OpenAI，Groq）。
+            description: 筛选低信任的文字记录以减少语音识别的幻觉。值靠近 0 更严格；拖动到左边以禁用。 仅对支持 Whisper API
+              的提供者有效（例如，OpenAI，Groq）。
             disabled: 禁用
             verbose-json-note: 注意：如果您的提供商不支持 verbose_json 结果处理，此设置将不会有任何效果。
             verbose-json-unsupported: 如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
@@ -1040,7 +1116,8 @@ pages:
             search_voices_placeholder: 搜索声线...
             search_voices_results: 找到 {count} / {total} 个声线
             unsupported_voice_warning_title: 没有支持的声线
-            unsupported_voice_warning_content: 我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在 GitHub 上联系我们 https://github.com/lxfebd/kitsune-ai/issues
+            unsupported_voice_warning_content: 我们正在尽快支持该模型的所有音色，如果你迫切希望支持该模型音色，请在
+              GitHub 上联系我们 https://github.com/lxfebd/kitsune-ai/issues
             show_less: 显示更少
             show_more: 显示更多
             title: 选择语音合成服务来源
@@ -1172,12 +1249,11 @@ pages:
         args:
           label: 命令参数
           description: 每行一个，按顺序传入。
-          placeholder: >-
-            -y
+          placeholder: '-y
 
             some-package-name
 
-            /tmp
+            /tmp'
         cwd:
           label: 工作目录
           description: 可选，作为启动进程时使用的当前工作目录。
@@ -1266,7 +1342,8 @@ pages:
                   placeholder: sk-……
                 base-url:
                   label: Base URL
-                  description: 用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
+                  description: 用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1
+                    或 https://example.com/v1。
                   placeholder: 基础 Url……
                 headers:
                   label: 添加自定义 HTTP 标头
@@ -1277,8 +1354,9 @@ pages:
                     placeholder: 请求头数值
                 thinking-mode:
                   label: 深度思考模式
-                  description: >
-                    控制 Olama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
+                  description: '控制 Olama 深度思考的开关。GPT-OSS 只支持低/中/高水平。
+
+                    '
                   options:
                     auto: 自动（默认服务来源）
                     disable: 禁用
@@ -1311,7 +1389,10 @@ pages:
                 validators:
                   openai-compatible-check-connectivity:
                     label: Ollama需要额外的配置
-                    content: 很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。 您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code> 详情，请检查 <a href="https://docs.kitsune-ai.dev/en/docs/manual/integrations/providers/chat/ollama">Ollama 集成指南</a>。
+                    content: 很抱歉，Ollama 连接检查失败。不要担心，如果是 Ollama，需要额外配置才能通过 Ollama。
+                      您需要在启动 Olama 应用程序或 Ollama CLI 服务器时明确设置 <code>OLLAMA_HOST</code>
+                      详情，请检查 <a href="https://docs.kitsune-ai.dev/en/docs/manual/integrations/providers/chat/ollama">Ollama
+                      集成指南</a>。
     common:
       continueAnyway: 仍然继续
       goToModelSelection: 选择模型→
@@ -1382,8 +1463,10 @@ pages:
             description: Google AI Studio Image Preview.
     helpinfo:
       title: 第一次使用？
-      description: >
-        Kitsune AI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 Kitsune AI 系统中角色的大脑。
+      description: 'Kitsune AI 需要配置至少一个 {chat} 服务来源，才能正常思考和运作。你可以把它看作是 Kitsune AI
+        系统中角色的大脑。
+
+        '
     explained:
       chat: 文本生成模型服务来源，例如 OpenRouter, OpenAI, Ollama
       Speech: 语音（文本转语音）模型服务来源，例如 ElevenLabs, Azure Speech
@@ -1417,7 +1500,8 @@ pages:
         config:
           api-key:
             label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            description: Amazon Bedrock API key (generate in AWS Console → Bedrock
+              → API Keys)
             placeholder: bedrock-...
           region:
             label: AWS 区域
@@ -1496,7 +1580,8 @@ pages:
               placeholder: http://localhost:8188
           cors:
             title: 检测到 CORS 阻止
-            description: ComfyUI 默认阻止来自其他应用程序的请求。要允许 Kitsune AI 连接，您必须使用 `--enable-cors-header "*"` 标志启动 ComfyUI。
+            description: ComfyUI 默认阻止来自其他应用程序的请求。要允许 Kitsune AI 连接，您必须使用 `--enable-cors-header
+              "*"` 标志启动 ComfyUI。
             command: python main.py --enable-cors-header "*"
           workflows:
             title: 工作流模板
@@ -1680,7 +1765,8 @@ pages:
         title: Xiaomi MiMo
         style-prompt-placeholder: 描述语调、节奏、情感和表达风格...
         voice-sample-label: 声音样本（data URI）
-        voice-sample-description: 粘贴 base64 声音样本，格式为 data:{MIME_TYPE};base64,$BASE64_AUDIO。MiMo 支持 mp3 和 wav 格式，最大 10 MB。
+        voice-sample-description: 粘贴 base64 声音样本，格式为 data:{MIME_TYPE};base64,$BASE64_AUDIO。MiMo
+          支持 mp3 和 wav 格式，最大 10 MB。
       mimo-token-plan:
         description: token-plan-cn.xiaomimimo.com
         title: 小米 MiMo Token Plan
@@ -1830,6 +1916,11 @@ pages:
       label: 认证凭据
       description: 连接和配对需要安全令牌。如果留空，Kitsune AI 自动生成一个新的令牌。
       placeholder: 自动生成
+    connected-remotes:
+      label: 已连接远程
+      description: 当前通过 6121 通道连到本机的远端对端（IDE 连接器 / 手机 Pocket / 机器人等）
+      connected: 已连接
+      none: 无
     qr:
       title: 从 Pocket（口袋）版配对
       description: 从 Pocket（口袋）版扫描此二维码以进行配对
@@ -1851,6 +1942,42 @@ pages:
       errors:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
+  account:
+    title: 账号
+    description: 管理您的账号设置与同步偏好
+    login:
+      title: 登录
+      email: 邮箱
+      emailPlaceholder: your@email.com
+      password: 密码
+      passwordPlaceholder: ••••••••
+      signIn: 登录
+      signingIn: 登录中...
+      or: 或
+      createAccount: 创建账号
+    register:
+      title: 创建账号
+      name: 名称
+      namePlaceholder: 您的名字
+      email: 邮箱
+      emailPlaceholder: your@email.com
+      password: 密码
+      passwordPlaceholder: ••••••••
+      confirmPassword: 确认密码
+      confirmPasswordPlaceholder: ••••••••
+      create: 创建账号
+      creating: 创建中...
+      back: 返回
+    actions:
+      profile: 编辑资料
+      sync: 同步设置
+      flux: Flux 余额
+      logout: 退出登录
+    info:
+      title: 关于账号
+      description: 您的账号可用于跨设备同步设置、获取 Flux 积分用于 AI 服务，以及管理角色库。
+    unavailable:
+      message: 服务端账号后端尚未启用。跨设备同步、Flux 积分与角色库管理将在服务端认证 API 接入后开放。
   sidecar:
     title: 本地服务管理
     description: 管理本地子进程服务（ComfyUI 图像生成、GPT-SoVITS 语音合成）的启动、停止与状态。
@@ -1876,9 +2003,60 @@ pages:
         reconnect: 重连
         disable: 禁用
         enable: 启用
+    mcp-agent:
+      title: MCP 接入
+      description: 让你的 AI agent（Claude Code / Cursor / Trae / Windsurf / ZCode...）通过
+        MCP 主动向桌宠上报工作状态，无需依赖本机开发环境路径。
+      intro: 桌宠启动后会在本机提供一个 MCP 服务，agent 通过 localhost 即可连接。复制对应配置粘贴进 agent 的 MCP 配置文件，重连后即可开始上报。
+      http-url-label: 服务地址
+      http-url-hint: 所有支持 URL 的 agent 都指向这个地址；换台电脑也无需改动（保持 127.0.0.1）。
+      mode:
+        url: URL
+        stdio: stdio
+      mode-hint:
+        url: 通过 localhost URL 连接（推荐，跨机器稳定）
+        stdio: 通过本地子进程连接（仅本机）
+      config-file-label: 配置文件
+      config-paths-label: 可能的配置路径
+      packaged-entry-hint: 打包后 STDIO 入口位于应用安装目录（{entry}）
+      copy: 复制配置
+      copied: 已复制
+      copy-failed: 复制失败，请手动选择复制
+      copy-hint: 点击复制 JSON 片段，粘贴到 agent 的 MCP 配置文件中对应位置。
+    team:
+      title: 我的 AI 团队
+      description: 你是头头，桌宠是你的调度。子 agent 花名册实时展示谁在线、谁在干活、谁擅长什么；把需求交给编排者，它会按画像拆活派活，结果回填到这里。
+      error-title: 团队面板错误
+      roster-title: 花名册
+      empty: 暂无可派活工具。请在 config/overseer.yaml 中为工具配置 cli.binary 并启用（感知-only 工具不出现在花名册）。
+      fields:
+        name: 成员
+        status: 状态
+        profile: 画像
+        last: 上次派活
+      status:
+        online: 在线
+        offline: 离线
+        busy: 干活中
+        dispatchable: 可派活
+        perceive-only: 仅感知
+        never: 尚未派活
+      outcome:
+        ok: 成功
+        failed: 失败
+      hint: 派活不会真的操控子 agent 窗口；它们通过 CLI（或 API）收到独立任务指令，进度在这里可见。
+      delegate-title: 派活给团队
+      delegate-placeholder: 描述需求，如「优化 src/auth.ts 性能，重写失败的相关测试」……
+      delegate: 拆解并派活
+      delegating: 拆解中……
+      stop: 停止执行
+      stopping: 停止中……
+      plan-summary: 已拆出 {taskCount} 个任务，派给 {agentCount} 位成员
+      no-executor: 编排需要先配置 LLM provider（参考 providers.yaml 中 active_provider 对应的 api_key_env）。
     agent-api:
       title: Agent API 适配
-      description: 直接向开放 API 推送任务（Cloud Code / OpenCode / Trae Builder）。密钥落盘加密，UI 脱敏显示。
+      description: 直接向开放 API 推送任务（Cloud Code / OpenCode / Trae Builder）。密钥落盘加密，UI
+        脱敏显示。
       error-title: Agent API 错误
       info-title: Agent API
       plaintext-warning: 警告：当前系统未提供密钥加密后端（safeStorage 不可用），密钥将以明文形式保存在本地磁盘，存在泄露风险。建议启用系统密钥环（keyring）后重新保存。
@@ -1944,7 +2122,6 @@ pages:
         clearing: 清空中...
       cleared: 白名单已清空。
       removed: 条目已删除。
-
     overseer:
       title: 监工
       description: 监工系统自动监听任务并分发给已连接的工具执行。
@@ -1958,11 +2135,20 @@ pages:
       tools-title: 监听工具
       tool-running: 运行中
       tool-idle: 空闲
-
+      guidance:
+        title: 操作指导
+        description: 同类工具失败反复出现时，桌宠给出可操作的修复步骤。
+        enable-label: 启用操作指导
+        enable: 开启
+        disable: 关闭
+        reset: 清空失败记忆
+        reset-busy: 清空中...
+        records-count: 已记录 %{count} 条失败
+        empty-records: 暂无失败记录
     desktop-automation:
       title: 桌面自动化
       error-title: 桌面自动化错误
-      description: 鼠标键盘模拟操作（PowerShell + Win32 API）。
+      description: 鼠标/键盘/滚轮/窗口管理（koffi FFI 直调 Win32 API，不依赖 PowerShell / .NET / COM）。
       fields:
         x: X
         y: Y
@@ -1982,7 +2168,8 @@ pages:
     executor:
       title: 自主执行
       error-title: 自主执行错误
-      description: 将需求拆解为 CLI/IDE 混合任务列表并自动逐个执行。需先配置 API key（参考 providers.yaml 中 active_provider 对应的 api_key_env）。
+      description: 将需求拆解为 CLI/IDE 混合任务列表并自动逐个执行。需先配置 API key（参考 providers.yaml 中 active_provider
+        对应的 api_key_env）。
       input-placeholder: 输入需求描述，如「优化 src/auth.ts 的性能瓶颈」
       actions:
         execute: 执行
@@ -2190,8 +2377,9 @@ sections:
       title: 通用
 theme:
   title: 主题
-  description: >
-    切换 Kitsune AI 的基础主题，亮色模式或暗色模式。
+  description: '切换 Kitsune AI 的基础主题，亮色模式或暗色模式。
+
+    '
 title: 设置
 voices: 声线
 vrm:
@@ -2213,10 +2401,11 @@ vrm:
     model-info-x: 宽度（X轴）
     model-info-y: 高度（Y轴）
     model-info-z: 深度（Z轴）
-    tips: >
-      设定模型放置的空间坐标。
+    tips: '设定模型放置的空间坐标。
 
       坐标轴已被可视化。
+
+      '
     tips-title: 提示
     scale: 缩放
     x: X轴偏移
@@ -2298,38 +2487,36 @@ godot:
   camera-yaw: 相机偏航
   camera-pitch: 相机俯仰
   camera-fov: 相机视野
-
 tts:
   device_confirm:
-    title_switch: "切换推理设备"
-    title_threads: "调整 CPU 线程数"
-    current: "当前"
-    target: "切换为"
-    restart_hint: "切换将重启 TTS 服务，首次加载模型可能较慢"
-    cancel: "取消"
-    confirm: "确认切换"
+    title_switch: 切换推理设备
+    title_threads: 调整 CPU 线程数
+    current: 当前
+    target: 切换为
+    restart_hint: 切换将重启 TTS 服务，首次加载模型可能较慢
+    cancel: 取消
+    confirm: 确认切换
     cpu:
-      - "不加载 CUDA 运行时库，释放显存"
-      - "推理速度取决于 CPU 性能与核心数"
-      - "无 GPU 依赖，兼容性更好"
+    - 不加载 CUDA 运行时库，释放显存
+    - 推理速度取决于 CPU 性能与核心数
+    - 无 GPU 依赖，兼容性更好
     cuda_half:
-      - "使用 GPU 半精度推理，兼顾速度与显存"
-      - "需要 NVIDIA GPU 及 CUDA 运行时库"
-      - "推理速度取决于 GPU 型号与显存带宽"
+    - 使用 GPU 半精度推理，兼顾速度与显存
+    - 需要 NVIDIA GPU 及 CUDA 运行时库
+    - 推理速度取决于 GPU 型号与显存带宽
     cuda:
-      - "使用 GPU 全精度推理，音质上限更高"
-      - "显存占用高于半精度模式"
-      - "推理速度取决于 GPU 型号"
+    - 使用 GPU 全精度推理，音质上限更高
+    - 显存占用高于半精度模式
+    - 推理速度取决于 GPU 型号
     auto:
-      - "由 GPT-SoVITS 自动选择最优设备"
-      - "有可用 GPU 时倾向使用 GPU"
-      - "推理速度与资源占用取决于实际选择的设备"
+    - 由 GPT-SoVITS 自动选择最优设备
+    - 有可用 GPU 时倾向使用 GPU
+    - 推理速度与资源占用取决于实际选择的设备
   device_options:
-    cpu: "CPU 推理（推荐，默认）"
-    auto: "自动（由系统选择）"
-    cuda_half: "GPU 半精度（硬件加速）"
-    cuda: "GPU 全精度（高音质）"
-  low_spec_warning: "本机配置偏低，本地 TTS 资源消耗较大，建议使用云端 TTS 或谨慎启用。"
-  threads_label: "CPU 核心数"
-  machine_info: "本机配置"
-
+    cpu: CPU 推理（推荐，默认）
+    auto: 自动（由系统选择）
+    cuda_half: GPU 半精度（硬件加速）
+    cuda: GPU 全精度（高音质）
+  low_spec_warning: 本机配置偏低，本地 TTS 资源消耗较大，建议使用云端 TTS 或谨慎启用。
+  threads_label: CPU 核心数
+  machine_info: 本机配置
