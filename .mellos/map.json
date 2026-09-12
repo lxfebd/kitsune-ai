@@ -131,11 +131,11 @@
     },
     {
       "id": "executor-chat-bridge",
-      "label": "executor ↔ 聊天 打通（缺口）",
+      "label": "executor ↔ 聊天 打通（已落地）",
       "layer": "orchestrate-top",
-      "status": "planned",
-      "evidence": "调用图验证(codegraph，29k 节点)：createLoop 仅 createOverseerService 调用；runPlan 仅 handleSubPlan→runLevel 内部调用；electronExecutorRun(渲染层唯一触发入口)仅 ExecutorPanel.vue+overseer 自身消费；chat-sync executeIngest 调用链无任何边通向 executor。聊天工具链全通：App.vue L191-204 全局注册 desktop-automation/web-tools 进 llmToolsStore，llm.ts L57-70 builtinToolsResolver 每次请求注入 mcp()+debug()+spark+activeTools(MCP/插件)。",
-      "detail": "「能干活的监工」缺口修正：桌宠对话已能直接调工具干活（桌面自动化/网页/MCP/插件），不再是单工具。真正缺失的是对话意图→executor 计划/执行这条编排路径——让桌宠把用户请求拆成多步计划再执行。",
+      "status": "done",
+      "evidence": "2026-09-07 落地：新增 executor-tools.ts(renderer/stores/tools/builtin/)，注册 4 个全局聊天工具 executor_plan/run/stop/status 进 llmToolsStore(App.vue L199-208)，走 electronExecutorGenerate/Run/Stop/Status IPC 调主进程 handler(overseer/index.ts L1104-1128)→generatePlan/loop.runPlan。测试 executor-tools.test.ts 6/6 通过，typecheck exit=0，oxlint 0 错误。改造前调用图验证创建后缺口属实：createLoop 仅 createOverseerService 调用；runPlan 仅内部 handleSubPlan→runLevel；electronExecutorRun 仅 ExecutorPanel+overseer 消费。",
+      "detail": "「能干活的监工」关键缺口已修：对话 LLM 现在可直接 executor_plan 生成 DAG 计划→executor_run 交给编排闭环异步执行→electronExecutorEvent 流式回报。桌宠从「单工具调用」升级为「多步计划执行」。",
       "kind": "bridge"
     },
     {
@@ -190,8 +190,8 @@
     { "from": "chat-core", "to": "memory-bm25", "label": "偏好记忆读写" },
     { "from": "chat-core", "to": "mcp-client", "label": "MCP 工具注册(mcp-tools store)" },
     { "from": "chat-core", "to": "voice", "label": "听/说接入对话主循环" },
-    { "from": "chat-core", "to": "executor-chat-bridge", "label": "对话应能提出计划（幽灵）" },
-    { "from": "executor-chat-bridge", "to": "executor-loop", "label": "计划交给编排闭环（幽灵）" },
+    { "from": "chat-core", "to": "executor-chat-bridge", "label": "对话经 executor_plan/run 工具提出并执行计划" },
+    { "from": "executor-chat-bridge", "to": "executor-loop", "label": "electronExecutorRun→loop.runPlan" },
     { "from": "executor-loop", "to": "providers", "label": "规划(planGenerator/llmHelper)吃云端 key" },
     { "from": "executor-loop", "to": "task-pusher", "label": "CLI 路径 spawnCommand" },
     { "from": "executor-loop", "to": "koffi", "label": "desktop 路径 Win32 自动化" },
@@ -202,7 +202,7 @@
     { "from": "vision-verify", "to": "providers", "label": "视觉推理需多模态 LLM" },
     { "from": "desktop-shell", "to": "chat-core", "label": "chat/spotlight/overlay 页面驱动对话" },
     { "from": "desktop-shell", "to": "executor-loop", "label": "设置页 ExecutorPanel 手动触发" },
-    { "from": "desktop-shell", "to": "live2d-bridge", "label": "Live2D 演出（桥已断）" },
+    { "from": "desktop-shell", "to": "live2d-bridge", "label": "情绪经 petEmotionStore→Stage.vue 驱动演出" },
     { "from": "desktop-shell", "to": "channel-server", "label": "6121 进程内嵌" },
     { "from": "pet-mcp-server", "to": "executor-loop", "label": "triggerPetReaction→校验/限流/演出" },
     { "from": "multi-surface", "to": "channel-server", "label": "依赖 6121 协议" }

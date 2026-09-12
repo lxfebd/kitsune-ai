@@ -8,9 +8,19 @@
 #   default_headers:      额外请求头（如 context cache 专用 header）
 #   temperature:          采样温度；默认不写，由模型端决定
 
-active_provider: "xiaomi-claude"
+active_provider: "zcode-relay"
 
 providers:
+  # ── 用户自己的中转站（OpenAI 兼容，token 不限量）──
+  zcode-relay:
+    type: openai_compatible
+    display_name: ZCode 中转站
+    base_url: https://llm.941-fitness-studio.top/v1
+    model: deepseekv4-flash
+    api_key_env: ZCODE_RELAY_API_KEY
+    timeout_ms: 60000
+    max_completion_tokens: 16384
+
   # ── 本地推理模型（llamafile）──
   local:
     type: local

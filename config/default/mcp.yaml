@@ -49,7 +49,6 @@ servers:
       - -y
       - "@modelcontextprotocol/server-sqlite"
       - --db-path
-      # TODO: 待实现数据迁移逻辑（旧 airi.db → kitsune.db）
       # 默认落到进程工作目录下的数据文件；如需固定位置请显式改为绝对路径
       - "./data/kitsune.db"
     env: {}

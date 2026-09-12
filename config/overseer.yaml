@@ -1,13 +1,85 @@
-# Overseer 监工配置
-# 启用后监工服务会在应用启动时自动运行，监听任务事件并分发执行。
+# Overseer 监工配置 — 单一数据源
+#
+# 一份配置同时驱动三处，消灭「工具清单三套各说各话」的漂移：
+#   1. 感知层：Supervisor 用 detect 段探测各 agent 是否在跑
+#   2. 执行层：cli 段注册进 TaskPusher 运行时注册表（可派活），
+#      perceiveOnly: true 或没有 cli 段的工具只感知、不派活
+#   3. 编排层：coordinator/规划器从 tools[] 动态生成「可用工具清单」，
+#      不再硬编码 claude/codex/aider/vscode/intellij
+#
+# personality: 子 agent 画像（谁擅长什么），供 coordinator 拆活派活时选人。
+
 version: 1
 enabled: true
+# CLI 任务的合法 cwd 根目录，空数组=不限制（默认不限制，保持向后兼容）
+allowedRoots: []
+# 监控器轮询间隔（毫秒）
+pollInterval: 10000
+
+# ── 操作指导（guidance）──
+# 同类工具失败反复出现时（如 ZCode 的 File has not been read yet），桌宠基于内置规则库
+# 给出可操作的修复步骤，以事件流卡片 + 桌宠反应呈现（无系统弹窗）。
+guidance:
+  # 是否启用操作指导（设置页可运行时开关）
+  enabled: true
+  # 指导语言（zh-Hans / en），内置规则库双语内嵌，按此取文案
+  locale: zh-Hans
+  # 同一失败（source + 归一化错误信息）在窗口内累计多少次触发指导
+  threshold: 3
+  # 失败计数窗口（毫秒）— 窗口内未凑满阈值则重置
+  windowMs: 900000
+  # 同一条规则两次指导的最小间隔（毫秒）— 防刷屏
+  cooldownMs: 600000
+
+# ── 执行器参数（原来散落在代码里的硬编码，全部收进这里）──
+executor:
+  # 并行执行的最大任务数（loop 默认 maxConcurrency）
+  maxConcurrency: 3
+  # 非关键任务失败后的重试延迟（毫秒，依次递增）
+  retryDelaysMs: [2000, 4000, 8000]
+  # 子计划最大嵌套深度
+  maxSubPlanDepth: 3
+  # 动态调整（失败→替代任务）最大轮数
+  maxAdjustments: 3
+  # 单个计划任务总数上限
+  maxTasks: 20
+  # CLI 任务默认超时（毫秒）— 单任务未配 timeoutMs 时生效
+  cliTimeoutMs: 120000
+  # 桌面自动化任务外层硬超时（毫秒）
+  desktopTimeoutMs: 60000
+  # IDE 任务按 action 超时（毫秒）
+  ideTimeoutMs:
+    open_file: 10000
+    insert_code: 20000
+    run_command: 60000
+
 tools:
   - id: claude_code
     name: Claude Code
     type: process
     detect:
       processName: claude
+    personality:
+      strengths: [代码重构, 代码审查, commit 生成, 安全审计]
+      bestFor: 审查/重构/需要推理的代码任务
+      avoidFor: 大规模批量生成新文件
+      maxPromptLen: 2000
+    # cli 段：注册进 TaskPusher，获得 pushTask / autoFix 能力
+    cli:
+      binary: claude
+      timeoutMs: 120000
+      riskLevel: medium
+      templates:
+        - key: prompt
+          label: 发送指令
+          args: [--print]
+          inputParam: -p
+          maxLen: 2000
+        - key: prompt-json
+          label: 发送指令(结构化)
+          args: [--print, --output-format, json]
+          inputParam: -p
+          maxLen: 2000
     events:
       - permission_request
       - task_end
@@ -15,47 +87,211 @@ tools:
       - compile_failed
       - test_failed
     enabled: true
+
   - id: opencode
     name: Opencode
     type: process
     detect:
       processName: opencode
+    personality:
+      strengths: [全自动编码, 独立小任务批处理]
+      bestFor: 独立小任务批处理
+      avoidFor: 需要持续对话的复杂重构
+      maxPromptLen: 2000
+    cli:
+      binary: opencode
+      timeoutMs: 120000
+      riskLevel: medium
+      templates:
+        - key: prompt
+          label: 发送指令
+          args: [--print]
+          inputParam: null
+          maxLen: 2000
     events:
       - permission_request
       - task_end
       - task_failed
     enabled: true
+
   - id: trae
     name: Trae
     type: process
     detect:
       processName: trae
+    personality:
+      strengths: [IDE 内编辑, 代码补全, 文件操作]
+      bestFor: IDE 内的小修改与单文件编辑
+      avoidFor: 需要完整独立会话的大任务
+      maxPromptLen: 2000
+    cli:
+      binary: trae
+      timeoutMs: 30000
+      riskLevel: medium
+      templates:
+        - key: prompt
+          label: 发送指令到编辑器
+          args: [--goto]
+          inputParam: null
+          maxLen: 2000
+        - key: open
+          label: 打开文件
+          args: []
+          inputParam: null
+          maxLen: 500
     events:
       - permission_request
       - task_end
       - task_failed
     enabled: true
+
   - id: cursor
     name: Cursor
     type: process
     detect:
       processName: cursor
+    personality:
+      strengths: [IDE 内编辑, 代码补全, 文件操作]
+      bestFor: IDE 内的小修改与单文件编辑
+      avoidFor: 需要完整独立会话的大任务
+      maxPromptLen: 2000
+    cli:
+      binary: cursor
+      timeoutMs: 30000
+      riskLevel: medium
+      templates:
+        - key: prompt
+          label: 发送指令到编辑器
+          args: [--goto]
+          inputParam: null
+          maxLen: 2000
+        - key: open
+          label: 打开文件
+          args: []
+          inputParam: null
+          maxLen: 500
     events:
       - permission_request
       - task_end
       - task_failed
     enabled: true
+
   - id: codex
     name: OpenAI Codex
     type: process
     detect:
       processName: codex
+    personality:
+      strengths: [全自动编码, 独立小任务批处理]
+      bestFor: 全自动小任务（配合 --full-auto 使用）
+      avoidFor: 需要人工确认的长会话
+      maxPromptLen: 2000
+    cli:
+      binary: codex
+      timeoutMs: 120000
+      riskLevel: high
+      templates:
+        - key: prompt
+          label: 发送指令
+          args: [--quiet]
+          inputParam: null
+          maxLen: 2000
+        - key: full-auto
+          label: 全自动模式
+          args: [--full-auto]
+          inputParam: null
+          maxLen: 2000
     events:
       - permission_request
       - task_end
       - task_failed
     enabled: true
-# CLI 任务的合法 cwd 根目录，空数组=不限制
-allowedRoots: []
-# 监控器轮询间隔（毫秒）
-pollInterval: 10000
+
+  - id: zcode
+    name: ZCode
+    type: process
+    detect:
+      processName: zcode
+    personality:
+      strengths: [会话式编程助手, 与用户实时协作]
+      bestFor: 需要用户实时参与的交互式任务
+      avoidFor: 无人值守的批量任务
+      maxPromptLen: 2000
+    # zcode 没有可用的 CLI（which zcode 为空）→ perceiveOnly 只感知不派活，
+    # coordinator/规划器不会把活派给它。MCP 上报通道仍可感知它的活动。
+    perceiveOnly: true
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+
+  - id: workbuddy
+    name: Workbuddy
+    type: process
+    detect:
+      processName: workbuddy
+    personality:
+      strengths: [日常开发协作, 简单修改]
+      bestFor: 日常小修改与协作
+      avoidFor: 复杂多步骤任务
+      maxPromptLen: 2000
+    perceiveOnly: true
+    events:
+      - permission_request
+      - task_end
+      - task_failed
+    enabled: true
+
+  # workforce: 预留的可扩展 agent（按需取消注释）
+  # - id: windsurf
+  #   name: Windsurf
+  #   type: process
+  #   detect:
+  #     processName: windsurf
+  #   personality:
+  #     strengths: [IDE 内编辑, 代码补全]
+  #     bestFor: IDE 内的小修改
+  #     avoidFor: 需要完整独立会话的大任务
+  #     maxPromptLen: 2000
+  #   cli:
+  #     binary: windsurf
+  #     timeoutMs: 30000
+  #     riskLevel: medium
+  #     templates:
+  #       - key: prompt
+  #         label: 发送指令到编辑器
+  #         args: [--goto]
+  #         inputParam: null
+  #         maxLen: 2000
+  #   events:
+  #     - permission_request
+  #     - task_end
+  #     - task_failed
+  #   enabled: true
+
+  # - id: aider
+  #   name: Aider
+  #   type: process
+  #   detect:
+  #     processName: aider
+  #   personality:
+  #     strengths: [全自动编码, 独立小任务批处理]
+  #     bestFor: 全自动小任务
+  #     avoidFor: 需要人工确认的长会话
+  #     maxPromptLen: 2000
+  #   cli:
+  #     binary: aider
+  #     timeoutMs: 120000
+  #     riskLevel: high
+  #     templates:
+  #       - key: prompt
+  #         label: 发送指令
+  #         args: [--message]
+  #         inputParam: null
+  #         maxLen: 2000
+  #   events:
+  #     - permission_request
+  #     - task_end
+  #     - task_failed
+  #   enabled: true
