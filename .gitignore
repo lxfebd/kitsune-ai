@@ -54,6 +54,12 @@ patchidx.cjs
 .trae
 .zed
 
+# 桌宠运行时数据目录（运行时生成，禁止入仓）
+# apps/stage-tamagotchi/.kitsune/ —— 计划投放/评审/裁决目录（i18n 文案指示用户投放 plan JSON 于此）
+# apps/stage-tamagotchi/storage/  —— agent-api 写 secrets 凭据、token-usage 写用量统计；storage/secrets 含真实 API key，必须忽略
+apps/stage-tamagotchi/.kitsune/
+apps/stage-tamagotchi/storage/
+
 # 内部/配置目录（最终决定提交）
 # .agents/  -> 提交（技能定义）
 # .github/ -> 提交（CI/CD）
@@ -98,6 +104,12 @@ diag-*.mjs
 *_check.png
 *_capture.png
 capture_screen.ps1
+# 冒烟/截图调试产物（2026-09-15/16 桌面联动验证遗留）
+smoke-dsh.txt
+dsh-executor-smoke.txt
+pipeline-shot.png
+# 桌面窗口枚举现场调试脚本（一次性生成，不提交；自述 head 产物）
+enum-live.mjs
 
 # 内部开发文档（含计划/进度/隐私信息，不入仓）
 docs/
