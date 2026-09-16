@@ -37,6 +37,7 @@ widgets:
 notice:
   'fade-on-hover':
     title: 悬停淡出
+    tutorial: 教程
     intro: 当光标靠近时自动让角色透明度变淡，减少干扰又保持可见。
     opacity: 开启后，当光标靠近时， {targets} 的不透明度会降到 {value}。
     toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
@@ -102,6 +103,29 @@ about:
 spotlight:
   placeholder: 问问 Kitsune AI…
 
+# inlay 窗口（托盘 Spotlight 调试窗）
+inlay:
+  title: Spotlight
+  description: 这是 Spotlight 调试页面
+  vibrancy-label: 毛玻璃效果
+  vibrancy-desc: 设置窗口的毛玻璃效果
+  material-label: 背景材质
+  material-desc: 设置窗口的背景材质
+  widgets:
+    token-title: Token 消耗
+    token-today: 今日
+    token-total: 累计
+    requests: 次请求
+    workflow-title: 执行工作流
+    running: 运行中
+    idle: 空闲
+    no-plan: 暂无计划
+    current-task: 当前任务
+    dsh-title: dsh 派工
+    online: 在线
+    offline: 离线
+    pushed: 已派发
+
 interactive-area:
   save: 保存
 settings:
@@ -109,6 +133,7 @@ settings:
   window-minimize: 最小化
   window-maximize: 最大化
   back: 返回
+  search-placeholder: 搜索设置…
 title-bar:
   close: 关闭
   minimize: 最小化

@@ -94,14 +94,15 @@ const sourceCounts = computed(() => ({
 
 function getShareLabel(source: { id: string }) {
   if (isDisplaySource(source))
-    return 'Share Screen'
-  return 'Share Window'
+    return t('tamagotchi.settings.devtools.pages.screen-capture.share-screen')
+  return t('tamagotchi.settings.devtools.pages.screen-capture.share-window')
 }
 
 const statusLabel = computed(() => {
+  const v = 'tamagotchi.settings.devtools.pages.vision'
   if (isRunning.value)
-    return isProcessing.value ? 'Processing...' : 'Streaming'
-  return activeStream.value ? 'Ready' : 'Idle'
+    return isProcessing.value ? t(`${v}.status-processing`) : t(`${v}.status-streaming`)
+  return activeStream.value ? t(`${v}.status-ready`) : t(`${v}.status-idle`)
 })
 
 const isInitialLoading = computed(() => !hasFetchedOnce.value && isRefetching.value)
@@ -279,10 +280,10 @@ onBeforeUnmount(() => {
         <div :class="['flex', 'items-center', 'justify-between', 'rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
           <div :class="['flex', 'flex-col', 'gap-1']">
             <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-              Vision model
+              {{ t('tamagotchi.settings.devtools.pages.vision.vision-model') }}
             </div>
             <div :class="['text-lg', 'font-semibold']">
-              {{ activeModel || 'Not configured' }}
+              {{ activeModel || t('tamagotchi.settings.devtools.pages.vision.not-configured') }}
             </div>
           </div>
           <div :class="['text-sm', 'text-neutral-400']">
@@ -323,7 +324,7 @@ onBeforeUnmount(() => {
               >
                 <div :class="['i-solar:stop-line-duotone']" />
                 <div :class="['text-sm']">
-                  Stop
+                  {{ t('tamagotchi.settings.devtools.pages.vision.stop') }}
                 </div>
               </div>
               <video
@@ -472,7 +473,7 @@ onBeforeUnmount(() => {
               <div :class="['flex', 'flex-col', 'gap-4']">
                 <div :class="['flex', 'items-center', 'justify-between']">
                   <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-                    Ticker controls
+                    {{ t('tamagotchi.settings.devtools.pages.vision.ticker-controls') }}
                   </div>
                   <div :class="['text-xs', 'text-neutral-400']">
                     {{ statusLabel }}
@@ -621,10 +622,10 @@ onBeforeUnmount(() => {
         ]"
       >
         <div>
-          Screen capture permissions are required to use vision capture.
+          {{ t('tamagotchi.settings.devtools.pages.vision.screen-capture-permission-required') }}
         </div>
         <Button @click="requestPermission()">
-          Open system preferences
+          {{ t('tamagotchi.settings.devtools.pages.vision.open-system-preferences') }}
         </Button>
       </div>
     </template>

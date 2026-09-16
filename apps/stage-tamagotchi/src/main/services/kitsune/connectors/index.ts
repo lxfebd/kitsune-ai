@@ -46,10 +46,22 @@ function tryParseEvent(text: string): { type: string, data: any } | null {
   return null
 }
 
-function buildTaskExecuteMessage(task: ConnectorTask): string {
+function buildTaskExecuteMessage(task: ConnectorTask, taskId: string): string {
   return JSON.stringify({
     type: 'task:execute',
-    data: { type: task.type, payload: task.payload ?? {} },
+    data: {
+      // NOTICE: taskId 必须注入到 data 顶层 — 插件端 executeTask 从 payload.taskId 解构
+      // 回执 task:result.taskId 回传同一值，主进程 taskRunner 靠它匹配回执。
+      // 之前漏掉该字段，导致插件回执 taskId 为空、IDE 任务永远超时。
+      taskId,
+      // NOTICE: 动作参数必须平铺到 data 顶层 — vscode-kitsune / intellij-kitsune 的
+      // executeTask / parseTaskExecute 都从 payload.path / payload.code / payload.command
+      // 读取（不认嵌套 payload 子对象）。之前包成 { payload: {...} } 导致参数全丢。
+      ...task.payload,
+      // 权威字段：type 与 taskId 必须落在 data 顶层且不被 payload 同名键覆盖，
+      // 否则插件会把 taskId 当动作参数、或 payload.type 覆盖任务动作。
+      type: task.type,
+    },
     metadata: {
       source: { id: HOST_SOURCE_ID },
       event: { id: randomUUID() },
@@ -60,7 +72,9 @@ function buildTaskExecuteMessage(task: ConnectorTask): string {
 export interface ConnectorService {
   listConnectors: () => ConnectorInfo[]
   getStatus: (id: string) => ConnectorInfo | null
-  sendTask: (id: string, task: ConnectorTask) => { ok: boolean, error?: string }
+  // taskId: 本次注入到 task:execute 的收据 key — 插件回执 task:result.taskId 回传同一值。
+  // executor 用它在 taskRunner 里匹配回执，务必读该字段而非自行生成。
+  sendTask: (id: string, task: ConnectorTask) => { ok: boolean, error?: string, taskId?: string }
   dispose: () => void
 }
 
@@ -204,12 +218,15 @@ export function createConnectorService(params: { context: MainContext, serverCha
     if (!connector)
       return { ok: false, error: `Connector not found: ${req?.id ?? ''}` }
 
-    const sent = serverChannel.sendToPeer(connector.peerId, buildTaskExecuteMessage(req.task))
+    // 调用方未提供 taskId 时生成（供回执匹配；executor 侧会用自己的 task.id 覆盖）
+    const taskId = (req?.task?.payload as Record<string, unknown> | undefined)?.taskId as string | undefined
+      ?? randomUUID()
+    const sent = serverChannel.sendToPeer(connector.peerId, buildTaskExecuteMessage(req.task, taskId))
     if (!sent)
       return { ok: false, error: 'Peer disconnected' }
 
-    log.withFields({ connectorId: connector.id, peerId: connector.peerId, taskType: req.task.type }).log('task sent')
-    return { ok: true }
+    log.withFields({ connectorId: connector.id, peerId: connector.peerId, taskType: req.task.type, taskId }).log('task sent')
+    return { ok: true, taskId }
   })
 
   log.log('connector service started')
@@ -221,8 +238,11 @@ export function createConnectorService(params: { context: MainContext, serverCha
       const connector = connectors.get(id)
       if (!connector)
         return { ok: false, error: `Connector not found: ${id}` }
-      const sent = serverChannel.sendToPeer(connector.peerId, buildTaskExecuteMessage(task))
-      return sent ? { ok: true } : { ok: false, error: 'Peer disconnected' }
+      // 生成 taskId（调用方可通过 task.payload.taskId 显式指定），但绝不会把该字段
+      // 塞回 payload 平铺给插件 — buildTaskExecuteMessage 负责把 taskId 落到 data 顶层。
+      const taskId = (task.payload as Record<string, unknown> | undefined)?.taskId as string | undefined ?? randomUUID()
+      const sent = serverChannel.sendToPeer(connector.peerId, buildTaskExecuteMessage(task, taskId))
+      return sent ? { ok: true, taskId } : { ok: false, error: 'Peer disconnected' }
     },
     dispose: () => {
       unsubMessage()

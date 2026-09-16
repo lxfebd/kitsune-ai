@@ -178,6 +178,14 @@ export default defineConfig({
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
 
+    // 固定 dev server 端口：本机 5173 常被其他前端项目（如 AIFaceX）占用，
+    // electron-vite 会自动跳到 5174，但 main 进程加载的 ELECTRON_RENDERER_URL 仍写死 5173，
+    // 导致桌宠窗口加载到别的项目的页面。固定 5174 + strictPort 让两端一致。
+    server: {
+      port: 5174,
+      strictPort: true,
+    },
+
     build: {
       rolldownOptions: {
         input: {
@@ -195,8 +203,6 @@ export default defineConfig({
       exclude: [
         // Internal Packages
         '@kitsune/stage-ui/*',
-        '@proj-airi/drizzle-duckdb-wasm',
-        '@proj-airi/drizzle-duckdb-wasm/*',
         '@kitsune/electron-screen-capture',
 
         // Static Assets: Models, Images, etc.

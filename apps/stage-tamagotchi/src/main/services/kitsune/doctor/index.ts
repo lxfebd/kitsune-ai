@@ -8,7 +8,7 @@ import { X509Certificate } from 'node:crypto'
 import { access, appendFile, constants, mkdir, readFile, readdir, statfs, unlink } from 'node:fs/promises'
 import { cpus, freemem, platform, totalmem } from 'node:os'
 import { createConnection } from 'node:net'
-import { join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
 import { env } from 'node:process'
 import { promisify } from 'node:util'
 
@@ -273,6 +273,19 @@ async function checkTtsEndpoints(sidecar: SidecarService): Promise<DoctorResult>
   }
 }
 
+/** 在 PATH 中查找可执行命令（Windows 用 where，其余用 which）。 */
+async function findOnPath(cmd: string): Promise<string | null> {
+  const finder = platform() === 'win32' ? 'where' : 'which'
+  try {
+    const { stdout } = await execFile(finder, [cmd], { timeout: 5000, encoding: 'utf8' })
+    const first = String(stdout).split(/\r?\n/).map(s => s.trim()).find(Boolean)
+    return first ?? null
+  }
+  catch {
+    return null
+  }
+}
+
 async function checkMcpConnectivity(): Promise<DoctorResult> {
   const result = await readYaml<McpConfig>(join(getConfigDir(), 'mcp.yaml'))
   if (!result.ok)
@@ -283,7 +296,34 @@ async function checkMcpConnectivity(): Promise<DoctorResult> {
     return { category: 'connectivity', level: 'PASS', detail: 'no MCP servers configured' }
 
   const enabled = servers.filter(s => s && s.enabled !== false)
-  // mcp.yaml 全部为 stdio transport，端口连通性不适用；运行时由 mcp-servers 服务管理
+  // mcp.yaml 全部为 stdio transport，端口连通性不适用；但至少要确认 command 可执行，
+  // 否则配置了却永远起不来就是"空头支票"。缺失的命令由 mcp-servers 服务运行时管理，
+  // 这里只做静态可执行性探测。
+  const missingBins: string[] = []
+  for (const server of enabled) {
+    const cmd = typeof server === 'string' ? server : (server as { command?: string }).command
+    if (!cmd)
+      continue
+    // 绝对路径直接查文件存在性；裸命令走 which/where 探测
+    if (isAbsolute(cmd)) {
+      const ok = await access(cmd, constants.X_OK).then(() => true, () => false)
+      if (!ok)
+        missingBins.push(cmd)
+    }
+    else {
+      const found = await findOnPath(cmd)
+      if (!found)
+        missingBins.push(cmd)
+    }
+  }
+  if (missingBins.length) {
+    return {
+      category: 'connectivity',
+      level: 'WARN',
+      detail: `MCP server binary not found on PATH: ${missingBins.join(', ')}`,
+      suggestion: 'install the binary or fix command path in config/mcp.yaml',
+    }
+  }
   return {
     category: 'connectivity',
     level: 'PASS',
@@ -1216,6 +1256,7 @@ async function checkComfyui(sidecar: SidecarService): Promise<DoctorResult[]> {
             level: 'WARN',
             detail: `ComfyUI HTTP check returned ${res.status}`,
             suggestion: 'restart ComfyUI sidecar',
+            fixPayload: { sidecarId: 'comfyui' },
           })
         }
       }
@@ -1225,6 +1266,7 @@ async function checkComfyui(sidecar: SidecarService): Promise<DoctorResult[]> {
           level: 'WARN',
           detail: 'ComfyUI HTTP check failed (process running but API unreachable)',
           suggestion: 'restart ComfyUI sidecar',
+          fixPayload: { sidecarId: 'comfyui' },
         })
       }
     }
@@ -1284,20 +1326,35 @@ async function writeDoctorLog(results: DoctorResult[]): Promise<void> {
 
 // ---- 自动修复 ----
 
+const SIDECAR_READY_POLL_MS = 800
+const SIDECAR_READY_MAX_TRIES = 3
+
+/** 重启后轮询 sidecar 健康检查，确认进程存活且 HTTP API 就绪，避免"假绿"。 */
+async function waitForSidecarHealthy(sidecar: SidecarService, id: string): Promise<boolean> {
+  for (let i = 0; i < SIDECAR_READY_MAX_TRIES; i++) {
+    const health = await sidecar.healthCheck(id).then(h => h, () => null)
+    if (health?.healthy)
+      return true
+    await new Promise(resolve => setTimeout(resolve, SIDECAR_READY_POLL_MS))
+  }
+  return false
+}
+
 async function fixIssues(sidecar: SidecarService, results: DoctorResult[], overseerService: OverseerService | null): Promise<FixResult[]> {
-  // 修复 FAIL 级别 + 特定 WARN 级别（permissions、tls、overseer）
+  // 修复 FAIL 级别 + 特定 WARN 级别（permissions、tls、overseer、带 sidecarId 的 comfyui）
   const fixable = results.filter(r =>
     r.level === 'FAIL'
     || (r.level === 'WARN' && r.category === 'permissions')
     || (r.level === 'WARN' && r.category === 'tls')
-    || (r.level === 'WARN' && r.category === 'overseer'),
+    || (r.level === 'WARN' && r.category === 'overseer')
+    || (r.level === 'WARN' && r.category === 'comfyui' && r.fixPayload?.sidecarId),
   )
   return Promise.all(fixable.map(r => fixOne(sidecar, r, overseerService)))
 }
 
 async function fixOne(sidecar: SidecarService, result: DoctorResult, overseerService: OverseerService | null): Promise<FixResult> {
-  if (result.category === 'sidecar') {
-    // sidecar unhealthy → restart; id comes from structured fixPayload, not regex
+  if (result.category === 'sidecar' || result.category === 'comfyui') {
+    // sidecar / comfyui 不健康 → 重启；id 来自结构化 fixPayload，而非正则
     const id = result.fixPayload?.sidecarId
     if (!id)
       return { category: result.category, level: 'MANUAL', detail: 'no sidecar id in fixPayload, cannot restart' }
@@ -1308,7 +1365,11 @@ async function fixOne(sidecar: SidecarService, result: DoctorResult, overseerSer
     )
     if (!restartResult.ok)
       return { category: result.category, level: 'MANUAL', detail: `sidecar ${id} restart failed: ${restartResult.error}` }
-    return { category: result.category, level: 'FIXED', detail: `sidecar ${id} restarted` }
+    // 重启后轮询健康检查，确认进程存活 + HTTP API 就绪，避免"假绿"
+    const healthy = await waitForSidecarHealthy(sidecar, id)
+    if (!healthy)
+      return { category: result.category, level: 'MANUAL', detail: `sidecar ${id} restarted but not healthy yet, please check logs` }
+    return { category: result.category, level: 'FIXED', detail: `sidecar ${id} restarted and healthy` }
   }
 
   if (result.category === 'permissions') {

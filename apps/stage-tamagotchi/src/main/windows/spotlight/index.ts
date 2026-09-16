@@ -27,7 +27,8 @@ import { createReusableWindow } from '../../libs/electron/window-manager'
 import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
 const SPOTLIGHT_WINDOW_WIDTH = 720
-const SPOTLIGHT_WINDOW_HEIGHT = 100
+// 高度需容纳顶部小部件行（token 消耗 / 执行工作流 / dsh 派工）+ 输入条
+const SPOTLIGHT_WINDOW_HEIGHT = 260
 const SPOTLIGHT_SHORTCUT_ID = 'spotlight'
 const defaultSpotlightAccelerator: ShortcutAccelerator = { modifiers: ['ctrl', 'shift'], key: 'KeyA' }
 

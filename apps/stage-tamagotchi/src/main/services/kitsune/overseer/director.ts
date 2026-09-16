@@ -14,7 +14,7 @@
  * 这样总监与执行器解耦：总监只审不执行，执行队列仍由 executor 管。
  */
 
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
@@ -62,11 +62,14 @@ interface ReviewResult {
 }
 
 const SYSTEM_PROMPT = `你是桌宠的"总监"。外部 AI 工具把一份计划（PLAN）交给你评审。
-你的职责是决定它是否值得执行：是否目标明确、任务拆分是否合理、是否有明显遗漏或风险。
+你的职责是判断它是否值得执行：目标是否明确、任务拆分是否合理、有无明显遗漏或风险。
+评审标准：计划只要目标清晰、任务可执行、无明显风险，就应当通过（approved）；
+只有在存在会导致执行失败或产出不可用的实质缺陷时，才驳回（rejected）。
+不要因为"可以做得更好"就驳回 —— 那是优化建议，不是缺陷。
 输出格式必须是 JSON，仅含两个字段：
 {
   "verdict": "approved" 或 "rejected",
-  "feedback": "不超过 8 句话的评审意见，指出亮点与问题；approved 时给出可执行建议，rejected 时说明缺什么"
+  "feedback": "不超过 8 句话的评审意见；approved 时给可执行建议，rejected 时明确指出缺什么、怎么改"
 }`
 
 function buildPlanPrompt(plan: PlanIR): string {
@@ -85,16 +88,24 @@ function buildPlanPrompt(plan: PlanIR): string {
   ].join('\n')
 }
 
-/** 提取纯 JSON（容忍 ```json 围栏）。 */
+/** 提取纯 JSON（容忍 ```json 围栏与前后缀说明文字）。 */
 function extractJson(text: string): string {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  return match ? match[1].trim() : text.trim()
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fenced)
+    return fenced[1].trim()
+  // 无围栏：从第一个 { 到最后一个 } 截取（LLM 常在 JSON 前后夹带说明文字）
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start !== -1 && end > start)
+    return text.slice(start, end + 1).trim()
+  return text.trim()
 }
 
 /** 解析 LLM 输出为 ReviewResult；解析失败时按 rejected 兜底（安全方向：宁可打回也不放行）。 */
 export function parseReviewResult(text: string | undefined): ReviewResult {
   try {
-    if (!text) throw new Error('空响应')
+    if (!text)
+      throw new Error('空响应')
     const parsed = JSON.parse(extractJson(text))
     const verdict = parsed.verdict === 'approved' ? 'approved' : 'rejected'
     return {
@@ -355,6 +366,93 @@ export function directorReject(planId: string, reason: string): { ok: boolean, v
   } catch (e) {
     return { ok: false, error: `verdict 写入失败: ${e instanceof Error ? e.message : String(e)}` }
   }
+}
+
+// ——— 修订通道（revise）———
+// 总监「驳回」之后，桌宠不能只打回 —— 用户要的是把计划改成能用的样子。
+// revise 把原计划 + 评审意见交给 LLM，生成修订后的任务清单，写回同一 plan 文件并
+// 清空旧 verdict（回到 pending），外部 agent / 用户可再次提审。改动只落到
+// .kitsune/plans/ 目录，不触碰执行器本身（与总监「只评审不执行」边界一致）。
+
+const REVISE_SYSTEM_PROMPT = `你是桌宠的"总监"助理。桌宠驳回了一份计划，现在需要你根据评审意见修订它。
+计划文件里 requirement 保持不变，只允许增删改 tasks（保持 tasks 的字段结构：
+title/type/id/critical/dependsOn/prompt 等原有字段形式）。
+输出必须是 JSON，仅含一个字段 "tasks"（修订后的任务数组）。
+任务之间可用 dependsOn 表达依赖；关键任务（失败必须停）标 critical: true。`
+
+function buildRevisePrompt(plan: PlanIR, feedback: string): string {
+  const tasks = plan.tasks
+    .map((t, i) => `  ${i + 1}. [${t.type}] ${t.title}`)
+    .join('\n')
+  return [
+    '原计划：',
+    `ID: ${plan.id}`,
+    `需求: ${plan.requirement}`,
+    '任务列表：',
+    tasks,
+    '',
+    `评审意见：${feedback}`,
+    '',
+    '请按评审意见修订任务列表，输出 JSON（只输出 JSON）。',
+  ].join('\n')
+}
+
+/**
+ * 修订一份已驳回的计划：LLM 按评审 feedback 生成新任务清单，写回 plan 文件并清空 verdict。
+ * 返回修订后的计划；失败时不落盘。
+ */
+export async function directorRevise(
+  planId: string,
+): Promise<{ ok: boolean, plan?: PlanIR, error?: string }> {
+  ensureDirs()
+  const files = listPlanFiles()
+  const file = files.find((f) => readPlanFile(f)?.id === planId)
+  if (!file) {
+    // 未找到指定 ID 时按"最新计划"兜底（与 approve/reject 行为一致）
+    if (files.length > 0)
+      return directorRevise(readPlanFile(files[0])!.id)
+    return { ok: false, error: `未找到计划 ID: ${planId || '(空)'}` }
+  }
+
+  const plan = readPlanFile(file)
+  if (!plan)
+    return { ok: false, error: '计划文件无法解析' }
+
+  const verdict = readVerdict(plan.id)
+  if (!verdict || verdict.verdict !== 'rejected') {
+    // 只允许修订被驳回的计划（approved 直接放行，无修订必要）
+    return { ok: false, error: `计划 ${plan.id} 当前无需修订（verdict: ${verdict?.verdict ?? '无'}）` }
+  }
+
+  const llmResult = await callLlm(REVISE_SYSTEM_PROMPT, buildRevisePrompt(plan, verdict.reason))
+  if (!llmResult.ok)
+    return { ok: false, error: llmResult.error }
+
+  let parsed: { tasks?: PlannerTask[] } | null = null
+  try {
+    if (!llmResult.text)
+      return { ok: false, error: '修订响应为空' }
+    parsed = JSON.parse(extractJson(llmResult.text))
+  }
+  catch {
+    return { ok: false, error: '修订响应无法解析（非 JSON）' }
+  }
+  const newTasks = parsed?.tasks
+  if (!Array.isArray(newTasks) || newTasks.length === 0)
+    return { ok: false, error: '修订结果 tasks 缺失或为空' }
+
+  const revised: PlanIR = { ...plan, tasks: newTasks, status: 'pending' }
+  try {
+    writeFileSync(file, JSON.stringify(revised, null, 2), 'utf8')
+    // 清空旧 verdict（回到待评审）
+    try { unlinkSync(join(VERDICTS_DIR, `${plan.id}.json`)) } catch { /* verdict 不存在则跳过 */ }
+  }
+  catch (e) {
+    return { ok: false, error: `修订写入失败: ${e instanceof Error ? e.message : String(e)}` }
+  }
+
+  log.log('plan revised', { planId: plan.id, taskCount: newTasks.length })
+  return { ok: true, plan: revised }
 }
 
 /** 在内存中模拟一个 PlanIR（便于测试/演示），不落盘。 */

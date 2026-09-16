@@ -37,6 +37,36 @@ describe('createLoop — user-declined permission handling', () => {
     emit.mockReset()
   })
 
+  /** 受信来源（needsConfirm=false）+ 非高风险 → 直接执行，不弹确认 */
+  it('trusted source runs directly without confirmation', async () => {
+    const runner = {
+      runTask: vi.fn().mockResolvedValue({ taskId: 't1', ok: true, output: 'done', durationMs: 10 } as TaskResult),
+    }
+    const permission = {
+      needsConfirm: vi.fn(() => false),
+      addToWhitelist: vi.fn(),
+      isHighRisk: vi.fn(() => false),
+    }
+
+    const loop = createLoop({
+      runner,
+      permission,
+      checkAcceptance: async () => ({ ok: true }),
+      emit,
+      confirmRequest,
+      killRunningTask: vi.fn(),
+      onTaskCompleted: vi.fn(),
+      onPlanCompleted: vi.fn(),
+      onTaskFailed: async () => undefined,
+    })
+
+    await loop.runPlan(makePlan({ tasks: [makeTask()] }))
+
+    expect(runner.runTask).toHaveBeenCalledTimes(1)
+    expect(confirmRequest).toHaveBeenCalledTimes(0)
+    expect(permission.needsConfirm).toHaveBeenCalledTimes(1)
+  })
+
   /** 权限需要确认，但用户拒绝 → 任务不再重试、不再弹第二次确认框 */
   it('does not retry a task the user declined', async () => {
     const runner = {
@@ -162,5 +192,76 @@ describe('createLoop — 事件载荷结果截断 (E1)', () => {
 
     const completed = emit.mock.calls.find(([type]) => type === 'task_completed')
     expect((completed![1]!.result as TaskResult).output).toBe('all good')
+  })
+})
+describe('createLoop — 最终失败结果回喂 (onTaskFailedFinal)', () => {
+  const emit = vi.fn()
+  const confirmRequest = vi.fn()
+
+  beforeEach(() => {
+    emit.mockReset()
+    confirmRequest.mockReset()
+  })
+
+  it('重试全部耗尽后调用 onTaskFailedFinal 回喂最终失败结果', async () => {
+    const runner = {
+      runTask: vi.fn().mockResolvedValue({ taskId: 't1', ok: false, error: 'cmd not found', durationMs: 1 } as TaskResult),
+    }
+    const permission = { needsConfirm: vi.fn(() => false), addToWhitelist: vi.fn(), isHighRisk: vi.fn(() => false) }
+    const onTaskFailedFinal = vi.fn()
+
+    const loop = createLoop({
+      runner,
+      permission,
+      checkAcceptance: async () => ({ ok: true }),
+      emit,
+      confirmRequest: vi.fn(),
+      killRunningTask: vi.fn(),
+      onTaskCompleted: vi.fn(),
+      onPlanCompleted: vi.fn(),
+      onTaskFailed: async () => undefined,
+      onTaskFailedFinal,
+    })
+
+    await loop.runPlan(makePlan({ tasks: [makeTask()] }))
+
+    expect(onTaskFailedFinal).toHaveBeenCalledTimes(1)
+    const [task, result] = onTaskFailedFinal.mock.calls[0] as [Task, TaskResult, number]
+    expect(task.id).toBe('t1')
+    expect(result.ok).toBe(false)
+    expect(result.error).toBe('cmd not found')
+    // 失败仍发 task_failed 事件
+    expect(emit.mock.calls.some(([type]) => type === 'task_failed')).toBe(true)
+  }, 20_000)
+
+  it('用户拒绝/超时自动拒绝也触发 onTaskFailedFinal 回喂（终态清 busy）', async () => {
+    const runner = {
+      runTask: vi.fn().mockResolvedValue({ taskId: 't1', ok: false, error: '用户拒绝', durationMs: 0 } as TaskResult),
+    }
+    const permission = { needsConfirm: vi.fn(() => true), addToWhitelist: vi.fn(), isHighRisk: vi.fn(() => false) }
+    confirmRequest.mockResolvedValue({ approved: false, addToWhitelist: false })
+    const onTaskFailedFinal = vi.fn()
+
+    const loop = createLoop({
+      runner,
+      permission,
+      checkAcceptance: async () => ({ ok: true }),
+      emit,
+      confirmRequest,
+      killRunningTask: vi.fn(),
+      onTaskCompleted: vi.fn(),
+      onPlanCompleted: vi.fn(),
+      onTaskFailed: async () => undefined,
+      onTaskFailedFinal,
+    })
+
+    await loop.runPlan(makePlan({ tasks: [makeTask()] }))
+
+    // 拒绝即终态：确认只弹一次，且结果回喂编排者（清除 busy/回填失败）
+    expect(confirmRequest).toHaveBeenCalledTimes(1)
+    expect(onTaskFailedFinal).toHaveBeenCalledTimes(1)
+    const [task, result] = onTaskFailedFinal.mock.calls[0] as [Task, TaskResult, number]
+    expect(task.id).toBe('t1')
+    expect(result.error).toBe('用户拒绝')
   })
 })

@@ -136,9 +136,17 @@ export const settingsGroups: SettingsGroup[] = [
     descriptionKey: 'settings.groups.run.description',
     members: [
       {
+        id: 'pipeline',
+        labelKey: 'settings.nav.pipeline',
+        icon: 'i-solar:diagram-up-bold-duotone',
+        to: '/settings/pipeline',
+        descriptionKey: 'settings.groups.cards.pipeline.description',
+        match: ['/settings/pipeline'],
+      },
+      {
         id: 'director',
         labelKey: 'settings.nav.director',
-        icon: 'i-solar:user-id-bold-duotone',
+        icon: 'i-solar:clipboard-check-bold-duotone',
         to: '/settings/director',
         descriptionKey: 'settings.groups.cards.director.description',
         match: ['/settings/director'],
@@ -146,7 +154,7 @@ export const settingsGroups: SettingsGroup[] = [
       {
         id: 'executor',
         labelKey: 'settings.nav.executor',
-        icon: 'i-solar:diagram-up-bold-duotone',
+        icon: 'i-solar:play-bold-duotone',
         to: '/settings/executor',
         descriptionKey: 'settings.groups.cards.executor.description',
         match: ['/settings/executor'],

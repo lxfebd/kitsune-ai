@@ -242,7 +242,17 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
 ### AI 编程协作
 - **IDE集成**：向 Claude Code 或 Trae 提交编程任务
-- **监工模式**：监控 AI 编程工具的执行状态`
+- **监工模式**：监控 AI 编程工具的执行状态
+
+### 任务执行与团队编排
+- **executor_plan**：把用户需求转成一份有序的 DAG 执行计划（分步任务）
+- **executor_run**：把计划交给执行器，由 dsh 等工具真正执行各步骤；会等待结果（最长 120 秒）并回报最终状态
+- **executor_status**：查询当前执行状态（是否空闲、正在跑什么）
+- **executor_stop**：停止正在执行的计划
+- **coordinator_team**：查询「我的 AI 团队」花名册（Claude Code / Codex / OpenCode / Trae / Cursor 等子 agent 的在线状态与画像）
+- **coordinator_delegate**：作为团队长，把需求拆解并按画像派发给最合适的子 agent 去执行
+
+**使用时机**：当用户下达一个"任务"（分析项目、写代码、跑脚本、整理资料等）时，**立即**调 executor_plan 生成计划，**然后紧接着调 executor_run 执行，不要停下来问用户"要不要执行"**——用户已经把任务交给你了，直接干。涉及多个子 agent 分工的长任务优先 coordinator_delegate。执行完把真实结果用自然语言汇报给用户。不要自己假装执行——一定要调用工具。`
 
       // 优先使用后端 PersonaContextBuilder 构建的完整 prompt（含 mode style、memory hints、addressing）
       // 缓存由 chat-sync.ts:executeIngest 在调用 ingest 之前异步预热

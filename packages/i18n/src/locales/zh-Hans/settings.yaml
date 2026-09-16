@@ -44,6 +44,7 @@ nav:
   executor: 自主执行
   overseer: 监工
   team: 我的 AI 团队
+  pipeline: 运行流水线
   environment: 环境适配
   health: 健康检查
   whitelist: 权限白名单
@@ -105,6 +106,8 @@ groups:
       description: 监工统计与实时事件流
     team:
       description: 子 agent 花名册与派活状态
+    pipeline:
+      description: 目标→计划→评审→执行→监控的完整流水线
     environment:
       description: 桌面自动化与开发调试工具
     whitelist:
@@ -1948,7 +1951,7 @@ pages:
     login:
       title: 登录
       email: 邮箱
-      emailPlaceholder: your@email.com
+      emailPlaceholder: 您的邮箱
       password: 密码
       passwordPlaceholder: ••••••••
       signIn: 登录
@@ -1960,7 +1963,7 @@ pages:
       name: 名称
       namePlaceholder: 您的名字
       email: 邮箱
-      emailPlaceholder: your@email.com
+      emailPlaceholder: 您的邮箱
       password: 密码
       passwordPlaceholder: ••••••••
       confirmPassword: 确认密码
@@ -1981,6 +1984,140 @@ pages:
   sidecar:
     title: 本地服务管理
     description: 管理本地子进程服务（ComfyUI 图像生成、GPT-SoVITS 语音合成）的启动、停止与状态。
+  director:
+    title: 总监评审
+    description: 桌宠作为监工，评审外部 AI 工具生成的计划并给出通过/驳回结论
+    list-title: 待评审计划
+    review-latest: 评审最新
+    review: 评审
+    approve: 批准
+    reject: 驳回
+    revise: 修改计划
+    revise-fail: 计划修改失败
+    revised-plan: 已按评审意见修改计划，可重新评审
+    approve-reason: 人工/工具核准
+    reject-reason: 计划未达要求，需修订后重提
+    approved-plan: 已批准该计划
+    rejected-plan: 已驳回该计划
+    review-result: '已评审 {planId}: {verdict}'
+    verdict-pass: ✅ 通过
+    verdict-fail: ❌ 打回
+    verdict-approved: ✅ 已批准
+    verdict-rejected: ❌ 已驳回
+    error-title: 错误
+    info-title: 提示
+    task-count: '{count} 任务'
+    empty-plans: "暂无计划\n\n把外部 AI 生成的计划 JSON 放进\n.kitsune/plans/plans/\n桌宠会自动评审"
+    empty-detail: 从左侧选择一个计划查看详情
+    detail-loading: 计划详情加载中...
+    not-reviewed: 尚未评审 — 点击"评审"让桌宠总监给出意见
+    graph-title: 任务依赖图
+    review-title: 总监评审意见
+    load-list-fail: 加载计划列表失败
+    load-detail-fail: 加载计划详情失败
+    review-fail: 评审失败
+    approve-fail: 批准失败
+    reject-fail: 驳回失败
+    status:
+      pending: 待执行
+      running: 执行中
+      completed: 已完成
+      aborted: 已中止
+    verdict:
+      pending: 待评审
+      approved: 已批准
+      rejected: 已驳回
+  pipeline:
+    title: 运行流水线
+    description: 目标 → 生成计划 → 计划审核批准 → 分配计划 → 子 agent 接收任务开始工作 → 桌宠监控计划执行 → 审核产物 → 最终产物审核后提交
+    tabs:
+      run: 运行流水线
+      security: 安全与权限
+      ops: 连接与运维
+    rail:
+      status-label: 监工状态
+      status-running: 运行中
+      status-stopped: 已停止
+      run-title: 运行流水线
+    stages:
+      goal:
+        label: 目标
+        description: 描述你想让桌宠团队完成的最终目标
+      plan:
+        label: 生成计划
+        description: 桌宠把需求拆解为可并行执行的任务依赖图（DAG）
+      review:
+        label: 计划审核批准
+        description: 总监评审计划，通过后才能进入执行
+      assign:
+        label: 分配计划
+        description: 编排者按成员画像把任务派给子 agent
+      work:
+        label: 子 agent 工作
+        description: 子 agent 接收任务开始干活，进度实时回填
+      monitor:
+        label: 桌宠监控
+        description: 监工实时观察执行过程，异常时给出操作指导
+      product:
+        label: 审核产物
+        description: 汇总每个任务的产物与结果，识别失败项
+      submit:
+        label: 提交归档
+        description: 计划终态落库，产物归档（产物级评审 API 待后续版本）
+    status:
+      idle: 空闲
+      generating: 正在生成计划...
+      running: 执行中 ({current}/{total})
+      aborted: 已中止 (关键任务失败)
+      completed: 已完成
+      failed: 已失败
+      total: 总任务 {count}
+      completed-count: 已完成 {count}
+      failed-count: 失败 {count}
+      level: 当前层 L{level}
+    error-title: 流水线错误
+    goal:
+      input-label: 目标
+      input-placeholder: 描述需求，如「优化 src/auth.ts 的性能瓶颈」
+      generate: 生成计划
+    plan:
+      empty: 暂无计划。在上方输入目标后点击「生成计划」。
+    review:
+      approve-execute: 批准并执行
+      generate-only: 仅生成计划
+      stop: 停止执行
+      empty: 计划尚未生成，生成后在这里批准执行。
+    assign:
+      task-count: 已拆解 {count} 个任务
+      parallel: 最大并行 {count}
+      hint: 任务按 DAG 分层并行分发，子 agent 通过 CLI/API 独立接收指令。
+      empty: 尚无任务可分派。
+    work:
+      current: 正在执行任务 #{task}
+      table-title: 任务明细
+      type: 类型
+      title: 描述
+      status: 状态
+      duration: 耗时
+      consolation: 桌宠安慰
+      empty: 计划尚未执行，任务列表为空。
+    product:
+      total: 总任务 {count}
+      completed: 已完成 {count}
+      failed: 失败 {count}
+      empty: 暂无任务结果。
+    submit:
+      completed: 已完成并归档
+      aborted: 已中止（产物不归档）
+      running: 执行中
+      archive-hint: 产物归档等待后续版本产物级评审 API
+      empty: 计划尚未结束。
+    task-status:
+      pending: 等待中
+      running: 执行中
+      completed: 已完成
+      failed: 已失败
+    task-error-fmt: '%{idx} — %{error}'
   environment:
     title: 环境适配中心
     description: 管理 IDE 连接器、Agent API 适配、健康检查与运行时策略。
@@ -2003,6 +2140,29 @@ pages:
         reconnect: 重连
         disable: 禁用
         enable: 启用
+        send-task: 发送任务
+        collapse-task: 收起任务
+        sending: 发送中...
+        task-placeholder: 选择动作并填写参数，让桌宠通过此连接器在 IDE 中执行操作（打开文件 / 插入代码 / 运行命令）。
+        task-sent: 任务已下发，等待 IDE 回执...
+        task-ok: 任务执行成功
+        task-fail: 任务执行失败
+        task-timeout: 未收到 IDE 回执（超时）
+      task:
+        action: 动作
+        path: 文件路径
+        line: 行号
+        code: 代码内容
+        command: 命令
+        args: 参数（空格分隔）
+        position: 插入位置（end=文末，留空=光标处）
+        path-missing: 请填写文件路径
+        code-missing: 请填写代码内容
+        command-missing: 请填写命令
+        actions:
+          open_file: 打开文件
+          insert_code: 插入代码
+          run_command: 运行命令
     mcp-agent:
       title: MCP 接入
       description: 让你的 AI agent（Claude Code / Cursor / Trae / Windsurf / ZCode...）通过
@@ -2023,6 +2183,11 @@ pages:
       copied: 已复制
       copy-failed: 复制失败，请手动选择复制
       copy-hint: 点击复制 JSON 片段，粘贴到 agent 的 MCP 配置文件中对应位置。
+      status:
+        configured: 已配置
+        not-configured: 未检测到配置
+        matched-path: 检测到配置
+        not-configured-hint: 在你的 agent 配置文件中加入上面这段配置后，重启 agent 即可生效
     team:
       title: 我的 AI 团队
       description: 你是头头，桌宠是你的调度。子 agent 花名册实时展示谁在线、谁在干活、谁擅长什么；把需求交给编排者，它会按画像拆活派活，结果回填到这里。
@@ -2094,6 +2259,8 @@ pages:
       fix-levels:
         FIXED: 已修复
         MANUAL: 需人工
+      fix-empty: 本次没有需要自动修复的项目
+      fix-nothing-to-do: 检测项全部健康，无需修复
       suggestion-label: 修复建议
     log-level:
       title: 日志级别
@@ -2135,6 +2302,14 @@ pages:
       tools-title: 监听工具
       tool-running: 运行中
       tool-idle: 空闲
+      tools-dispatchable: 可派活（真正干活）
+      tools-perceive-only: 仅感知 {count} 个（不派活）
+      stats:
+        total: 事件总数 {count}
+        pushed: 已推送 {count}
+        filtered: 已过滤 {count}
+      events-stream: 实时事件流
+      event-filtered: 已过滤
       guidance:
         title: 操作指导
         description: 同类工具失败反复出现时，桌宠给出可操作的修复步骤。

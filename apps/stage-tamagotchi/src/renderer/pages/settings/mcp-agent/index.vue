@@ -95,12 +95,29 @@ onMounted(loadTemplates)
             >
               {{ tmc(`mode.${tpl.mode}`) }}
             </span>
+            <!-- 配置状态：已找到配置文件 / 未检测到 -->
+            <span
+              :class="[
+                'rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase',
+                tpl.configured
+                  ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+              ]"
+            >
+              {{ tpl.configured ? tmc('status.configured') : tmc('status.not-configured') }}
+            </span>
           </div>
           <div class="text-xs text-neutral-500 dark:text-neutral-400">
             {{ tmc(`mode-hint.${tpl.mode}`) }}
           </div>
           <div v-if="tpl.httpUrl" class="text-xs text-neutral-500 dark:text-neutral-400">
             {{ tpl.httpUrl }}
+          </div>
+          <div v-if="tpl.configured && tpl.matchedPath" class="text-[11px] text-emerald-600 dark:text-emerald-400">
+            {{ tmc('status.matched-path') }}: <code class="rounded bg-neutral-200/70 px-1 py-0.5 text-[10px] dark:bg-neutral-800">{{ tpl.matchedPath }}</code>
+          </div>
+          <div v-else-if="!tpl.configured" class="text-[11px] text-amber-600 dark:text-amber-400">
+            {{ tmc('status.not-configured-hint') }}
           </div>
         </div>
         <button

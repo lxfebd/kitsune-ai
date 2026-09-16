@@ -158,8 +158,29 @@ describe('createCoordinator', () => {
       expect(emit).toHaveBeenCalledWith('agent_outcome', expect.objectContaining({ agentId: 'claude_code', taskId: 't-1', ok: true }))
     })
 
-    it('活跃派活中的 agent 在 snapshot 里 busy=true', async () => {
-      mockLlmTasks([{ title: '干活', provider: 'claude_code', prompt: 'go' }])
+    it('dsh 按可用性判在线：binary 存在即 online，即使无进程信号', async () => {
+      const inventory = [
+        { id: 'dsh', name: 'DeepSeek Harness', binary: 'J:\\dsh.CMD', personality: '自主执行', timeoutMs: 600_000 },
+      ]
+      const { coordinator } = makeDeps({
+        inventory,
+        isAgentOnline: () => false,
+        probeAvailability: () => ({ dsh: true }),
+      })
+
+      const snap = coordinator.snapshot()
+      expect(snap.find(a => a.id === 'dsh')?.online).toBe(true)
+
+      // 无探针（或探针 false）时按进程信号判在线
+      const { coordinator: c2 } = makeDeps({
+        inventory,
+        isAgentOnline: () => false,
+        probeAvailability: () => ({ dsh: false }),
+      })
+      expect(c2.snapshot().find(a => a.id === 'dsh')?.online).toBe(false)
+    })
+
+    it('活跃派活中的 agent 在 snapshot 里 busy=true', async () => {      mockLlmTasks([{ title: '干活', provider: 'claude_code', prompt: 'go' }])
       const { coordinator, runPlan } = makeDeps()
       // runPlan 挂起以保持活跃派活
       let resolvePlan!: (v?: unknown) => void

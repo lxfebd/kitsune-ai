@@ -11,7 +11,9 @@
 
 const fs = require('node:fs');
 const path = require('path');
-const { execFile } = require('node:child_process');
+// 动态访问 childProcess.execFile（而非解构）：测试可注入 execFile 桩验证进程检测，
+// 与 genericAiToolMonitor 的注入方式保持一致。
+const childProcess = require('node:child_process');
 const { mapToUnifiedState } = require('./activityStates');
 
 // Trae 进程特征（仅辅助信号）
@@ -306,7 +308,7 @@ class TraeMonitor {
       const cmd = process.platform === 'win32' ? 'tasklist' : 'ps';
       const args = process.platform === 'win32' ? [] : ['aux'];
 
-      execFile(cmd, args, { timeout: 5000 }, (err, stdout) => {
+      childProcess.execFile(cmd, args, { timeout: 5000 }, (err, stdout) => {
         if (err) {
           resolve(false);
           return;
@@ -363,7 +365,7 @@ class TraeMonitor {
       const cmd = process.platform === 'win32' ? 'tasklist' : 'ps';
       const args = process.platform === 'win32' ? [] : ['aux'];
 
-      execFile(cmd, args, { timeout: 3000 }, (err, stdout) => {
+      childProcess.execFile(cmd, args, { timeout: 3000 }, (err, stdout) => {
         if (err || !stdout) {
           resolve({ hasStatus: false });
           return;
@@ -415,7 +417,7 @@ class TraeMonitor {
    */
   _getRecentGitChanges() {
     return new Promise((resolve) => {
-      execFile('git', ['diff', '--stat', 'HEAD'], { cwd: this.watchDir, timeout: 5000 }, (err, stdout) => {
+      childProcess.execFile('git', ['diff', '--stat', 'HEAD'], { cwd: this.watchDir, timeout: 5000 }, (err, stdout) => {
         if (err || !stdout) {
           resolve({ hasChanges: false, addedLines: 0, removedLines: 0, changedFiles: 0 });
           return;
@@ -534,7 +536,10 @@ class TraeMonitor {
    * 获取当前状态
    */
   getStatus() {
-    return this.lastStatus || {
+    // 统一暴露 isRunning 字段：与 zcode/claudeCode/generic/workbuddy 监控器一致，
+    // overseer 聚合层（buildToolStatusList）读 supervisorStatus[t.id]?.isRunning，
+    // 此前只有 isTraeRunning 导致 Trae 进程在跑也永远显示未运行。
+    const base = this.lastStatus || {
       isTraeRunning: false,
       activity: 'idle',
       recentChanges: 0,
@@ -544,6 +549,10 @@ class TraeMonitor {
       testResult: '',
       detectSignal: 'none',
       timestamp: 0
+    };
+    return {
+      ...base,
+      isRunning: Boolean(base.isTraeRunning),
     };
   }
 }

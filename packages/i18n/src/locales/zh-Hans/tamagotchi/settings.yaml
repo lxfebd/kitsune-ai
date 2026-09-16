@@ -399,6 +399,9 @@ devtools:
       no-data: 暂无数据。触发聊天、发送上下文更新或启用广播捕获。
       manual: 手动
       empty: (空)
+      start: 开始
+      stop: 停止
+      no-entries: 尚未捕获任何上下文条目。
     lag-visualizer:
       title: 延迟可视化
       description: 可视化渲染延迟和丢帧情况
@@ -574,6 +577,9 @@ devtools:
       description: 检查原始WebSocket流量
       incoming: 传入
       outgoing: 传出
+      all: 全部方向
+      sent: 已发送
+      received: 已接收
       heartbeats: 心跳
       filter-placeholder: 筛选负载...
       clear: 清除
@@ -589,6 +595,9 @@ devtools:
       kits: 套件
       filter-placeholder: 筛选已发现的插件...
       refresh: 刷新
+      reload: 重新加载
+      enable: 启用
+      disable: 停用
       load-enabled: 加载已启用
       load-by-id-placeholder: 通过精确 ID 加载已发现的扩展...
       load-plugin: 加载插件
@@ -655,6 +664,16 @@ devtools:
       snapshot: 快照
       last-interpretation: 最近一次解读
       idle: 空闲
+      vision-model: 视觉模型
+      ticker-controls: 计时器控制
+      stop: 停止
+      screen-capture-permission-required: 使用视觉捕获需要屏幕捕获权限。
+      open-system-preferences: 打开系统偏好设置
+      status-streaming: 正在流式传输
+      status-processing: 处理中...
+      status-ready: 就绪
+      status-idle: 空闲
+      not-configured: 未配置
     global-shortcut:
       title: 全局快捷键
       description: 注册/注销全局快捷键并监视触发事件
@@ -676,6 +695,8 @@ devtools:
       no-bindings: 尚未注册绑定。
       no-triggers: 尚无触发记录。注册快捷键并按下组合键。
       receiving-key-ups: 接收按键释放
+      time: 时间
+      phase: 阶段
     permission-whitelist:
       title: 修正白名单
       description: 已加入白名单的「来源 + 断言类型」组合会自动执行修正，不再弹窗确认。删除条目后该组合将重新要求确认。

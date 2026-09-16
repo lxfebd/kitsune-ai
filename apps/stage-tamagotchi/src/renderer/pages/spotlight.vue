@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { CoordinatorAgentStatusView, UsageSnapshot } from '../../shared/eventa'
+
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { useWindowFocus } from '@vueuse/core'
@@ -6,8 +8,12 @@ import { shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
+  electronCoordinatorTeam,
+  electronExecutorStatus,
+  electronOverseerStatus,
   electronSpotlightHide,
   electronSpotlightShowResultNotification,
+  electronUsageSnapshot,
 } from '../../shared/eventa'
 import { useChatSyncStore } from '../stores/chat-sync'
 
@@ -19,7 +25,57 @@ const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 const chatSyncStore = useChatSyncStore()
 const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
 const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
+const invokeUsageSnapshot = useElectronEventaInvoke(electronUsageSnapshot)
+const invokeExecutorStatus = useElectronEventaInvoke(electronExecutorStatus)
+const invokeOverseerStatus = useElectronEventaInvoke(electronOverseerStatus)
+const invokeCoordinatorTeam = useElectronEventaInvoke(electronCoordinatorTeam)
 const { t } = useI18n()
+
+// ── 小部件数据：token 消耗 / 执行工作流 / dsh 派工（与 inlay 窗口同源）──
+const usageSnapshot = shallowRef<UsageSnapshot | null>(null)
+const executorRunning = shallowRef(false)
+const executorCurrentTask = shallowRef<string | null>(null)
+const executorPlanTitle = shallowRef('')
+const overseerEnabled = shallowRef(false)
+const dshOnline = shallowRef(false)
+const dshPushed = shallowRef(0)
+
+async function refreshWidgets() {
+  usageSnapshot.value = (await invokeUsageSnapshot()) ?? null
+  try {
+    const exec = await invokeExecutorStatus()
+    executorRunning.value = !!exec?.isRunning
+    executorCurrentTask.value = exec?.currentTaskId ?? null
+    executorPlanTitle.value = exec?.plan?.requirement ?? ''
+  }
+  catch {
+    // 状态查询失败不影响小部件
+  }
+  try {
+    const status = await invokeOverseerStatus()
+    overseerEnabled.value = !!status?.enabled
+  }
+  catch {
+    // 忽略
+  }
+  try {
+    const team: CoordinatorAgentStatusView[] = (await invokeCoordinatorTeam()) ?? []
+    const dsh = team.find(m => m.id === 'dsh')
+    dshOnline.value = !!dsh?.online
+    dshPushed.value = team.reduce((acc, m) => acc + (m.lastOutcome ? 1 : 0), 0)
+  }
+  catch {
+    // 忽略
+  }
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)
+    return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
 
 watch(useWindowFocus(), (focused) => {
   if (!focused) {
@@ -27,6 +83,7 @@ watch(useWindowFocus(), (focused) => {
     return
   }
   requestAnimationFrame(() => inputRef.value?.focus())
+  void refreshWidgets()
 })
 
 async function handleSend() {
@@ -72,19 +129,68 @@ function handleKeydown(event: KeyboardEvent) {
   event.preventDefault()
   void handleSend()
 }
+
+void refreshWidgets()
 </script>
 
 <template>
   <main
     :class="[
       'h-full w-full',
-      'flex items-center justify-center',
-      'bg-transparent px-5 py-5',
+      'flex flex-col gap-2 overflow-y-auto',
+      'bg-transparent px-5 py-4',
     ]"
   >
+    <!-- 小部件：token 消耗 / 执行工作流 / dsh 状态 -->
+    <div class="grid shrink-0 grid-cols-3 gap-2">
+      <section class="rounded-xl border border-black/5 bg-white/80 p-2.5 shadow-sm dark:border-white/10 dark:bg-neutral-900/80">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+          {{ t('tamagotchi.inlay.widgets.token-title', 'Token 消耗') }}
+        </div>
+        <div class="mt-1 text-lg font-semibold leading-tight text-neutral-900 dark:text-neutral-100">
+          {{ formatTokens(usageSnapshot?.today?.totalTokens ?? 0) }}
+        </div>
+        <div class="mt-0.5 truncate text-[10px] text-neutral-500 dark:text-neutral-400">
+          {{ t('tamagotchi.inlay.widgets.token-today', '今日') }} · {{ usageSnapshot?.today?.requests ?? 0 }}
+          {{ t('tamagotchi.inlay.widgets.requests', '次请求') }}
+        </div>
+        <div class="truncate text-[10px] text-neutral-500 dark:text-neutral-500">
+          {{ t('tamagotchi.inlay.widgets.token-total', '累计') }} {{ formatTokens(usageSnapshot?.total?.totalTokens ?? 0) }}
+        </div>
+      </section>
+
+      <section class="rounded-xl border border-black/5 bg-white/80 p-2.5 shadow-sm dark:border-white/10 dark:bg-neutral-900/80">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+          {{ t('tamagotchi.inlay.widgets.workflow-title', '执行工作流') }}
+        </div>
+        <div class="mt-1 text-lg font-semibold leading-tight text-neutral-900 dark:text-neutral-100">
+          {{ executorRunning ? t('tamagotchi.inlay.widgets.running', '运行中') : t('tamagotchi.inlay.widgets.idle', '空闲') }}
+        </div>
+        <div class="mt-0.5 truncate text-[10px] text-neutral-500 dark:text-neutral-400">
+          {{ executorPlanTitle || t('tamagotchi.inlay.widgets.no-plan', '暂无计划') }}
+        </div>
+        <div class="truncate text-[10px] text-neutral-500 dark:text-neutral-500">
+          {{ executorRunning && executorCurrentTask ? t('tamagotchi.inlay.widgets.current-task', '当前任务') : '' }}
+          {{ executorCurrentTask?.slice(0, 18) ?? '' }}
+        </div>
+      </section>
+
+      <section class="rounded-xl border border-black/5 bg-white/80 p-2.5 shadow-sm dark:border-white/10 dark:bg-neutral-900/80">
+        <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+          {{ t('tamagotchi.inlay.widgets.dsh-title', 'dsh 派工') }}
+        </div>
+        <div class="mt-1 text-lg font-semibold leading-tight text-neutral-900 dark:text-neutral-100">
+          {{ dshOnline ? t('tamagotchi.inlay.widgets.online', '在线') : t('tamagotchi.inlay.widgets.offline', '离线') }}
+        </div>
+        <div class="mt-0.5 text-[10px] text-neutral-500 dark:text-neutral-400">
+          {{ t('tamagotchi.inlay.widgets.pushed', '已派发') }} {{ dshPushed }}
+        </div>
+      </section>
+    </div>
+
     <div
       :class="[
-        'spotlight-card relative overflow-hidden',
+        'spotlight-card relative shrink-0 overflow-hidden',
         'min-h-14 w-full',
         'flex items-center px-6',
         'rounded-full',

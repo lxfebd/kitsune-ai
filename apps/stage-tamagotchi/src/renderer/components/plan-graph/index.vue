@@ -174,7 +174,7 @@ function focusTask(id: string) {
               {{ task.type }}
             </span>
             <span class="min-w-0 flex-1 leading-snug">{{ task.title }}</span>
-            <span v-if="taskStatus(task) === 'running'" class="i-solar:loader-bold size-3.5 shrink-0 animate-spin" />
+            <span v-if="taskStatus(task) === 'running'" class="i-svg-spinners:ring size-3.5 shrink-0 text-amber-500" />
             <span v-else-if="taskStatus(task) === 'completed'" class="i-solar:check-circle-bold size-3.5 shrink-0" />
             <span v-else-if="taskStatus(task) === 'failed'" class="i-solar:close-circle-bold size-3.5 shrink-0" />
           </div>

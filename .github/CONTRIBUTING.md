@@ -159,20 +159,6 @@ pnpm install
 ### Stage Tamagotchi (Desktop version)
 
 ```shell
-pnpm dev:tamagotchi
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:tamagotchi
-> ```
-
-### Stage Web (Browser version)
-
-```shell
 pnpm dev
 ```
 
@@ -182,6 +168,20 @@ pnpm dev
 >
 > ```shell
 > nr dev
+> ```
+
+### Stage Web (Browser version)
+
+```shell
+pnpm dev:web
+```
+
+> [!NOTE]
+>
+> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
+>
+> ```shell
+> nr dev:web
 > ```
 
 ### UI Storyboard

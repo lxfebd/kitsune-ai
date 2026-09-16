@@ -21,18 +21,19 @@ import type { PlatformAutomation, PlatformOptions, WindowInfo } from './index'
 
 interface Win32Automation {
   // 鼠标
+  GetCursorPos: (point: Buffer) => boolean
   SetCursorPos: (x: number, y: number) => boolean
-  GetCursorPos: (point: number[]) => boolean
+  // 输出参数一律 Buffer（共享内存）：koffi 的 JS 数组参数不会被 API 写回
+  GetWindowRect: (hWnd: number, rect: Buffer) => boolean
+  GetWindowThreadProcessId: (hWnd: number, pid: Buffer) => number
   mouse_event: (flags: number, dx: number, dy: number, data: number, extra: number) => void
   // 键盘（SendInput unicode 路径，布局无关、支持 CJK）
   SendInput: (count: number, inputs: Uint8Array, size: number) => number
   // 窗口
   EnumWindows: (callback: any, lParam: number) => boolean
   IsWindowVisible: (hWnd: number) => boolean
-  GetWindowRect: (hWnd: number, rect: number[]) => boolean
   GetWindowTextLengthW: (hWnd: number) => number
   GetWindowTextW: (hWnd: number, buf: Buffer, maxCount: number) => number
-  GetWindowThreadProcessId: (hWnd: number, pid: number[]) => number
   SetForegroundWindow: (hWnd: number) => boolean
   ShowWindow: (hWnd: number, cmdShow: number) => boolean
   SendMessageW: (hWnd: number, msg: number, wParam: number, lParam: number) => number
@@ -46,9 +47,6 @@ interface Win32Automation {
   unregisterCallback: (cb: any) => void
   // koffi 反射（构建 SendInput 输入结构）
   sizeof: (type: string) => number
-  struct: (name: string, def: Record<string, string>) => any
-  alloc: (type: any, size?: number) => any
-  view: (ref: any, len: number) => ArrayBuffer
 }
 
 let fns: Win32Automation | null = null
@@ -99,7 +97,7 @@ async function ensureInit(): Promise<Win32Automation> {
 
     // 鼠标
     const setCursorPos = user32.func('SetCursorPos', 'bool', ['int', 'int'])
-    const getCursorPos = user32.func('GetCursorPos', 'bool', ['int*'])
+    const getCursorPos = user32.func('GetCursorPos', 'bool', ['void*'])
     const mouseEvent = user32.func('mouse_event', 'void', ['uint', 'uint', 'uint', 'uint', 'int'])
     // 键盘 — SendInput：unicode 输入路径（KEYEVENTF_UNICODE）不依赖键盘布局，
     // 中文等任意字符都能输入；虚拟键路径只用于组合键与按键名。
@@ -107,10 +105,10 @@ async function ensureInit(): Promise<Win32Automation> {
     // 窗口
     const enumWindows = user32.func('EnumWindows', 'bool', ['void*', 'int64'])
     const isWindowVisible = user32.func('IsWindowVisible', 'bool', ['int64'])
-    const getWindowRect = user32.func('GetWindowRect', 'bool', ['int64', 'int64*'])
+    const getWindowRect = user32.func('GetWindowRect', 'bool', ['int64', 'void*'])
     const getWindowTextLengthW = user32.func('GetWindowTextLengthW', 'int', ['int64'])
     const getWindowTextW = user32.func('GetWindowTextW', 'int', ['int64', 'uint16*', 'int'])
-    const getWindowThreadProcessId = user32.func('GetWindowThreadProcessId', 'uint32', ['int64', 'uint32*'])
+    const getWindowThreadProcessId = user32.func('GetWindowThreadProcessId', 'uint32', ['int64', 'void*'])
     const setForegroundWindow = user32.func('SetForegroundWindow', 'bool', ['int64'])
     const showWindow = user32.func('ShowWindow', 'bool', ['int64', 'int'])
     const sendMessageW = user32.func('SendMessageW', 'int64', ['int64', 'uint', 'int64', 'int64'])
@@ -175,9 +173,6 @@ async function ensureInit(): Promise<Win32Automation> {
       registerCallback: fn => koffi.register(fn, '_KoffiAutoEnumWinCb *'),
       unregisterCallback: cb => koffi.unregister(cb),
       sizeof: type => koffi.sizeof(type),
-      struct: (name, def) => koffi.struct(name, def),
-      alloc: (type, size) => koffi.alloc(type, size),
-      view: (ref, len) => koffi.view(ref, len),
     }
     return fns
   })()
@@ -240,22 +235,27 @@ function currentWin(): Win32Automation {
 /**
  * 通过 SendInput 注入一个键盘事件（unicode 或虚拟键）。
  * 单条 KEYBDINPUT 结构：{ wVk, wScan, dwFlags, time, dwExtraInfo }，8 字节对齐。
+ *
+ * ── 修复笔记（2026-09-12，内置 AI desktop_type 触发主进程 V8 崩溃 exit 134）──
+ * 旧实现用 koffi.alloc('_KoffiInput') + koffi.view(ref, size) 拿 ArrayBuffer 再包 DataView
+ * 手写字节。实测 koffi 3.1.0 的 view() 在 Electron 主进程内会直接 V8 致命崩溃
+ * （`view` at src-Ccc3zcz5.js:311，sendKeyboardInput → 栈溢出/段错误），
+ * 普通 Node 下同一调用正常 —— Electron 专属的 koffi.view 缺陷。
+ * 修复：完全绕开 koffi 内存分配，用 Node 原生 Buffer 构造 INPUT 的 40 字节布局，
+ * 经 `void*` 参数直传 SendInput（koffi 的 void* 接受 Buffer/ArrayBuffer，已实测）。
+ * Buffer 是平台原生的零拷贝内存，无 V8/koffi 边界包装，不再触发崩溃路径。
  */
 function sendKeyboardInput(w: Win32Automation, flags: number, wVk: number = 0, wScan: number = 0): void {
   const inputSize = w.sizeof('_KoffiInput')
-  // koffi.alloc 返回指向结构体内存的外部指针，view(ref, len) 得到可写 ArrayBuffer
-  const ref = w.alloc('_KoffiInput', 1)
-  const view = new DataView(w.view(ref, inputSize))
-  // 先整体清零：union 未写到的字节（含 dwExtraInfo）必须为 0，SendInput 才接受
-  new Uint8Array(view.buffer, view.byteOffset, inputSize).fill(0)
+  const bytes = Buffer.alloc(inputSize)
   // type=INPUT_KEYBOARD（偏移 0，4 字节；后 4 字节对齐填充）
-  view.setUint32(0, INPUT_KEYBOARD, true)
-  // 联合体从偏移 8 开始，写 KEYBDINPUT 字段
+  bytes.writeUInt32LE(INPUT_KEYBOARD, 0)
+  // 联合体从偏移 8 开始，写 KEYBDINPUT 字段（其余字节已由 Buffer.alloc 清零）
   const kiStart = 8
-  view.setUint16(kiStart + 0, wVk, true)
-  view.setUint16(kiStart + 2, wScan, true)
-  view.setUint32(kiStart + 4, flags, true)
-  w.SendInput(1, ref, inputSize)
+  bytes.writeUInt16LE(wVk, kiStart + 0)
+  bytes.writeUInt16LE(wScan, kiStart + 2)
+  bytes.writeUInt32LE(flags, kiStart + 4)
+  w.SendInput(1, bytes, inputSize)
 }
 
 /** 输入一个字符（unicode 路径：KEYEVENTF_UNICODE，布局无关，支持中文等任意字符） */
@@ -384,11 +384,12 @@ export class WindowsKoffiAutomation implements PlatformAutomation {
 
   async getCursorPosition(): Promise<{ x: number, y: number }> {
     const w = await ensureInit()
-    const pt = [0, 0]
-    if (!w.GetCursorPos(pt)) {
+    // 输出参数用 Buffer（共享内存）：koffi 的 JS 数组参数不会被 API 写回，且触发 conversion failure
+    const ptBuf = Buffer.alloc(8)
+    if (!w.GetCursorPos(ptBuf)) {
       throw new Error('GetCursorPos failed')
     }
-    return { x: pt[0], y: pt[1] }
+    return { x: ptBuf.readInt32LE(0), y: ptBuf.readInt32LE(4) }
   }
 
   async getScreenSize(): Promise<{ width: number, height: number }> {
@@ -457,9 +458,9 @@ export class WindowsKoffiAutomation implements PlatformAutomation {
 
       // 进程名匹配
       if (processName && !title) {
-        const pidBuf = [0]
+        const pidBuf = Buffer.alloc(4)
         w.GetWindowThreadProcessId(hWnd, pidBuf)
-        const hProcess = w.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pidBuf[0])
+        const hProcess = w.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pidBuf.readUInt32LE(0))
         if (hProcess && Number(hProcess) !== 0) {
           try {
             const nameBuf = Buffer.alloc(512)

@@ -31,6 +31,7 @@ class MockImage {
 }
 
 describe('useSceneReady', () => {
+  // 全量并发时 jsdom 环境加载 + 微任务链较慢，默认 5000ms 偶发超时（单跑约 2.2s），显式放宽。
   it('resets first and marks ready after fonts and image sources resolve', async () => {
     const originalImage = globalThis.Image
     const originalFonts = document.fonts
@@ -74,5 +75,5 @@ describe('useSceneReady', () => {
       configurable: true,
       value: originalFonts,
     })
-  })
+  }, 10_000)
 })

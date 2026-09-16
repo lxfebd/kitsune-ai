@@ -1,10 +1,47 @@
 import { readFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 import { join } from 'path'
 import * as yaml from 'yaml'
 import { useLogg } from '@guiiai/logg'
 import { getElectronMainDirname } from '../../../../libs/electron/location'
 
 const log = useLogg('main/llm-helper').useGlobalConfig()
+
+// LLM usage 统计回调 — 由 token-usage 服务装配时注入，抽取到每条成功响应的 usage 字段
+let usageReporter: ((usage: { promptTokens?: number, completionTokens?: number, model?: string }) => void) | null = null
+export function setUsageReporter(reporter: (usage: { promptTokens?: number, completionTokens?: number, model?: string }) => void): void {
+  usageReporter = reporter
+}
+
+function reportUsage(model: string | undefined, usage: { prompt_tokens?: number, completion_tokens?: number, total_tokens?: number } | undefined) {
+  if (!usageReporter || !usage)
+    return
+  usageReporter({
+    model: model ?? undefined,
+    promptTokens: usage.prompt_tokens ?? 0,
+    completionTokens: usage.completion_tokens ?? 0,
+  })
+}
+
+/**
+ * 读 Windows 用户级环境变量（注册表 HKCU\Environment，与资源管理器/新终端一致）。
+ * dev 从旧终端启动时 process.env 快照不含后加的用户变量；跨平台（非 win32）直接返回 undefined。
+ */
+function readUserEnv(name: string): string | undefined {
+  try {
+    const out = execFileSync('reg', ['query', 'HKCU\\Environment', '/v', name], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 4000,
+    })
+    // 输出形如: "  ZCODE_RELAY_API_KEY    REG_SZ    sk-xxx"
+    const m = out.match(/REG_(?:EXPAND_)?SZ\s+(\S+.*)$/m)
+    return m?.[1]?.trim() || undefined
+  }
+  catch {
+    return undefined
+  }
+}
 
 export interface ProviderConfig {
   type: string
@@ -128,6 +165,11 @@ async function callAnthropicApi(
       if (!text)
         return { ok: false, error: 'Anthropic 返回空内容' }
       log.log(`Anthropic 200 ${provider.model} → ${text.length} chars`)
+      // Anthropic Messages API 的 usage 在顶层 usage 字段（input_tokens / output_tokens）
+      reportUsage(provider.model, {
+        prompt_tokens: data.usage?.input_tokens,
+        completion_tokens: data.usage?.output_tokens,
+      })
       return { ok: true, text }
     }
     catch (err) {
@@ -191,6 +233,8 @@ async function fetchWithRetry(
       if (!text)
         return { ok: false, error: 'LLM 返回空内容' }
       log.log(`HTTP 200 ${model} → ${text.length} chars`)
+      // OpenAI 兼容 / 中转站响应在顶层 usage 字段（prompt_tokens / completion_tokens / total_tokens）
+      reportUsage(model, data.usage)
       return { ok: true, text }
     }
     catch (err) {
@@ -237,7 +281,11 @@ export async function callLlm(
 
   const errors: string[] = []
   for (const provider of providers) {
+    // 兜底：进程环境缺 key 时回退读用户级环境变量（Windows 注册表 HKCU\Environment）。
+    // dev 从旧终端启动时 process.env 不含后加的用户变量，直接 401/KeyError
+    // 「生成计划没动静」的根因之一——第一次成功、之后失败也源于此。
     const apiKey = process.env[provider.api_key_env]
+      ?? (process.platform === 'win32' ? readUserEnv(provider.api_key_env) : undefined)
     if (!apiKey) {
       errors.push(`${provider.model}: 环境变量 ${provider.api_key_env} 未设置`)
       continue

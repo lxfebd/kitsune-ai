@@ -39,6 +39,7 @@ widgets:
 notice:
   'fade-on-hover':
     title: Fade on Hover
+    tutorial: Tutorial
     intro: Automatically fades the character when your cursor roams nearby. It helps reduce distractions while keeping your character visible.
     opacity: After turning on, the opacity drops to {value} for both {targets} when your cursor is nearby.
     toggle: You can toggle it off by hovering at {controls}, then clicking the {icon} again.
@@ -105,6 +106,29 @@ about:
 spotlight:
   placeholder: Ask Kitsune AI…
 
+# inlay window (tray Spotlight debug window)
+inlay:
+  title: Spotlight
+  description: This is the Spotlight debug page
+  vibrancy-label: Vibrancy
+  vibrancy-desc: Set the vibrancy effect of the window
+  material-label: Background Material
+  material-desc: Set the background material of the window
+  widgets:
+    token-title: Token Usage
+    token-today: Today
+    token-total: Total
+    requests: requests
+    workflow-title: Workflow
+    running: Running
+    idle: Idle
+    no-plan: No plan
+    current-task: Task
+    dsh-title: dsh Dispatch
+    online: Online
+    offline: Offline
+    pushed: Pushed
+
 interactive-area:
   save: Save
 settings:
@@ -112,6 +136,7 @@ settings:
   window-minimize: Minimize
   window-maximize: Maximize
   back: Back
+  search-placeholder: Search settings…
 title-bar:
   close: Close
   minimize: Minimize

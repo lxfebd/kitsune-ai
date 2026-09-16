@@ -48,7 +48,17 @@ export interface ToolConfig {
     binary: string
     timeoutMs?: number
     riskLevel?: 'low' | 'medium' | 'high'
+    /**
+     * 受信工具标记（如 dsh）。受信来源的普通 CLI 操作自动放行（不弹权限确认），
+     * 高风险操作（rm -rf / 等）仍强制二次确认。「安装即启用」型工具应标 true。
+     */
+    trusted?: boolean
     templates?: Array<{ key: string, label?: string, args?: string[], inputParam?: string | null, maxLen?: number }>
+    /**
+     * 工具级环境变量（spawn 时合并进进程 env）— 供 dsh 等「安装即启用」型工具
+     * 指定 home 目录（如 DSH_HOME），二进制在 PATH 即可探活可用。
+     */
+    env?: Record<string, string>
   }
 }
 

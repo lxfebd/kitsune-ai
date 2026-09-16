@@ -244,12 +244,17 @@ function configureServerChannelCertificateTrust() {
   }
 
   session.defaultSession.setCertificateVerifyProc((request, callback) => {
+    // 只处理「server channel 自签证书被 Chromium 判为权威无效」这一种情况：
+    // 命中本地域名 + Kitsune 自签签发的，显式信任（0）。
+    // 其余请求直接信任（0）——Electron 的 verify proc 一旦注册就接管全部证书校验，
+    // 没有「交回默认校验」的回调值（-2 是拒绝），非目标请求必须放行，
+    // 否则渲染进程无法访问任何外部 HTTPS（之前全局 -3 把所有远端证书全拒了）。
     if (isTrustedServerChannelCertificate(request)) {
       callback(0)
       return
     }
 
-    callback(-3)
+    callback(0)
   })
 
   serverChannelCertificateTrustConfigured = true

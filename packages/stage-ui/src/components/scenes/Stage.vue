@@ -29,7 +29,6 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
@@ -50,14 +49,15 @@ const props = withDefaults(defineProps<{
   cursorPosition?: { x: number, y: number }
   enableOrbitControls?: boolean
   paused?: boolean
+  lowPower?: boolean
 }>(), {
   enableOrbitControls: true,
   paused: false,
+  lowPower: false,
 })
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
-const { getDb } = useDuckDb()
 // const transformersProvider = createTransformers({ embedWorkerURL })
 
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
@@ -79,6 +79,13 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
+// 0（不限帧）对常驻桌宠不合理，统一兜底到默认 30fps；失焦低功耗再压到 8fps 内。
+const live2dEffectiveMaxFps = computed(() => {
+  const userLimit = live2dMaxFps.value || 30
+  if (props.lowPower)
+    return Math.min(userLimit, 8)
+  return userLimit
+})
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -979,8 +986,7 @@ if (typeof window !== 'undefined') {
   })
 }
 
-onMounted(async () => {
-  await getDb() // stub for future update
+onMounted(() => {
   document.addEventListener('visibilitychange', handleLipSyncVisibilityChange)
 })
 
@@ -1122,7 +1128,7 @@ defineExpose({
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
         :live2d-shadow-enabled="live2dShadowEnabled"
-        :live2d-max-fps="live2dMaxFps"
+        :live2d-max-fps="live2dEffectiveMaxFps"
         :live2d-render-scale="live2dRenderScale"
       />
       <ThreeScene

@@ -1,7 +1,7 @@
-import type { BrowserWindow } from 'electron'
-
 import type { FileLoggerHandle } from './app/file-logger'
 import type { ElectronDesktopAutomationInvokePayload, ElectronDesktopAutomationResult } from '../shared/eventa'
+
+import type { BrowserWindow } from 'electron'
 
 import { execSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -17,7 +17,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLe
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { defineInvokeHandler, defineStreamInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForMain } from '@kitsune/electron-screen-capture/main'
-import { app, dialog, ipcMain, session } from 'electron'
+import { app, dialog, ipcMain, session, BrowserWindow as BrowserWindowValue } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { errorMessageFrom } from '@moeru/std'
@@ -198,6 +198,10 @@ if (shouldStartMainProcess) {
 
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
+// 全局 session 文件日志的最低级别（setupFileLogger hook 过滤用）。
+// 启动时读 appConfig 持久化值，设置页切级别时由 log-level handler 同步更新。
+// 用字符串联合（shared/eventa 的 LogLevel），与 @guiiai/logg 的 enum LogLevel 区分。
+let globalHookMinLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' = 'INFO'
 
 app.whenReady().then(async () => {
   if (!shouldStartMainProcess) {
@@ -223,14 +227,27 @@ app.whenReady().then(async () => {
   fileLogger = await setupFileLogger()
 
   // Register the global hook for file logging
-  setGlobalHookPostLog((_, formatted) => {
+  // NOTICE: @guiiai/logg 的 setGlobalHookPostLog 不按级别过滤（无脑落盘全部 console 输出），
+  // 这里按当前级别过滤：低于持久化/当前级别的日志不进 session 文件，否则「设置页改级别」只
+  // 影响 logg 通道，wait 里挂 main 日志却永远全量 DEBUG。
+  globalHookMinLevel = createGlobalAppConfig().get()?.logLevel ?? 'INFO'
+  setGlobalHookPostLog((log, formatted) => {
     if (skipFileLogging || fileLogger.logFileFd === null)
+      return
+    // log.level 是 LogLevelString（'error' | 'warn' | 'log' | 'verbose' | 'debug'）
+    const mapped: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' = log.level === 'error' ? 'ERROR' : log.level === 'warn' ? 'WARN' : log.level === 'debug' || log.level === 'verbose' ? 'DEBUG' : 'INFO'
+    const priority = mapped === 'DEBUG' ? 0 : mapped === 'INFO' ? 1 : mapped === 'WARN' ? 2 : 3
+    const minPriority = globalHookMinLevel === 'DEBUG' ? 0 : globalHookMinLevel === 'INFO' ? 1 : globalHookMinLevel === 'WARN' ? 2 : 3
+    if (priority < minPriority)
       return
     void fileLogger.appendLog(formatted)
   })
 
   // Daily-rotating file logger for key link instrumentation (main-YYYY-MM-DD.log, 7-day retention)
-  await initFileLogger()
+  // 启动时读取 appConfig.logLevel 持久化值作为文件最低级别，与 UI 保存的级别保持一致
+  const appConfigForLogger = createGlobalAppConfig()
+  const initialLogLevel = appConfigForLogger.get()?.logLevel ?? 'DEBUG'
+  await initFileLogger({ minLevel: initialLogLevel })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
@@ -400,6 +417,68 @@ app.whenReady().then(async () => {
         context,
         artistryConfig: deps.artistryConfig,
       })
+      // Token usage — LLM 消耗统计，挂接线 llmHelper 的 usage 上报回调
+      const { createTokenUsageService } = await import('./services/kitsune/token-usage')
+      const tokenUsageService = createTokenUsageService({ context })
+      const { setUsageReporter } = await import('./services/kitsune/overseer/executor/llmHelper')
+      setUsageReporter((usage) => {
+        tokenUsageService.record({ ...usage, timestamp: Date.now() })
+      })
+
+      // 从 Chat LLM 代理响应里兜底提取 usage 并计入统计。
+      // 兼容两种形态：OpenAI 兼容非流式 JSON（choices.usage 或顶层 usage）、
+      // SSE 流（data: {...} 行内嵌 usage）。模型名优先取请求 URL 的 /models/{id} 段。
+      // 不匹配（非 chat/completions 或无 usage）时静默跳过。
+      function recordProxyUsage(url: string, body: string) {
+        try {
+          if (!tokenUsageService || !url.includes('/chat/completions'))
+            return
+          const model = /\/models\/([^/?#]+)/.exec(url)?.[1]
+          let promptTokens: number | undefined
+          let completionTokens: number | undefined
+          const tryExtract = (obj: Record<string, unknown>) => {
+            const u = (obj.usage ?? obj) as Record<string, unknown> | undefined
+            if (u && typeof u === 'object') {
+              if (typeof u.prompt_tokens === 'number')
+                promptTokens = u.prompt_tokens
+              if (typeof u.completion_tokens === 'number')
+                completionTokens = u.completion_tokens
+            }
+          }
+          if (body.includes('data:') && body.includes('usage')) {
+            // SSE 流：逐行找携带 usage 的 data 块
+            for (const line of body.split('\n')) {
+              const m = /^data:\s*(.+)$/.exec(line.trim())
+              if (!m)
+                continue
+              let parsed: unknown
+              try { parsed = JSON.parse(m[1]!) } catch { continue }
+              if (parsed && typeof parsed === 'object')
+                tryExtract(parsed as Record<string, unknown>)
+            }
+          }
+          else {
+            try {
+              const parsed = JSON.parse(body) as Record<string, unknown>
+              tryExtract(parsed)
+            }
+            catch {
+              // 非 JSON 响应体（如中转错误页）— 跳过
+            }
+          }
+          if (promptTokens === undefined && completionTokens === undefined)
+            return
+          tokenUsageService.record({
+            model,
+            promptTokens: promptTokens ?? 0,
+            completionTokens: completionTokens ?? 0,
+            timestamp: Date.now(),
+          })
+        }
+        catch {
+          // usage 提取失败不影响 LLM 代理主流程
+        }
+      }
       // Connectors — IDE 连接器管理，订阅 channel-server 的 WebSocket peer 事件
       const connectorService = createConnectorService({ context, serverChannel: deps.serverChannel })
       // Desktop Automation — 鼠标键盘模拟（桌面自动化），需在 Overseer 之前创建
@@ -553,6 +632,88 @@ app.whenReady().then(async () => {
         // 与 resolveDesktopInvoker 配对：出参同样 JSON 序列化，剥除不可克隆值。
         return JSON.stringify(result)
       })
+      // JSON 字符串桥（与 desktop-automation:invoke 同款）：screen/window 工具改走
+      // 裸 ipcMain.handle，不再经 eventa 对象通道传输 Electron 内部对象
+      // （screen Point/Display、window bounds —— 偶发 "conversion failure from {}"
+      // structuredClone 失败，失败被吞后上游读到 (0,0)/空数据）。
+      ipcMain.handle('electron:window:get-bounds', async () => {
+        const win = userFacingMainWindow ?? BrowserWindowValue.getFocusedWindow()
+        return JSON.stringify(win ? win.getBounds() : { x: 0, y: 0, width: 0, height: 0 })
+      })
+      ipcMain.handle('electron:window:set-bounds', async (_event, boundsJson) => {
+        const win = userFacingMainWindow ?? BrowserWindowValue.getFocusedWindow()
+        if (!win)
+          return JSON.stringify({ ok: false, error: 'no window' })
+        const bounds = typeof boundsJson === 'string' ? JSON.parse(boundsJson) : boundsJson
+        win.setBounds(bounds)
+        return JSON.stringify({ ok: true })
+      })
+      ipcMain.handle('electron:screen:get-all-displays', async () => {
+        const { screen } = await import('electron')
+        const displays = screen.getAllDisplays().map(d => ({
+          id: d.id,
+          label: d.label,
+          bounds: d.bounds,
+          workArea: d.workArea,
+          scaleFactor: d.scaleFactor,
+          rotation: d.rotation,
+          isPrimary: d === screen.getPrimaryDisplay(),
+        }))
+        return JSON.stringify(displays)
+      })
+      ipcMain.handle('electron:screen:get-sources', async (_event, optionsJson) => {
+        const options = typeof optionsJson === 'string' ? JSON.parse(optionsJson) : optionsJson
+        const { desktopCapturer } = await import('electron')
+        const sources = await desktopCapturer.getSources(options)
+        // 只序列化可克隆字段 + JPEG 字节 → base64 data URL，彻底避免 TypedArray 过结构化克隆。
+        const out = sources.map((s) => ({
+          id: s.id,
+          name: s.name,
+          display_id: s.display_id,
+          thumbnailDataUrl: s.thumbnail && !s.thumbnail.isEmpty()
+            ? `data:image/jpeg;base64,${s.thumbnail.toJPEG(90).toString('base64')}`
+            : undefined,
+        }))
+        return JSON.stringify(out)
+      })
+      // 渲染进程 Chat LLM 代理：主进程 Node fetch 无 CORS 限制（中转对带 Authorization
+      // 的跨域 OPTIONS 预检返回 401，渲染进程直连必 Failed to fetch）。与 desktop-automation
+      // 同款裸 ipcMain.handle + JSON 字符串模式，绕开 eventa 序列化问题。
+      ipcMain.handle('llm-proxy-fetch:invoke', async (_event, payloadJson) => {
+        const payload = typeof payloadJson === 'string' ? JSON.parse(payloadJson) : payloadJson
+        const { url, init } = payload ?? {}
+        if (!url) {
+          return JSON.stringify({ status: 400, statusText: 'Bad Request', headers: {}, body: JSON.stringify({ error: 'url 不能为空' }) })
+        }
+        try {
+          const method = init?.method ?? 'GET'
+          const headers: Record<string, string> = { ...init?.headers }
+          const body = init?.body
+          const resp = await fetch(url, {
+            method,
+            headers,
+            body: method === 'GET' || method === 'HEAD' ? undefined : body,
+            signal: AbortSignal.timeout(300_000),
+          })
+          const text = await resp.text()
+          // Chat LLM 代理响应透传前提取 usage — 聊天对话的 token 消耗统计。
+          // 仅当响应体携带 usage（OpenAI 兼容非流式 JSON 或 SSE 流内 usage 块）且请求是
+          // chat/completions 时计入，避免误计其它代理用途；编排任务走 llmHelper 不经过此代理，
+          // 因此不会重复计数。
+          recordProxyUsage(url, text)
+          const outHeaders: Record<string, string> = {}
+          resp.headers.forEach((value, key) => { outHeaders[key] = value })
+          return JSON.stringify({ status: resp.status, statusText: resp.statusText, headers: outHeaders, body: text })
+        }
+        catch (error) {
+          return JSON.stringify({
+            status: 502,
+            statusText: 'Bad Gateway',
+            headers: {},
+            body: JSON.stringify({ error: String((error as Error)?.message ?? error) }),
+          })
+        }
+      })
       // 注册 findElement 视觉定位结果处理器（渲染进程回传）
       defineInvokeHandler(context, electronFindElementResult, async (result) => {
         desktopAutomation.handleFindElementResult(result)
@@ -705,14 +866,15 @@ app.whenReady().then(async () => {
         return getGptSovitsConfig()
       })
       defineInvokeHandler(context, electronTtsSetConfig, async (payload) => {
-        if (!payload?.dir && payload?.port === undefined && payload?.device === undefined && payload?.threads === undefined)
-          throw new Error('tts set-config requires dir, port, device, or threads')
+        if (!payload?.dir && payload?.port === undefined && payload?.device === undefined && payload?.threads === undefined && payload?.defaultVoice === undefined)
+          throw new Error('tts set-config requires dir, port, device, threads, or defaultVoice')
         const { setGptSovitsConfig } = await import('./services/kitsune/tts')
         return setGptSovitsConfig({
           dir: payload.dir,
           port: payload.port,
           device: payload.device,
           threads: payload.threads,
+          defaultVoice: payload.defaultVoice,
         })
       })
       // 热加载配置：停止当前实例 → 用新 device/threads 重启 → 轮询就绪 → 失败回滚。
@@ -1095,7 +1257,10 @@ app.whenReady().then(async () => {
         WARN: LogLevel.Warning,
         ERROR: LogLevel.Error,
       }
-      let currentLevel: Level = 'INFO'
+      // 启动时恢复持久化的日志级别（默认 INFO）；保存时写入 appConfig 以便重启后保持
+      const storedLevel = deps.appConfig.get()?.logLevel
+      let currentLevel: Level = storedLevel ?? 'INFO'
+      setGlobalLogLevel(logLevelToLogg[currentLevel])
       defineInvokeHandler(context, electronLogLevelGet, () => currentLevel)
       defineInvokeHandler(context, electronLogLevelSet, (req) => {
         const next = req?.level
@@ -1103,6 +1268,14 @@ app.whenReady().then(async () => {
           return currentLevel
         currentLevel = next
         setGlobalLogLevel(logLevelToLogg[next])
+        // 同步切换 daily file logger 的最低级别 —— 否则文件日志固定 DEBUG，
+        // UI 改了级别但 main-*.log 输出不变（用户观测「改了保存没变化」的主因）。
+        getFileLogger().setMinLevel(next)
+        globalHookMinLevel = next
+        deps.appConfig.update({
+          ...deps.appConfig.get(),
+          logLevel: next,
+        })
         log.withFields({ level: next }).log('log level updated')
         return next
       })

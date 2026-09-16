@@ -21,6 +21,8 @@ export interface ConnectorTask {
 export interface ConnectorSendTaskResult {
   ok: boolean
   error?: string
+  /** 本次下发的 taskId — 插件回执 task:result 按此匹配（executor 用它等待回执） */
+  taskId?: string
 }
 
 export const electronConnectorList = defineInvokeEventa<ConnectorInfo[]>('eventa:invoke:electron:connector:list')

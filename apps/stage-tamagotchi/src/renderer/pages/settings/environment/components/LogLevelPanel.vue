@@ -48,7 +48,14 @@ async function applyLogLevel(next: LogLevel) {
   logLevelApplied.value = false
   errorMessage.value = ''
   try {
-    await invokeLogLevelSet({ level: next })
+    const applied = await invokeLogLevelSet({ level: next })
+    // NOTICE: IPC bridge 未就绪时 useElectronEventaInvoke 会变成 no-op（返回 null），
+    // 不校验返回值会误显示「已应用」——用户因此以为保存没生效。
+    if (!applied || applied !== next) {
+      errorMessage.value = '设置未生效：主进程未确认新级别，请重试'
+      return
+    }
+    logLevel.value = applied
     logLevelApplied.value = true
     setTimeout(() => {
       logLevelApplied.value = false

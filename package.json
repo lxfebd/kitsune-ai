@@ -19,7 +19,7 @@
   "license": "MIT",
   "scripts": {
     "postinstall": "pnpm exec simple-git-hooks && pnpm run build:packages",
-    "dev": "pnpm -r -F @kitsune/stage-web dev",
+    "dev": "chcp 65001 >nul & pnpm -rF @kitsune/stage-tamagotchi run dev",
     "dev:ui": "pnpm -rF @kitsune/stage-ui run story:dev",
     "dev:web": "pnpm -rF @kitsune/stage-web run dev",
     "dev:web:https": "pnpm -rF @kitsune/stage-web run dev:https",

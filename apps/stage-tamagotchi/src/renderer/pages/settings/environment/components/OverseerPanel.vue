@@ -5,7 +5,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { useModsServerChannelStore } from '@kitsune/stage-ui/stores/mods/api/channel-server'
 import { Button, Callout } from '@kitsune/ui'
-import { onScopeDispose, ref } from 'vue'
+import { computed, onScopeDispose, ref } from 'vue'
 
 import {
   electronOverseerEvent,
@@ -38,6 +38,11 @@ const PANEL = 'settings-panel'
 
 const status = ref<OverseerStatus>({ enabled: false, running: false, tools: [], updatedAt: 0 })
 const stats = ref<OverseerStats | null>(null)
+
+// 可派活工具：enabled + 有 CLI + 非 perceiveOnly（仅此部分会被 executor 真正派活）
+const dispatchableTools = computed(() => status.value.tools.filter(t => t.dispatchable))
+// 仅感知工具：监视窗口/IDE/浏览器活动，不接收任务
+const perceiveOnlyTools = computed(() => status.value.tools.filter(t => !t.dispatchable))
 const eventLog = ref<EventLogEntry[]>([])
 const busy = ref(false)
 const errorMessage = ref('')
@@ -269,36 +274,62 @@ refreshGuidance()
       />
     </div>
 
-    <!-- 监听工具列表 -->
+    <!-- 监听工具列表：可派活 vs 仅感知 分开展示 -->
     <div v-if="status.tools.length" class="flex flex-col gap-1.5">
       <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
         {{ tn('overseer.tools-title') }}
       </div>
-      <article
-        v-for="tool in status.tools"
-        :key="tool.id"
-        :class="['flex items-center justify-between rounded-xl border px-3 py-2 text-xs', 'border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02]']"
-      >
-        <span class="font-medium">{{ tool.name }}</span>
-        <span :class="[
-          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-          tool.running ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-neutral-400/20 text-neutral-500',
-        ]">
-          {{ tool.running ? tn('overseer.tool-running') : tn('overseer.tool-idle') }}
-        </span>
-      </article>
+      <template v-if="dispatchableTools.length">
+        <div class="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
+          {{ tn('overseer.tools-dispatchable') }}
+        </div>
+        <article
+          v-for="tool in dispatchableTools"
+          :key="tool.id"
+          :class="['flex items-center justify-between rounded-xl border px-3 py-2 text-xs', 'border-emerald-500/20 bg-emerald-500/[0.06]']"
+        >
+          <span class="font-medium">{{ tool.name }}</span>
+          <span :class="[
+            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+            tool.running ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-neutral-400/20 text-neutral-500',
+          ]">
+            {{ tool.running ? tn('overseer.tool-running') : tn('overseer.tool-idle') }}
+          </span>
+        </article>
+      </template>
+      <details v-if="perceiveOnlyTools.length" class="group">
+        <summary class="flex cursor-pointer items-center gap-1 text-[10px] text-neutral-400 dark:text-neutral-500">
+          <span class="i-solar:alt-arrow-down-bold transition-transform group-open:rotate-180" />
+          {{ tn('overseer.tools-perceive-only', { count: perceiveOnlyTools.length }) }}
+        </summary>
+        <div class="mt-1.5 flex flex-col gap-1.5">
+          <article
+            v-for="tool in perceiveOnlyTools"
+            :key="tool.id"
+            :class="['flex items-center justify-between rounded-xl border px-3 py-2 text-xs', 'border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02]']"
+          >
+            <span class="font-medium">{{ tool.name }}</span>
+            <span :class="[
+              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+              tool.running ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-neutral-400/20 text-neutral-500',
+            ]">
+              {{ tool.running ? tn('overseer.tool-running') : tn('overseer.tool-idle') }}
+            </span>
+          </article>
+        </div>
+      </details>
     </div>
 
     <!-- 统计：事件量 -->
     <div v-if="stats" class="flex items-center gap-3 text-xs">
       <span class="rounded-full bg-neutral-400/15 px-2 py-0.5 text-neutral-600 dark:text-neutral-300">
-        事件总数 {{ stats.eventsTotal }}
+        {{ tn('overseer.stats.total', { count: stats.eventsTotal }) }}
       </span>
       <span class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">
-        已推送 {{ stats.eventsPushed }}
+        {{ tn('overseer.stats.pushed', { count: stats.eventsPushed }) }}
       </span>
       <span v-if="stats.eventsFiltered > 0" class="rounded-full bg-neutral-400/15 px-2 py-0.5 text-neutral-500">
-        已过滤 {{ stats.eventsFiltered }}
+        {{ tn('overseer.stats.filtered', { count: stats.eventsFiltered }) }}
       </span>
     </div>
 
@@ -356,7 +387,7 @@ refreshGuidance()
       <!-- 实时事件流 -->
       <div v-if="eventLog.length" class="flex flex-col gap-1.5">
         <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-          实时事件流
+          {{ tn('overseer.events-stream') }}
         </div>
         <div class="max-h-64 overflow-y-auto flex flex-col gap-1">
           <article
@@ -398,7 +429,7 @@ refreshGuidance()
               v-if="!entry.pushed"
               class="shrink-0 rounded-full bg-neutral-400/15 px-1.5 py-0.5 text-[9px] font-medium text-neutral-500"
             >
-              filtered
+              {{ tn('overseer.event-filtered') }}
             </span>
           </article>
         </div>

@@ -20,6 +20,12 @@ export const electronDirectorReject = defineInvokeEventa<
   { planId: string, reason: string }
 >('eventa:invoke:electron:director:reject')
 
+/** 总监修订 — 驳回后按评审意见修订任务清单并写回（清空旧 verdict，回到待评审）。 */
+export const electronDirectorRevise = defineInvokeEventa<
+  { ok: boolean, plan?: { id: string, requirement: string, taskCount: number, status: string, createdAt: number }, error?: string },
+  { planId: string }
+>('eventa:invoke:electron:director:revise')
+
 /** 总监页只读：计划摘要列表（按时间倒序）。 */
 export interface DirectorPlanSummary {
   id: string

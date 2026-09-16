@@ -429,6 +429,9 @@ devtools:
       no-data: No data yet. Trigger a chat, send a context update, or enable broadcast capture.
       manual: manual
       empty: (empty)
+      start: Start
+      stop: Stop
+      no-entries: No context entries captured yet.
     relative-mouse:
       title: Relative Mouse Position
       description: Get mouse position relative to the window
@@ -487,6 +490,9 @@ devtools:
       description: Inspect raw WebSocket traffic
       incoming: Incoming
       outgoing: Outgoing
+      all: All Directions
+      sent: Sent
+      received: Received
       heartbeats: Heartbeats
       filter-placeholder: Filter payload...
       clear: Clear
@@ -587,6 +593,9 @@ devtools:
       kits: Kits
       filter-placeholder: Filter discovered plugins...
       refresh: Refresh
+      reload: Reload
+      enable: Enable
+      disable: Disable
       load-enabled: Load Enabled
       load-by-id-placeholder: Load discovered extension by exact id...
       load-plugin: Load Plugin
@@ -653,6 +662,16 @@ devtools:
       snapshot: Snapshot
       last-interpretation: Last interpretation
       idle: Idle
+      vision-model: Vision model
+      ticker-controls: Ticker controls
+      stop: Stop
+      screen-capture-permission-required: Screen capture permissions are required to use vision capture.
+      open-system-preferences: Open system preferences
+      status-streaming: Streaming
+      status-processing: Processing...
+      status-ready: Ready
+      status-idle: Idle
+      not-configured: Not configured
     global-shortcut:
       title: Global Shortcuts
       description: Register/unregister global shortcuts and monitor trigger events
@@ -674,6 +693,8 @@ devtools:
       no-bindings: No bindings registered yet.
       no-triggers: No triggers yet. Register a shortcut and press the combo.
       receiving-key-ups: Receive key-ups
+      time: Time
+      phase: Phase
     permission-whitelist:
       title: Correction Whitelist
       description: Whitelisted source + assertion combos auto-execute corrections without prompting. Remove an entry to require confirmation again.

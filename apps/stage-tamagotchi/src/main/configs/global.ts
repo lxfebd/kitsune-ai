@@ -16,6 +16,11 @@ export const globalAppConfigSchema = object({
    * 默认 'gpt-sovits'，不可用时由前端选择降级到 'edge-tts' 或 'system'。
    */
   ttsEngine: optional(string()),
+  /**
+   * 全局日志级别，由环境适配中心日志面板切换，持久化以便重启后保持。
+   * 默认 'INFO'；仅影响 @guiiai/logg 输出详细度，不影响功能行为。
+   */
+  logLevel: optional(picklist(['DEBUG', 'INFO', 'WARN', 'ERROR'])),
 })
 
 export function createGlobalAppConfig() {

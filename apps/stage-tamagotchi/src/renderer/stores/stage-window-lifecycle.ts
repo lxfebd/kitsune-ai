@@ -24,9 +24,18 @@ export function shouldPauseStageFromLifecycle(state: ElectronWindowLifecycleStat
   return state.minimized
 }
 
+/**
+ * 低功耗态：窗口未最小化但已失焦（常驻桌面角落、用户在操作其他应用）。
+ * 此时 Live2D 无需满帧渲染，降帧即可显著降 CPU，聚焦后自动恢复。
+ */
+export function shouldLowPowerStageFromLifecycle(state: ElectronWindowLifecycleState) {
+  return !state.focused && !state.minimized
+}
+
 export const useStageWindowLifecycleStore = defineStore('stageWindowLifecycle', () => {
   const windowLifecycle = ref<ElectronWindowLifecycleState>(createDefaultWindowLifecycleState())
   const stagePaused = computed(() => shouldPauseStageFromLifecycle(windowLifecycle.value))
+  const stageLowPower = computed(() => shouldLowPowerStageFromLifecycle(windowLifecycle.value))
 
   let initialized = false
 
@@ -69,6 +78,7 @@ export const useStageWindowLifecycleStore = defineStore('stageWindowLifecycle', 
   return {
     initializeWindowLifecycleBridge,
     stagePaused,
+    stageLowPower,
     updateWindowLifecycle,
     windowLifecycle,
   }

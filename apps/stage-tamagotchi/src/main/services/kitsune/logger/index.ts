@@ -8,6 +8,8 @@ export interface FileLogger {
   info: (message: string, fields?: Record<string, unknown>) => void
   warn: (message: string, fields?: Record<string, unknown>) => void
   error: (message: string, fields?: Record<string, unknown>) => void
+  /** 运行时切换最低级别（配合设置页日志级别保存后立即生效）。 */
+  setMinLevel: (level: LogLevel) => void
   close: () => Promise<void>
 }
 
@@ -26,6 +28,7 @@ const noopLogger: FileLogger = {
   info: () => {},
   warn: () => {},
   error: () => {},
+  setMinLevel: () => {},
   close: async () => {},
 }
 
@@ -97,6 +100,9 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
   let currentDate = formatDate(new Date())
   let fileHandle = await open(join(logsDir, buildLogFileName(currentDate)), 'a')
 
+  // 可变最低级别：write() 每次实时比较，支持运行时 setMinLevel 切换（设置页保存后立即生效）
+  let minLevelRef = minLevel
+
   // 跨午夜轮转串行化：并发 write() 同日各调 rotateIfNeeded() 时避免同一把
   // fileHandle 被 close 后另一条 append 仍在上面的竞态（原实现每次直接 close+open）。
   let rotation: Promise<void> | null = null
@@ -135,7 +141,7 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
   }
 
   function write(level: LogLevel, message: string, fields?: Record<string, unknown>): void {
-    if (LEVEL_PRIORITY[level] < LEVEL_PRIORITY[minLevel])
+    if (LEVEL_PRIORITY[level] < LEVEL_PRIORITY[minLevelRef])
       return
     const line = formatLogLine(level, message, fields)
     try { console.log(line) } catch { /* EPIPE when pipe closes */ }
@@ -160,6 +166,7 @@ export async function createFileLogger(options: FileLoggerOptions = {}): Promise
     info: (m, f) => write('INFO', m, f),
     warn: (m, f) => write('WARN', m, f),
     error: (m, f) => write('ERROR', m, f),
+    setMinLevel: (level) => { minLevelRef = level },
     close: async () => {
       if (pendingWrites > 0)
         await new Promise<void>(resolve => flushResolvers.push(resolve))

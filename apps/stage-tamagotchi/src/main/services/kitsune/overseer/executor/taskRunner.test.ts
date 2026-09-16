@@ -137,6 +137,20 @@ describe('runIdeTask', () => {
     expect(result).toMatchObject({ taskId: 'task-ide-1', ok: false, error: 'compile failed' })
   })
 
+  it('matches receipt by the taskId returned from sendTask', async () => {
+    // sendTask 现在会生成并返回 taskId（connectors 服务注入到 data.taskId），
+    // taskRunner 必须以它匹配回执，而不是任务自身的 id
+    sendTaskMock.mockReturnValue({ ok: true, taskId: 'generated-receipt-id' })
+    const runner = makeRunner()
+
+    const promise = runner.runIdeTask(makeIdeTask())
+    const handler = contextOnMock.mock.calls[0]![1] as (event: any) => void
+    // 用生成的回执 id 匹配 → resolve
+    handler({ id: 'x', type: 'event', body: { taskId: 'generated-receipt-id', success: true } })
+    const result = await promise
+    expect(result).toMatchObject({ taskId: 'task-ide-1', ok: true })
+  })
+
   it('returns error immediately when connector is offline', async () => {
     sendTaskMock.mockReturnValue({ ok: true })
     const runner = createTaskRunner({

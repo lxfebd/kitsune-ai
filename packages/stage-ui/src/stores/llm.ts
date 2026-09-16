@@ -30,6 +30,57 @@ function toolNameFrom(tool: Tool) {
   return candidate.function?.name ?? candidate.name
 }
 
+// 渲染进程 fetch 直连中转会撞 CORS（带 Authorization 的跨域请求被预检 401 拦截）。
+// 这里给 chatProvider 注入一个走主进程代理的 fetch：主进程 Node fetch 无 CORS 限制。
+// @xsai/shared-chat 的 chat() 优先读 options.fetch，streamText 透传 chatConfig 字段。
+// 通道用裸 ipcMain.handle('llm-proxy-fetch:invoke') + JSON 字符串，与 desktop-automation:invoke 同款
+// （绕开 eventa 序列化问题；stage-ui 不依赖 app 包内 shared/eventa）。
+function makeIpcFetchProxy() {
+  // 测试/非 Electron 环境（node 下无 window）直接走原始 fetch；window.electron 未注入
+  // 时也返回 undefined，由 withIpcFetchFallback 原样透传 chatProvider。
+  const electronApi = (typeof window === 'undefined' ? undefined : (window as { electron?: { ipcRenderer?: { invoke(channel: string, ...args: unknown[]): Promise<unknown> } } }).electron)
+  const ipc = electronApi?.ipcRenderer
+  if (!ipc)
+    return undefined
+  const proxyFetch: typeof fetch = async (input, init) => {
+    const url = typeof input === 'string'
+      ? input
+      : (input instanceof Request ? input.url : String(input))
+    const reqInit = {
+      method: init?.method,
+      headers: (init?.headers as Record<string, string> | undefined),
+      body: init?.body,
+    }
+    const raw = await ipc.invoke('llm-proxy-fetch:invoke', JSON.stringify({ url, init: reqInit }))
+    const res = (typeof raw === 'string' ? JSON.parse(raw) : raw) as
+      | { status: number, statusText: string, headers: Record<string, string>, body: string }
+      | undefined
+    if (!res)
+      throw new Error('LLM proxy fetch 无响应')
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    })
+  }
+  return proxyFetch
+}
+
+function withIpcFetchFallback(chatProvider: ChatProvider): ChatProvider {
+  const ipcFetch = makeIpcFetchProxy()
+  if (!ipcFetch)
+    return chatProvider
+
+  const originalChat = chatProvider.chat.bind(chatProvider)
+  return {
+    ...chatProvider,
+    chat: (model: string) => ({
+      ...originalChat(model),
+      fetch: ipcFetch,
+    }),
+  }
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
@@ -71,7 +122,7 @@ export const useLLM = defineStore('llm', () => {
 
     const runStream = () => coreStreamFrom({
       model,
-      chatProvider,
+      chatProvider: withIpcFetchFallback(chatProvider),
       messages,
       options: {
         ...options,

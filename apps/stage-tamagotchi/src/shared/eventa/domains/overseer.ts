@@ -91,7 +91,7 @@ export interface GuidanceEventData {
 export interface OverseerStatus {
   enabled: boolean
   running: boolean
-  tools: Array<{ id: string, name: string, enabled: boolean, running: boolean }>
+  tools: Array<{ id: string, name: string, enabled: boolean, running: boolean, dispatchable: boolean }>
   updatedAt: number
 }
 

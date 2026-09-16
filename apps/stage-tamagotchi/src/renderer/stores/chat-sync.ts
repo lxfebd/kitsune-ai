@@ -122,6 +122,9 @@ const CHAT_SYNC_CHANNEL_NAME = 'kitsune:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
 const SPOTLIGHT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
+// ingest 等待 authority 完成完整 LLM 回合（流式生成可能耗时数十秒到数分钟），
+// 必须远大于默认 30s，否则 follower 会先超时回滚输入框、造成「消息残留/误以为没发出去」
+const INGEST_RESPONSE_TIMEOUT_MS = 5 * 60 * 1000
 
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -872,7 +875,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       senderId: instanceId,
       command: 'ingest',
       payload,
-    })
+    }, INGEST_RESPONSE_TIMEOUT_MS, () => new Error('Timed out waiting for chat authority response'))
   }
 
   async function requestSpotlightIngest(payload: SpotlightIngestPayload) {

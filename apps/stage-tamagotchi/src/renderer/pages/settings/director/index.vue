@@ -17,12 +17,14 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { Button, Callout } from '@kitsune/ui'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   electronDirectorApprove,
   electronDirectorDetail,
   electronDirectorList,
   electronDirectorReject,
+  electronDirectorRevise,
   electronDirectorReview,
 } from '../../../../shared/eventa'
 import PlanGraph from '../../../components/plan-graph/index.vue'
@@ -32,6 +34,9 @@ const invokeDetail = useElectronEventaInvoke(electronDirectorDetail)
 const invokeReview = useElectronEventaInvoke(electronDirectorReview)
 const invokeApprove = useElectronEventaInvoke(electronDirectorApprove)
 const invokeReject = useElectronEventaInvoke(electronDirectorReject)
+const invokeRevise = useElectronEventaInvoke(electronDirectorRevise)
+
+const { t } = useI18n()
 
 const plans = ref<DirectorPlanSummary[]>([])
 const selectedPlanId = ref<string | null>(null)
@@ -50,18 +55,18 @@ const STATUS_BADGE: Record<string, string> = {
 
 function statusLabel(status: string): string {
   const map: Record<string, string> = {
-    pending: '待执行',
-    running: '执行中',
-    completed: '已完成',
-    aborted: '已中止',
+    pending: t('settings.pages.director.status.pending'),
+    running: t('settings.pages.director.status.running'),
+    completed: t('settings.pages.director.status.completed'),
+    aborted: t('settings.pages.director.status.aborted'),
   }
   return map[status] ?? status
 }
 
 function verdictLabel(v: DirectorPlanSummary['verdict']): string {
   if (!v)
-    return '待评审'
-  return v.verdict === 'approved' ? '已批准' : '已驳回'
+    return t('settings.pages.director.verdict.pending')
+  return v.verdict === 'approved' ? t('settings.pages.director.verdict.approved') : t('settings.pages.director.verdict.rejected')
 }
 
 function verdictBadge(v: DirectorPlanSummary['verdict']): string {
@@ -90,7 +95,7 @@ async function loadPlans() {
       selectPlan(plans.value[0].id)
   }
   catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? '加载计划列表失败'
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.load-list-fail')
   }
 }
 
@@ -104,7 +109,7 @@ async function selectPlan(id: string) {
       detail.value = d
   }
   catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? '加载计划详情失败'
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.load-detail-fail')
   }
 }
 
@@ -116,17 +121,20 @@ async function reviewSelected() {
   try {
     const result = await invokeReview()
     if (result?.ok) {
-      infoMessage.value = `已评审 ${result.planId ?? ''}: ${result.verdict === 'approved' ? '✅ 通过' : '❌ 打回'}`
+      infoMessage.value = t('settings.pages.director.review-result', {
+        planId: result.planId ?? '',
+        verdict: result.verdict === 'approved' ? t('settings.pages.director.verdict-pass') : t('settings.pages.director.verdict-fail'),
+      })
       await loadPlans()
       if (result.planId)
         await selectPlan(result.planId)
     }
     else {
-      errorMessage.value = result?.error ?? '评审失败'
+      errorMessage.value = result?.error ?? t('settings.pages.director.review-fail')
     }
   }
   catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? '评审调用失败'
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.review-fail')
   }
   finally {
     reviewing.value = false
@@ -141,16 +149,16 @@ async function approveSelected(reason: string) {
   try {
     const result = await invokeApprove({ planId: selectedPlanId.value, reason })
     if (result?.ok) {
-      infoMessage.value = '已批准该计划'
+      infoMessage.value = t('settings.pages.director.approved-plan')
       await loadPlans()
       await selectPlan(selectedPlanId.value)
     }
     else {
-      errorMessage.value = result?.error ?? '批准失败'
+      errorMessage.value = result?.error ?? t('settings.pages.director.approve-fail')
     }
   }
   catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? '批准调用失败'
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.approve-fail')
   }
   finally {
     actionBusy.value = false
@@ -165,16 +173,41 @@ async function rejectSelected(reason: string) {
   try {
     const result = await invokeReject({ planId: selectedPlanId.value, reason })
     if (result?.ok) {
-      infoMessage.value = '已驳回该计划'
+      infoMessage.value = t('settings.pages.director.rejected-plan')
       await loadPlans()
       await selectPlan(selectedPlanId.value)
     }
     else {
-      errorMessage.value = result?.error ?? '驳回失败'
+      errorMessage.value = result?.error ?? t('settings.pages.director.reject-fail')
     }
   }
   catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? '驳回调用失败'
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.reject-fail')
+  }
+  finally {
+    actionBusy.value = false
+  }
+}
+
+/** 驳回后修订 — 按评审意见让 LLM 重写任务清单并写回（清空 verdict 回到待评审）。 */
+async function reviseSelected() {
+  if (!selectedPlanId.value)
+    return
+  actionBusy.value = true
+  errorMessage.value = ''
+  try {
+    const result = await invokeRevise({ planId: selectedPlanId.value })
+    if (result?.ok) {
+      infoMessage.value = t('settings.pages.director.revised-plan')
+      await loadPlans()
+      await selectPlan(selectedPlanId.value)
+    }
+    else {
+      errorMessage.value = result?.error ?? t('settings.pages.director.revise-fail')
+    }
+  }
+  catch (e) {
+    errorMessage.value = errorMessageFrom(e) ?? t('settings.pages.director.revise-fail')
   }
   finally {
     actionBusy.value = false
@@ -201,10 +234,10 @@ onMounted(loadPlans)
 
 <template>
   <div flex="~ col gap-4">
-    <Callout v-if="errorMessage" theme="orange" label="错误">
+    <Callout v-if="errorMessage" theme="orange" :label="t('settings.pages.director.error-title')">
       {{ errorMessage }}
     </Callout>
-    <Callout v-if="infoMessage" theme="lime" label="提示">
+    <Callout v-if="infoMessage" theme="lime" :label="t('settings.pages.director.info-title')">
       {{ infoMessage }}
     </Callout>
 
@@ -214,23 +247,20 @@ onMounted(loadPlans)
       <section class="settings-panel flex flex-col gap-2 self-start">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-semibold">
-            待评审计划
+            {{ t('settings.pages.director.list-title') }}
           </h3>
           <Button
             variant="primary" size="sm"
             :loading="reviewing"
             :disabled="!plans.length"
-            label="评审最新"
+            :label="t('settings.pages.director.review-latest')"
             icon="i-solar:magic-stick-3-bold-duotone"
             @click="reviewSelected"
           />
         </div>
 
         <div v-if="!plans.length" class="border-2 border-neutral-200 dark:border-neutral-800 rounded-lg border-dashed p-4 text-center text-xs text-neutral-500">
-          暂无计划<br><br>
-          把外部 AI 生成的计划 JSON 放进<br>
-          <code class="text-[10px] text-primary-600 dark:text-primary-400">.kitsune/plans/plans/</code><br>
-          桌宠会自动评审
+          <span class="whitespace-pre-line">{{ t('settings.pages.director.empty-plans') }}</span>
         </div>
 
         <button
@@ -253,7 +283,7 @@ onMounted(loadPlans)
             <span :class="['rounded-full px-1.5 py-0.5 font-medium', STATUS_BADGE[plan.status]]">
               {{ statusLabel(plan.status) }}
             </span>
-            <span>{{ plan.taskCount }} 任务</span>
+            <span v-if="plan.taskCount != null">{{ t('settings.pages.director.task-count', { count: plan.taskCount }) }}</span>
             <span class="ml-auto">{{ formatDate(plan.createdAt) }}</span>
           </div>
         </button>
@@ -267,30 +297,38 @@ onMounted(loadPlans)
               {{ detail.plan.requirement }}
             </h3>
             <p class="font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
-              {{ detail.plan.id }} · {{ detail.plan.tasks.length }} 任务 · {{ formatDate(detail.plan.createdAt) }}
+              {{ detail.plan.id }} · {{ t('settings.pages.director.task-count', { count: detail.plan.tasks.length }) }} · {{ formatDate(detail.plan.createdAt) }}
             </p>
           </div>
           <div class="flex items-center gap-2">
             <Button
               variant="primary" size="sm"
               :loading="reviewing"
-              label="评审"
+              :label="t('settings.pages.director.review')"
               icon="i-solar:magic-stick-3-bold-duotone"
               @click="reviewSelected"
             />
             <Button
               variant="caution" size="sm"
               :loading="actionBusy"
-              label="批准"
+              :label="t('settings.pages.director.approve')"
               icon="i-solar:check-circle-bold-duotone"
-              @click="approveSelected('人工/工具核准')"
+              @click="approveSelected(t('settings.pages.director.approve-reason'))"
             />
             <Button
               variant="danger" size="sm"
               :loading="actionBusy"
-              label="驳回"
+              :label="t('settings.pages.director.reject')"
               icon="i-solar:close-circle-bold-duotone"
-              @click="rejectSelected('计划未达要求，需修订后重提')"
+              @click="rejectSelected(t('settings.pages.director.reject-reason'))"
+            />
+            <Button
+              v-if="detail?.verdict?.verdict === 'rejected'"
+              variant="caution" size="sm"
+              :loading="actionBusy"
+              :label="t('settings.pages.director.revise')"
+              icon="i-solar:pen-new-round-bold-duotone"
+              @click="reviseSelected"
             />
           </div>
         </div>
@@ -311,7 +349,7 @@ onMounted(loadPlans)
                 : 'bg-red-500/15 text-red-700 dark:text-red-300',
             ]"
           >
-            {{ detail.verdict.verdict === 'approved' ? '✅ 已批准' : '❌ 已驳回' }}
+            {{ detail.verdict.verdict === 'approved' ? t('settings.pages.director.verdict-approved') : t('settings.pages.director.verdict-rejected') }}
           </span>
           <div class="min-w-0">
             <p class="leading-relaxed text-neutral-700 dark:text-neutral-200">{{ detail.verdict.reason }}</p>
@@ -319,13 +357,13 @@ onMounted(loadPlans)
           </div>
         </div>
         <div v-else class="border-2 border-neutral-200 dark:border-neutral-800 rounded-lg border-dashed p-3 text-center text-xs text-neutral-500">
-          尚未评审 — 点击"评审"让桌宠总监给出意见
+          {{ t('settings.pages.director.not-reviewed') }}
         </div>
 
         <!-- DAG 任务图 -->
         <div class="flex flex-col gap-2">
           <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-            任务依赖图
+            {{ t('settings.pages.director.graph-title') }}
           </div>
           <PlanGraph :tasks="selectedTasks" />
         </div>
@@ -333,7 +371,7 @@ onMounted(loadPlans)
         <!-- LLM 评审反馈 markdown -->
         <div v-if="detail.reviewMarkdown" class="flex flex-col gap-2">
           <div class="text-[10px] font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-            总监评审意见
+            {{ t('settings.pages.director.review-title') }}
           </div>
           <pre class="whitespace-pre-wrap break-words rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] p-3 text-xs leading-relaxed text-neutral-700 dark:text-neutral-200">{{ detail.reviewMarkdown }}</pre>
         </div>
@@ -343,7 +381,7 @@ onMounted(loadPlans)
       <section v-else class="settings-panel flex flex-col items-center justify-center gap-2 py-16 text-center">
         <div class="i-solar:document-text-bold text-3xl text-neutral-300 dark:text-neutral-600" />
         <p class="text-sm text-neutral-500 dark:text-neutral-400">
-          {{ detail ? '计划详情加载中...' : '从左侧选择一个计划查看详情' }}
+          {{ detail ? t('settings.pages.director.detail-loading') : t('settings.pages.director.empty-detail') }}
         </p>
       </section>
     </div>
@@ -353,8 +391,8 @@ onMounted(loadPlans)
 <route lang="yaml">
 meta:
   layout: settings
-  title: 总监评审
-  description: 桌宠作为监工，评审外部 AI 工具生成的计划并给出通过/驳回结论
+  titleKey: settings.pages.director.title
+  descriptionKey: settings.pages.director.description
   subtitleKey: settings.title
   settingsEntry: true
   order: 5

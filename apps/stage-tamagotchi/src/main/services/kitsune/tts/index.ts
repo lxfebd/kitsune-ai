@@ -57,6 +57,8 @@ const gptSovitsConfigSchema = object({
     literal('cuda-half'),
   ])),
   threads: optional(pipe(number(), integer(), minValue(1), maxValue(64))),
+  /** 默认合成声线 id（设置页选择，合成未显式指定 voice 时使用；缺省走预定义 'ailini'） */
+  defaultVoice: optional(string()),
 })
 
 const gptSovitsConfigStore = createConfig('gpt-sovits', 'config.json', gptSovitsConfigSchema, {
@@ -519,7 +521,7 @@ export function getGptSovitsStatus(sidecarService: SidecarService): GptSovitsSta
  *
  * @param config - 部分配置对象，dir 为安装目录，port 为 HTTP 监听端口，device 为推理设备模式
  */
-export async function setGptSovitsConfig(config: { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number }): Promise<{ needsRestart: boolean }> {
+export async function setGptSovitsConfig(config: { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number, defaultVoice?: string }): Promise<{ needsRestart: boolean }> {
   ensureConfigLoaded()
   // 使用带显式字段的 fallback，确保 current.dir / current.port / current.device / current.threads 可安全访问
   const current = gptSovitsConfigStore.get() ?? { dir: undefined, port: undefined, device: undefined, threads: undefined }
@@ -543,6 +545,9 @@ export async function setGptSovitsConfig(config: { dir?: string, port?: number, 
   if (config.threads !== undefined) {
     next.threads = config.threads
   }
+  if (config.defaultVoice !== undefined) {
+    next.defaultVoice = config.defaultVoice
+  }
   gptSovitsConfigStore.update(next)
 
   // 配置实际变化且 sidecar 正在运行时才需要重启
@@ -551,16 +556,23 @@ export async function setGptSovitsConfig(config: { dir?: string, port?: number, 
 }
 
 /**
- * 获取当前 GPT-SoVITS 配置（dir / port / device）。
+ * 获取当前 GPT-SoVITS 配置（dir / port / device / defaultVoice）。
  */
-export function getGptSovitsConfig(): { dir: string | null, port: number, device: string | undefined, threads: number | undefined } {
+export function getGptSovitsConfig(): { dir: string | null, port: number, device: string | undefined, threads: number | undefined, defaultVoice: string | undefined } {
   ensureConfigLoaded()
   return {
     dir: resolveGptSovitsDir(),
     port: getGptSovitsPort(),
     device: gptSovitsConfigStore.get()?.device,
     threads: gptSovitsConfigStore.get()?.threads,
+    defaultVoice: gptSovitsConfigStore.get()?.defaultVoice,
   }
+}
+
+/** 合成默认声线：优先用配置的 defaultVoice，缺省回退预定义 'ailini'。 */
+export function getDefaultVoiceId(): string {
+  ensureConfigLoaded()
+  return gptSovitsConfigStore.get()?.defaultVoice ?? 'ailini'
 }
 
 /** 上一次加载的模型 ID，避免重复切换 */
@@ -682,7 +694,7 @@ export async function synthesizeGptSovits(
   if (!dir)
     throw new Error('GPT-SoVITS 目录未配置')
 
-  const voiceId = options.voice ?? 'ailini'
+  const voiceId = options.voice ?? getDefaultVoiceId()
 
   // 解析 voice manifest（走 TTL 缓存，避免重复同步阻塞主进程）
   const {
@@ -821,7 +833,7 @@ export async function* synthesizeGptSovitsStream(
   if (!dir)
     throw new Error('GPT-SoVITS 目录未配置')
 
-  const voiceId = options.voice ?? 'ailini'
+  const voiceId = options.voice ?? getDefaultVoiceId()
   const {
     referWavPath,
     promptText,

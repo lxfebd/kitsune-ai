@@ -12,6 +12,7 @@ import {
   electronDirectorReview,
   electronDirectorApprove,
   electronDirectorReject,
+  electronDirectorRevise,
 } from '../../../../shared/eventa'
 
 let sharedContext: ReturnType<typeof getElectronEventaContext> | undefined
@@ -27,6 +28,7 @@ function createInvokers() {
     review: defineInvoke(context, electronDirectorReview),
     approve: defineInvoke(context, electronDirectorApprove),
     reject: defineInvoke(context, electronDirectorReject),
+    revise: defineInvoke(context, electronDirectorRevise),
   }
 }
 
@@ -71,6 +73,18 @@ export async function directorRejectPlan(input: PlanIdToolInput, deps?: { invoke
   return invokers.reject({ planId: input.planId.trim(), reason: input.reason.trim() })
 }
 
+const revisePlanIdParams = z.object({
+  planId: z.string().describe('Plan id of a previously rejected plan.'),
+}).strict()
+
+type RevisePlanToolInput = z.infer<typeof revisePlanIdParams>
+
+/** director_revise — 驳回后按评审意见修订任务清单并写回（清空 verdict 回到待评审）。 */
+export async function directorRevisePlan(input: RevisePlanToolInput, deps?: { invokers?: DirectorToolInvokers }) {
+  const invokers = resolveInvokers(deps?.invokers)
+  return invokers.revise({ planId: input.planId.trim() })
+}
+
 const tools: Promise<Tool>[] = [
   (async () => rawTool({
     name: 'director_review',
@@ -86,9 +100,15 @@ const tools: Promise<Tool>[] = [
   }))(),
   (async () => rawTool({
     name: 'director_reject',
-    description: 'Reject a plan previously reviewed by director_review (or known by id), writing a rejected verdict JSON with a reason describing what to fix. The external tool can read the verdict and revise.',
+    description: 'Reject a plan previously reviewed by director_review (or known by id), writing a rejected verdict JSON with a reason describing what to fix. After rejecting, call director_revise to have the pet amend the task list per the feedback.',
     execute: params => directorRejectPlan(params as PlanIdToolInput),
     parameters: normalizeNullableAnyOf(await toJsonSchema(planIdParams) as JsonSchema),
+  }))(),
+  (async () => rawTool({
+    name: 'director_revise',
+    description: 'Amend a rejected plan: the pet (director) rewrites the task list according to the review feedback, writes it back to the plan file, clears the verdict, and the plan goes back to pending for re-review. Use only after director_reject on the same planId.',
+    execute: params => directorRevisePlan(params as RevisePlanToolInput),
+    parameters: normalizeNullableAnyOf(await toJsonSchema(revisePlanIdParams) as JsonSchema),
   }))(),
 ]
 

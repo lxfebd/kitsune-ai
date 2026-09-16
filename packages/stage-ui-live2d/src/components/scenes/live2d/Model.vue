@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Application } from 'pixi.js'
+import { Ticker } from 'pixi.js'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
@@ -645,7 +646,18 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
 }, { immediate: true })
 
 watch(currentMotion, value => setMotion(value.group, value.index))
-watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
+watch(paused, value => {
+  // 停止渲染 ticker 的同时停掉 Ticker.shared（Live2D 模型动画 Automator 的驱动），
+  // 否则 minimized 时模型参数仍每帧更新，CPU 白烧。
+  if (value) {
+    pixiApp.value?.stop()
+    Ticker.shared.stop()
+  }
+  else {
+    pixiApp.value?.start()
+    Ticker.shared.start()
+  }
+})
 
 // Watch and apply model parameters
 watch(() => modelParameters.value.angleX, (value) => {

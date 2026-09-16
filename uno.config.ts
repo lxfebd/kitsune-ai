@@ -217,6 +217,19 @@ export function sharedUnoConfig() {
       'i-solar:gallery-bold-duotone',
       'i-solar:keyboard-bold-duotone',
       'i-solar:heart-bold',
+      // 设置侧栏数据驱动图标（settings-nav.ts）：icon 以字符串变量传入 :class，
+      // unocss 无法静态扫描，必须全部列入 safelist，否则渲染空白
+      'i-solar:user-bold-duotone',
+      'i-solar:card-bold-duotone',
+      'i-solar:eye-bold-duotone',
+      'i-solar:link-bold-duotone',
+      'i-solar:diagram-up-bold-duotone',
+      'i-solar:clipboard-check-bold-duotone',
+      'i-solar:users-group-rounded-bold-duotone',
+      'i-solar:shield-check-bold-duotone',
+      'i-solar:planet-bold-duotone',
+      'i-solar:plug-circle-bold-duotone',
+      'i-solar:health-bold-duotone',
     ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn

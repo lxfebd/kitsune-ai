@@ -37,8 +37,6 @@ export default defineConfig({
     exclude: [
       // Internal Packages
       '@kitsune/stage-ui/*',
-      '@proj-airi/drizzle-duckdb-wasm',
-      '@proj-airi/drizzle-duckdb-wasm/*',
 
       // Static Assets: Models, Images, etc.
       'public/assets/*',
@@ -87,6 +85,13 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    // @kitsune/tts-hybrid 的 sherpaTtsAdapter 静态引用 sherpa-onnx（原生模块），
+    // 浏览器端从不实例化该适配器（只走 engine-registry 的 listEngines），
+    // 但 import 必须可解析。外部化后 import 留在 bundle 中但从不会执行。
+    // 与桌面端 renderer external 对齐，否则 web build 报 "failed to resolve import sherpa-onnx"。
+    rollupOptions: {
+      external: ['sherpa-onnx', 'sherpa-onnx-node', 'sherpa-onnx-wasm'],
+    },
   },
   worker: {
     format: 'es',

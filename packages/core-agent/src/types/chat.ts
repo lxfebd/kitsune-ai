@@ -11,11 +11,16 @@ export interface ChatSlicesToolCall {
   toolCall: CompletionToolCall
 }
 
+// 工具执行返回值：除文本/内容分片外，还可能是结构化对象
+// （executor_run / coordinator_delegate 等返回 { ok, accepted, done }），
+// 运行时原样透传，UI 层按对象字段判定状态（见 tool-call-results.ts）。
+export type ToolResultValue = string | CommonContentPart[] | Record<string, unknown>
+
 export interface ChatSlicesToolCallResult {
   type: 'tool-call-result'
   id: string
   isError?: boolean
-  result?: string | CommonContentPart[]
+  result?: ToolResultValue
 }
 
 export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
@@ -25,7 +30,7 @@ export interface ChatAssistantMessage extends AssistantMessage {
   tool_results: {
     id: string
     isError?: boolean
-    result?: string | CommonContentPart[]
+    result?: ToolResultValue
   }[]
   categorization?: {
     speech: string

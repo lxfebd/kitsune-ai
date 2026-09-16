@@ -224,7 +224,10 @@ function normalizeTask(cwd: string, toolInventory?: ToolInventoryItem[]): (raw: 
       const provider = validIds.has(requested) ? requested : (validIds.has('claude') ? 'claude' : items[0]?.id ?? 'claude')
       const fallbackTimeout = defaultCliTimeout(items)
       const timeoutMs = raw.timeoutMs ?? (provider === 'claude' ? Math.min(fallbackTimeout, 60_000) : fallbackTimeout)
-      return { id, type: 'cli', title: String(raw.title ?? ''), provider, prompt: String(raw.prompt ?? ''), cwd: raw.cwd ?? cwd, timeoutMs, critical, dependsOn } as CliTask
+      // prompt 缺失时回退到 title — 模型经常只给 title 不给 prompt，
+      // 空 prompt 会让 dsh 收到空任务文本 → 只建 session 不干活（静默假完成）
+      const prompt = String(raw.prompt ?? '').trim() || String(raw.title ?? '').trim()
+      return { id, type: 'cli', title: String(raw.title ?? ''), provider, prompt, cwd: raw.cwd ?? cwd, timeoutMs, critical, dependsOn } as CliTask
     }
     if (raw.type === 'desktop') {
       const desktopActions = ['click', 'moveTo', 'type', 'pressKey', 'drag', 'findAndClick', 'screenshot', 'findElement']

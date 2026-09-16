@@ -24,6 +24,7 @@ export * from './domains/director'
 export * from './domains/coordinator'
 export * from './domains/desktop'
 export * from './domains/web-tools'
+export * from './domains/usage'
 
 export { electron } from '@kitsune/electron-eventa'
 export * from '@kitsune/electron-eventa/electron-updater'

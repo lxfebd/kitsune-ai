@@ -21,8 +21,9 @@ const pixiApp = ref<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 function resolveMaxFps(limit?: number) {
+  // 0 曾表示「不限帧」，对常驻桌宠会烧满 CPU（实测 rAF 148fps）。统一兜底为 30fps。
   if (!limit || limit <= 0)
-    return 0
+    return 30
 
   return Math.max(1, Math.round(limit))
 }
@@ -49,6 +50,10 @@ function installRenderGuard(app: Application) {
   app.ticker.remove(app.render, app)
   app.ticker.add(guardedRender)
   app.ticker.maxFPS = resolveMaxFps(props.maxFps)
+  // Live2D 模型动画由 Ticker.shared（Automator）驱动，app.ticker 只负责渲染。
+  // 不限制 shared 的话模型参数/动作每帧全速更新，maxFPS 形同虚设（实测 rAF ~135fps）。
+  // 这里让模型动画与渲染共用同一帧率上限。
+  Ticker.shared.maxFPS = resolveMaxFps(props.maxFps)
 }
 
 async function initLive2DPixiStage(parent: HTMLDivElement) {
@@ -137,8 +142,10 @@ function handleResize() {
 
 watch([() => props.width, () => props.height, () => props.resolution], handleResize)
 watch(() => props.maxFps, (limit) => {
-  if (pixiApp.value)
+  if (pixiApp.value) {
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
+    Ticker.shared.maxFPS = resolveMaxFps(limit)
+  }
 })
 
 // Pause the Pixi ticker when the page is hidden so the Live2D render loop and
@@ -147,10 +154,14 @@ watch(() => props.maxFps, (limit) => {
 function handleVisibilityChange() {
   if (!pixiApp.value)
     return
-  if (document.hidden)
+  if (document.hidden) {
     pixiApp.value.ticker.stop()
-  else
+    Ticker.shared.stop()
+  }
+  else {
     pixiApp.value.ticker.start()
+    Ticker.shared.start()
+  }
 }
 
 onMounted(() => document.addEventListener('visibilitychange', handleVisibilityChange))

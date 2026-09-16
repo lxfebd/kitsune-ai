@@ -20,6 +20,7 @@ const PANEL = 'settings-panel'
 
 const doctorResults = ref<DoctorResult[]>([])
 const fixResults = ref<FixResult[]>([])
+const fixRun = ref(false)
 const doctorRunning = ref(false)
 const doctorFixing = ref(false)
 const errorMessage = ref('')
@@ -72,6 +73,11 @@ async function fixDoctor() {
   try {
     const result = await invokeDoctorFix({})
     fixResults.value = result ?? []
+    fixRun.value = true
+    // 修复后自动重检一次，刷新检查结果列表（修复前的 FAIL 项不再残留）
+    const recheck = await invokeDoctorRun({})
+    if (recheck)
+      doctorResults.value = recheck
   }
   catch (e) {
     errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
@@ -164,9 +170,12 @@ async function fixDoctor() {
     </div>
 
     <TransitionVertical>
-      <div v-if="fixResults.length" class="flex flex-col gap-2 border-t border-neutral-200/70 pt-3 dark:border-neutral-800">
+      <div v-if="fixRun" class="flex flex-col gap-2 border-t border-neutral-200/70 pt-3 dark:border-neutral-800">
         <div class="text-xs font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
           {{ tn('doctor.actions.fix') }}
+        </div>
+        <div v-if="fixResults.length === 0" class="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+          {{ fixResults.length === 0 && doctorStats.total === 0 ? tn('doctor.fix-nothing-to-do') : tn('doctor.fix-empty') }}
         </div>
         <article
           v-for="(result, idx) in fixResults"

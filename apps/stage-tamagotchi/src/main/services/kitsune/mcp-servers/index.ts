@@ -14,6 +14,7 @@ import type {
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 
+import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -574,6 +575,8 @@ export function buildAgentTemplates(): ElectronMcpAgentTemplate[] {
   const agentIds: McpAgentId[] = ['claude_code', 'cursor', 'trae', 'windsurf', 'zcode', 'opencode']
   return agentIds.map((agentId) => {
     const tpl = generateAgentMcpConfig(agentId, stdioEntry)
+    // 探测候选配置文件是否已存在 — 设置页据此展示「已配置 / 未配置」，免去用户猜路径
+    const matchedPath = tpl.configPaths.find(p => existsSync(p))
     return {
       agentId,
       label: tpl.label,
@@ -582,6 +585,8 @@ export function buildAgentTemplates(): ElectronMcpAgentTemplate[] {
       configFile: tpl.configFile,
       configPaths: tpl.configPaths,
       httpUrl: tpl.mode === 'url' ? PET_MCP_HTTP_URL : undefined,
+      configured: Boolean(matchedPath),
+      matchedPath,
     }
   })
 }

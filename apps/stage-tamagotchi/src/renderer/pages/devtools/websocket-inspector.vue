@@ -150,8 +150,7 @@ onUnmounted(() => {
         class="px-3 py-1.5 rounded-lg text-sm font-medium bg-neutral-500/10 text-neutral-600 hover:bg-neutral-500/20 transition-all duration-200"
         @click="clearMessages"
       >
-        Clear
-      </button>
+        {{ t('tamagotchi.settings.devtools.pages.websocket-inspector.clear') }}
     </div>
     
     <!-- Filters -->
@@ -165,14 +164,14 @@ onUnmounted(() => {
           'outline-none',
         ]"
       >
-        <option value="all">All Directions</option>
-        <option value="sent">Sent</option>
-        <option value="received">Received</option>
+        <option value="all">{{ t('tamagotchi.settings.devtools.pages.websocket-inspector.all') }}</option>
+        <option value="sent">{{ t('tamagotchi.settings.devtools.pages.websocket-inspector.sent') }}</option>
+        <option value="received">{{ t('tamagotchi.settings.devtools.pages.websocket-inspector.received') }}</option>
       </select>
       
       <input
         v-model="filterEvent"
-        placeholder="Filter by event..."
+        placeholder="{{ t('tamagotchi.settings.devtools.pages.websocket-inspector.filter-placeholder') }}"
         :class="[
           'px-3 py-1 rounded-lg text-sm flex-1',
           'bg-white dark:bg-neutral-900',
@@ -185,7 +184,7 @@ onUnmounted(() => {
     <!-- Messages List -->
     <div class="flex-1 overflow-auto p-4">
       <div v-if="filteredMessages.length === 0" class="flex items-center justify-center h-full text-neutral-400">
-        No messages captured yet
+        {{ t('tamagotchi.settings.devtools.pages.websocket-inspector.no-messages') }}
       </div>
       
       <div v-else class="flex flex-col gap-2">

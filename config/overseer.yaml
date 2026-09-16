@@ -54,191 +54,45 @@ executor:
     run_command: 60000
 
 tools:
-  - id: claude_code
-    name: Claude Code
+  # ── dsh（DeepSeek Harness）— 唯一的 CLI 派活入口 ──
+  # 「只用 dsh，安装即启用」：dsh 装上（二进制进 PATH）→ 探活 available → 编排层即可派活。
+  # 调用形态：dsh --profile headless "<任务>" — 任务文本是位置参数（headless runner 读 cmdlineArgs[0]），
+  # 成功时最后一条 assistant 文本写 stdout、stderr 空、退出码 0；错误时 code+message 写 stderr、退出码 1。
+  # dsh 收敛：claude_code / opencode / trae / cursor / codex / zcode / workbuddy 七个旧工具
+  # 已于 2026-09-15 整体移除（只感知不派活、还占监工面板位置）。如需恢复某个工具，
+  # 按下方 dsh 的结构补齐 cli 段即可。
+  - id: dsh
+    name: DeepSeek Harness
     type: process
     detect:
-      processName: claude
+      processName: dsh
     personality:
-      strengths: [代码重构, 代码审查, commit 生成, 安全审计]
-      bestFor: 审查/重构/需要推理的代码任务
-      avoidFor: 大规模批量生成新文件
-      maxPromptLen: 2000
-    # cli 段：注册进 TaskPusher，获得 pushTask / autoFix 能力
+      strengths: [自主执行, 拆解任务, 工具调用, 代码与文件操作]
+      bestFor: 无人值守的自主任务（headless 一次一问一答）
+      avoidFor: 需要交互式追问的长会话（headless 只提交一个任务）
+      maxPromptLen: 3000
     cli:
-      binary: claude
-      timeoutMs: 120000
+      # 本机 dsh 是源码仓的 CLI 入口（不在 PATH），直接指到已实测可用的
+      # node bin.js 包装：`node <dsh repo>/dsh-desktop-unified/node_modules/@deepseek-ai/dsh/lib/bin.js
+      # --profile headless "<任务>"`。dsh.CMD 是 pnpm 生成的 node shim，taskPusher 对
+      # 绝对路径 .cmd 会走 cmd.exe 包装，无需用户改 PATH。
+      binary: J:\xiangm_transfer\deepseekhar_transfer\deepseekhar\dsh-desktop-unified\node_modules\.bin\dsh.CMD
+      timeoutMs: 600000
       riskLevel: medium
+      # 受信工具（安装即启用）：普通 CLI 派活自动放行，不弹权限确认；
+      # 高风险操作（rm -rf / 等）仍强制二次确认。
+      trusted: true
+      # 工具级环境变量：指定 dsh home（profiles/sessions 都在其下），
+      # 不设则回退 ~/.dsh。taskPusher spawn 时合并进进程 env。
+      env:
+        DSH_HOME: J:\xiangm_transfer\deepseekhar_transfer\deepseekhar\dsh-home
       templates:
         - key: prompt
-          label: 发送指令
-          args: [--print]
-          inputParam: -p
-          maxLen: 2000
-        - key: prompt-json
-          label: 发送指令(结构化)
-          args: [--print, --output-format, json]
-          inputParam: -p
-          maxLen: 2000
-    events:
-      - permission_request
-      - task_end
-      - task_failed
-      - compile_failed
-      - test_failed
-    enabled: true
-
-  - id: opencode
-    name: Opencode
-    type: process
-    detect:
-      processName: opencode
-    personality:
-      strengths: [全自动编码, 独立小任务批处理]
-      bestFor: 独立小任务批处理
-      avoidFor: 需要持续对话的复杂重构
-      maxPromptLen: 2000
-    cli:
-      binary: opencode
-      timeoutMs: 120000
-      riskLevel: medium
-      templates:
-        - key: prompt
-          label: 发送指令
-          args: [--print]
+          label: 派发任务(headless)
+          args: [--profile, headless]
           inputParam: null
-          maxLen: 2000
+          maxLen: 3000
     events:
-      - permission_request
-      - task_end
-      - task_failed
-    enabled: true
-
-  - id: trae
-    name: Trae
-    type: process
-    detect:
-      processName: trae
-    personality:
-      strengths: [IDE 内编辑, 代码补全, 文件操作]
-      bestFor: IDE 内的小修改与单文件编辑
-      avoidFor: 需要完整独立会话的大任务
-      maxPromptLen: 2000
-    cli:
-      binary: trae
-      timeoutMs: 30000
-      riskLevel: medium
-      templates:
-        - key: prompt
-          label: 发送指令到编辑器
-          args: [--goto]
-          inputParam: null
-          maxLen: 2000
-        - key: open
-          label: 打开文件
-          args: []
-          inputParam: null
-          maxLen: 500
-    events:
-      - permission_request
-      - task_end
-      - task_failed
-    enabled: true
-
-  - id: cursor
-    name: Cursor
-    type: process
-    detect:
-      processName: cursor
-    personality:
-      strengths: [IDE 内编辑, 代码补全, 文件操作]
-      bestFor: IDE 内的小修改与单文件编辑
-      avoidFor: 需要完整独立会话的大任务
-      maxPromptLen: 2000
-    cli:
-      binary: cursor
-      timeoutMs: 30000
-      riskLevel: medium
-      templates:
-        - key: prompt
-          label: 发送指令到编辑器
-          args: [--goto]
-          inputParam: null
-          maxLen: 2000
-        - key: open
-          label: 打开文件
-          args: []
-          inputParam: null
-          maxLen: 500
-    events:
-      - permission_request
-      - task_end
-      - task_failed
-    enabled: true
-
-  - id: codex
-    name: OpenAI Codex
-    type: process
-    detect:
-      processName: codex
-    personality:
-      strengths: [全自动编码, 独立小任务批处理]
-      bestFor: 全自动小任务（配合 --full-auto 使用）
-      avoidFor: 需要人工确认的长会话
-      maxPromptLen: 2000
-    cli:
-      binary: codex
-      timeoutMs: 120000
-      riskLevel: high
-      templates:
-        - key: prompt
-          label: 发送指令
-          args: [--quiet]
-          inputParam: null
-          maxLen: 2000
-        - key: full-auto
-          label: 全自动模式
-          args: [--full-auto]
-          inputParam: null
-          maxLen: 2000
-    events:
-      - permission_request
-      - task_end
-      - task_failed
-    enabled: true
-
-  - id: zcode
-    name: ZCode
-    type: process
-    detect:
-      processName: zcode
-    personality:
-      strengths: [会话式编程助手, 与用户实时协作]
-      bestFor: 需要用户实时参与的交互式任务
-      avoidFor: 无人值守的批量任务
-      maxPromptLen: 2000
-    # zcode 没有可用的 CLI（which zcode 为空）→ perceiveOnly 只感知不派活，
-    # coordinator/规划器不会把活派给它。MCP 上报通道仍可感知它的活动。
-    perceiveOnly: true
-    events:
-      - permission_request
-      - task_end
-      - task_failed
-    enabled: true
-
-  - id: workbuddy
-    name: Workbuddy
-    type: process
-    detect:
-      processName: workbuddy
-    personality:
-      strengths: [日常开发协作, 简单修改]
-      bestFor: 日常小修改与协作
-      avoidFor: 复杂多步骤任务
-      maxPromptLen: 2000
-    perceiveOnly: true
-    events:
-      - permission_request
       - task_end
       - task_failed
     enabled: true

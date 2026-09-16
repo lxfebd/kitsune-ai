@@ -1,46 +1,50 @@
 import type { Tool } from '@xsai/shared-chat'
 import type { JsonSchema } from 'xsschema'
 
-import { defineInvoke } from '@moeru/eventa'
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod'
 
-import { electron } from '@kitsune/electron-eventa'
-import { screenCaptureGetSources } from '@kitsune/electron-screen-capture'
-import { getElectronEventaContext } from '@kitsune/electron-vueuse'
 import { normalizeNullableAnyOf } from '@kitsune/stage-shared/json-schema'
-import { electronDesktopAutomationInvoke } from '../../../../shared/eventa'
 import type { ElectronDesktopAutomationInvokePayload, ElectronDesktopAutomationResult } from '../../../../shared/eventa'
 
-// 单个共享 eventa context — 避免创建 5 个冗余 ipcRenderer listeners。
-// 懒加载：模块作用域调用 getElectronEventaContext() 在无 Electron IPC 的
-// 环境（测试 / 纯浏览器预览）会立即抛错，首次真正使用工具时才初始化。
-let sharedContext: ReturnType<typeof getElectronEventaContext> | undefined
+// NOTICE: 桌面自动化/屏幕工具全部走「JSON 字符串裸 IPC 通道」（ipcRenderer.invoke +
+// JSON 字符串），不再使用 eventa defineInvoke 的 ctx.emit 对象通道。
+// eventa 通道在传输 Electron 内部对象（screen Point、Display、thumbnail Uint8Array、
+// window bounds）时偶发 "Error processing argument at index 0, conversion failure from {}"
+// V8 structuredClone 序列化失败，且失败被 eventa 适配器吞掉后返回 undefined，
+// 上游读到 (0,0)/空数据。字符串是 V8 structuredClone 的原语类型，永远可克隆。
 
-function getContext() {
-  sharedContext ??= getElectronEventaContext()
-  return sharedContext
-}
-
-function createInvokers() {
-  const context = getContext()
-  return {
-    desktop: defineInvoke(context, electronDesktopAutomationInvoke),
-    windowGetBounds: defineInvoke(context, electron.window.getBounds),
-    windowSetBounds: defineInvoke(context, electron.window.setBounds),
-    getAllDisplays: defineInvoke(context, electron.screen.getAllDisplays),
-    getCursorScreenPoint: defineInvoke(context, electron.screen.getCursorScreenPoint),
-    getScreenSources: defineInvoke(context, screenCaptureGetSources),
+/** ipcRenderer.invoke 的 JSON 字符串桥（主进程侧 ipcMain.handle 已同步 JSON.parse/stringify）。 */
+function jsonInvokeBridge<T = unknown>(channel: string) {
+  const ipcRenderer = window.electron?.ipcRenderer
+  if (!ipcRenderer)
+    throw new Error('ipcRenderer not available')
+  return async (payload?: unknown): Promise<T> => {
+    const raw = await ipcRenderer.invoke(channel, payload === undefined ? '' : JSON.stringify(payload))
+    return JSON.parse(raw as string) as T
   }
 }
 
-type Invokers = ReturnType<typeof createInvokers>
+interface WindowBounds { x: number, y: number, width: number, height: number }
+interface SerializableDisplay { id: number, label: string, bounds: any, workArea: any, scaleFactor: number, rotation: number, isPrimary: boolean }
+interface ScreenSourceSnapshot { id: string, name: string, display_id: string, thumbnailDataUrl?: string }
 
-let invokeCache: Invokers | undefined
+// 懒创建各通道的 invoke（不创建对象通道 invoker）
+let invokeCache: {
+  windowGetBounds: () => Promise<WindowBounds>
+  windowSetBounds: (bounds: WindowBounds) => Promise<{ ok: boolean }>
+  getAllDisplays: () => Promise<SerializableDisplay[]>
+  getScreenSources: (opts: any) => Promise<ScreenSourceSnapshot[]>
+} | undefined
 
-function resolveInvokers(): Invokers {
-  invokeCache ??= createInvokers()
+function resolveInvokers() {
+  invokeCache ??= {
+    windowGetBounds: jsonInvokeBridge<WindowBounds>('electron:window:get-bounds'),
+    windowSetBounds: jsonInvokeBridge<{ ok: boolean }>('electron:window:set-bounds'),
+    getAllDisplays: jsonInvokeBridge<SerializableDisplay[]>('electron:screen:get-all-displays'),
+    getScreenSources: jsonInvokeBridge<ScreenSourceSnapshot[]>('electron:screen:get-sources'),
+  }
   return invokeCache
 }
 
@@ -94,10 +98,6 @@ function resolveDisplaysInvoker() {
   return resolveInvokers().getAllDisplays
 }
 
-function resolveMouseInvoker() {
-  return resolveInvokers().getCursorScreenPoint
-}
-
 // NOTICE: 截图不走 resolveDesktopInvoker（自建 ipcRenderer.invoke 通道，间歇性
 // "conversion failure from {}" 结构化克隆失败），而是复用项目已有的
 // @kitsune/electron-screen-capture 截屏系统（走稳定 eventa IPC）。
@@ -124,10 +124,15 @@ async function captureScreenshotViaEventa(): Promise<string> {
   const invoker = resolveScreenSourcesInvoker()
   let sources: Awaited<ReturnType<typeof invoker>>
   try {
-    sources = await invoker({
-      types: ['screen'] as Electron.SourcesOptions['types'],
-      thumbnailSize: { width: SCREENSHOT_MAX_WIDTH, height: SCREENSHOT_MAX_HEIGHT },
-    }, { signal: AbortSignal.timeout(SCREENSHOT_TIMEOUT_MS) })
+    // NOTICE: JSON 桥不支持 abortSignal 传参，用外部 Promise.race 强制 10s 超时，
+    // 避免 getSources（Electron #44504）长时间挂起让整个 agent 回合无限期卡住。
+    sources = await Promise.race([
+      invoker({
+        types: ['screen'] as Electron.SourcesOptions['types'],
+        thumbnailSize: { width: SCREENSHOT_MAX_WIDTH, height: SCREENSHOT_MAX_HEIGHT },
+      }),
+      new Promise((_resolve, reject) => setTimeout(() => reject(new Error('TimeoutError')), SCREENSHOT_TIMEOUT_MS)),
+    ]) as Awaited<ReturnType<typeof invoker>>
   }
   catch (error) {
     const msg = String(error)
@@ -137,16 +142,11 @@ async function captureScreenshotViaEventa(): Promise<string> {
   }
   if (!sources || sources.length === 0)
     throw new Error('未找到可用屏幕')
-  const thumbnail = sources[0].thumbnail
-  if (!thumbnail || thumbnail.length === 0)
+  // NOTICE: JSON 桥返回 thumbnailDataUrl（主进程已转 data URL），不再手动拼 base64。
+  const dataUrl = sources[0]?.thumbnailDataUrl
+  if (!dataUrl)
     throw new Error('截图数据为空')
-  const bytes = thumbnail instanceof Uint8Array ? thumbnail : new Uint8Array(thumbnail)
-  let binary = ''
-  const chunkSize = 0x8000
-  for (let i = 0; i < bytes.length; i += chunkSize)
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
-  const base64 = btoa(binary)
-  return `data:image/jpeg;base64,${base64}`
+  return dataUrl
 }
 
 /**
@@ -542,9 +542,14 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
       description: '获取当前鼠标光标的屏幕坐标。',
       parameters: normalizeNullableAnyOf(await toJsonSchema(getMouseParams) as JsonSchema),
       execute: async () => {
-        const invoker = resolveMouseInvoker()
-        const point = await invoker()
-        return { x: point.x, y: point.y }
+        // NOTICE: 走 desktop-automation JSON 字符串桥的 getCursorPosition
+        // （主进程 koffi GetCursorPos Buffer 共享内存读取真实坐标），
+        // 不再走 eventa 对象通道（Electron 内部 Point 克隆失败 → (0,0)）。
+        const invoker = resolveDesktopInvoker()
+        const result = await invoker({ action: 'getCursorPosition', params: {} })
+        if (!result.ok)
+          throw new Error(result.error ?? '获取鼠标位置失败')
+        return result.result as { x: number, y: number }
       },
     }))(),
 
@@ -651,14 +656,13 @@ export async function desktopAutomationTools(): Promise<Tool[]> {
         const getInvoker = resolveWindowInvoker()
         const currentBounds = await getInvoker()
         const setInvoker = resolveSetBoundsInvoker()
-        // NOTICE: setBounds payload is Parameters<BrowserWindow['setBounds']> = [Rectangle, boolean?]
-        // Must wrap in array to match the tuple type.
-        await setInvoker([{
+        // NOTICE: JSON 桥通道直接传 Rectangle 对象（主进程 ipcMain.handle 已 JSON.parse）。
+        await setInvoker({
           x: x ?? currentBounds.x,
           y: y ?? currentBounds.y,
           width: width ?? currentBounds.width,
           height: height ?? currentBounds.height,
-        }])
+        })
         return {
           ok: true,
           bounds: {

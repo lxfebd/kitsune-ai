@@ -72,7 +72,6 @@
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@pinia/colada": "catalog:",
-    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@shikijs/markdown-it": "catalog:",
     "@tresjs/core": "catalog:",
     "@unocss/reset": "catalog:",

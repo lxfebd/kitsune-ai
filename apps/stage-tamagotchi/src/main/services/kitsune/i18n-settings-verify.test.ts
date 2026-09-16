@@ -61,4 +61,12 @@ describe('settings i18n key resolution (regression: raw keys shown in UI)', () =
       expect(resolve(en, k), `${k} en`).toBeTruthy()
     }
   })
+
+  it('director page keys resolve', () => {
+    for (const k of ['settings.pages.director.title', 'settings.pages.director.description', 'settings.pages.director.list-title', 'settings.pages.director.review-latest', 'settings.pages.director.review', 'settings.pages.director.approve', 'settings.pages.director.reject', 'settings.pages.director.approve-reason', 'settings.pages.director.reject-reason', 'settings.pages.director.approved-plan', 'settings.pages.director.rejected-plan', 'settings.pages.director.review-result', 'settings.pages.director.verdict-pass', 'settings.pages.director.verdict-fail', 'settings.pages.director.verdict-approved', 'settings.pages.director.verdict-rejected', 'settings.pages.director.error-title', 'settings.pages.director.info-title', 'settings.pages.director.task-count', 'settings.pages.director.empty-plans', 'settings.pages.director.empty-detail', 'settings.pages.director.detail-loading', 'settings.pages.director.not-reviewed', 'settings.pages.director.graph-title', 'settings.pages.director.review-title', 'settings.pages.director.status.pending', 'settings.pages.director.status.running', 'settings.pages.director.status.completed', 'settings.pages.director.status.aborted', 'settings.pages.director.verdict.pending', 'settings.pages.director.verdict.approved', 'settings.pages.director.verdict.rejected']) {
+      expect(typeof resolve(zh, k), `${k} zh`).toBe('string')
+      expect((resolve(zh, k) as string).length, `${k} zh non-empty`).toBeGreaterThan(0)
+      expect(resolve(en, k), `${k} en`).toBeTruthy()
+    }
+  })
 })

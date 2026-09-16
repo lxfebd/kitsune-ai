@@ -40,6 +40,8 @@ export interface CoordinatorDeps {
   inventory: ToolInventoryItem[]
   /** 子 agent 在线状态查询（来自 Supervisor / mcpActivity） */
   isAgentOnline: (id: string) => boolean
+  /** 工具二进制可用性探针（taskPusher.probeToolAvailability 的同步包）— 供 headless CLI 判在线 */
+  probeAvailability?: () => Record<string, boolean>
   /** 执行计划（复用 executor） */
   runPlan: (plan: Plan) => Promise<void>
   /** 查询执行器当前状态 */
@@ -111,6 +113,16 @@ function buildDispatchPrompt(
  */
 export function createCoordinator(deps: CoordinatorDeps) {
   const { inventory, isAgentOnline, runPlan, getExecutorStatus, emit } = deps
+  // dsh 收敛：dsh 是 headless CLI，空闲时不保持进程 —— 按进程检测恒「离线」。
+  // 改为「可用性优先」：binary 存在（安装即启用）即视为可用/在线，让团队页如实显示
+  // 桌宠派工已就绪；进程信号仍保留给 GUI 工具（cursor/trae 等开着才算在线）。
+  const onlineByAvailability = (id: string) => {
+    if (id !== 'dsh') return false
+    const probe = deps.probeAvailability?.() ?? {}
+    return Boolean(probe[id])
+  }
+  /** 统一在线判定：进程/MCP 信号 或 dsh 可用性（binary 存在即就绪） */
+  const isOnline = (id: string) => isAgentOnline(id) || onlineByAvailability(id)
   const dispatchHistory: DispatchRecord[] = []
   /** 当前编排中的活跃任务 provider → taskId 映射（面板展示 busy 用） */
   const activeAssignments = new Map<string, string>()
@@ -130,7 +142,7 @@ export function createCoordinator(deps: CoordinatorDeps) {
     return inventory.map(t => ({
       id: t.id,
       name: t.name,
-      online: isAgentOnline(t.id),
+      online: isOnline(t.id),
       dispatchable: true,
       busy: busy.has(t.id),
       lastOutcome: dispatchHistory
@@ -150,7 +162,7 @@ export function createCoordinator(deps: CoordinatorDeps) {
     if (getExecutorStatus().isRunning)
       return { ok: false, error: '执行器正在运行中，请等待当前计划完成后再提交' }
 
-    const onlineIds = inventory.filter(t => isAgentOnline(t.id)).map(t => t.id)
+    const onlineIds = inventory.filter(t => isOnline(t.id)).map(t => t.id)
     const dispatchPrompt = buildDispatchPrompt(requirement, inventory, onlineIds, dispatchHistory)
     const llmResult = await callLlm(
       '你是任务编排者。只输出 JSON，不要其他文字。',

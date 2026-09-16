@@ -95,6 +95,10 @@ export interface ElectronMcpAgentTemplate {
   configPaths: string[]
   /** HTTP MCP server 地址（mode=url 时展示） */
   httpUrl?: string
+  /** 探测结果：候选路径中是否已存在配置文件（设置页展示「已配置/未配置」） */
+  configured: boolean
+  /** 探测到的已存在配置文件路径（configured=true 时展示，告诉用户写进了哪个文件） */
+  matchedPath?: string
 }
 
 export const electronMcpGetAgentTemplates = defineInvokeEventa<ElectronMcpAgentTemplate[]>('eventa:invoke:electron:mcp:get-agent-templates')

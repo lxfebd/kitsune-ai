@@ -270,7 +270,7 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
-  it('rejects follower command timeouts after thirty seconds', async () => {
+  it('rejects follower command timeouts after five minutes', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const store = useChatSyncStore()
@@ -282,7 +282,9 @@ describe('useChatSyncStore', async () => {
     })
     const expectedRejection = expect(pending).rejects.toThrow('Timed out waiting for chat authority response')
 
-    await vi.advanceTimersByTimeAsync(30000)
+    // requestIngest 的超时是 INGEST_RESPONSE_TIMEOUT_MS = 5 分钟：follower 要等 authority
+    // 完成完整 LLM 回合，流式生成可能数十秒到数分钟，30s 会误杀慢对话导致用户重复回车。
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
 
     await expectedRejection
 

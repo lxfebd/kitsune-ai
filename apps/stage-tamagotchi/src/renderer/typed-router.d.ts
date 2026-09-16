@@ -489,6 +489,27 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/settings/pipeline/': RouteRecordInfo<
+      '/settings/pipeline/',
+      '/settings/pipeline',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/pipeline/PipelineBoard': RouteRecordInfo<
+      '/settings/pipeline/PipelineBoard',
+      '/settings/pipeline/PipelineBoard',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
+    '/settings/pipeline/PipelineRail': RouteRecordInfo<
+      '/settings/pipeline/PipelineRail',
+      '/settings/pipeline/PipelineRail',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
     '/settings/providers/': RouteRecordInfo<
       '/settings/providers/',
       '/settings/providers',
@@ -1301,6 +1322,24 @@ declare module 'vue-router/auto-routes' {
     'src/renderer/pages/settings/overseer/index.vue': {
       routes:
         | '/settings/overseer/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/pipeline/index.vue': {
+      routes:
+        | '/settings/pipeline/'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/pipeline/PipelineBoard.vue': {
+      routes:
+        | '/settings/pipeline/PipelineBoard'
+      views:
+        | never
+    }
+    'src/renderer/pages/settings/pipeline/PipelineRail.vue': {
+      routes:
+        | '/settings/pipeline/PipelineRail'
       views:
         | never
     }

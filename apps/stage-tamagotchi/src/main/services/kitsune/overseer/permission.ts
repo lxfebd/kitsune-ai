@@ -55,6 +55,16 @@ const HIGH_RISK_PATTERNS: RegExp[] = [
 export class PermissionModel {
   private whitelist = new Map<string, WhitelistEntry>()
 
+  /**
+   * 受信来源（source）集合 — 配置注入（如 dsh）。受信来源的普通 CLI 操作无需确认，
+   * 但高风险操作（isHighRisk）仍强制二次确认。缺省空集 = 全部需要确认（向后兼容）。
+   */
+  private trustedSources = new Set<string>()
+
+  constructor(options?: { trustedSources?: string[] }) {
+    this.trustedSources = new Set(options?.trustedSources ?? [])
+  }
+
   /** 从磁盘加载已持久化的白名单（进程启动时调用一次） */
   async load(): Promise<void> {
     const raw = await readFile(whitelistPath()).catch(() => null)
@@ -80,13 +90,25 @@ export class PermissionModel {
     }
   }
 
-  /** 当前任务是否需要弹窗确认；白名单内返回 false */
+  /** 当前任务是否需要弹窗确认；白名单内或受信来源返回 false */
   needsConfirm(task: PermissionTask): boolean {
     const source = task.source
     const assertionType = task.assertion?.type
     if (!source || !assertionType)
       return true
+    if (this.trustedSources.has(source))
+      return false
     return !this.whitelist.has(buildWhitelistKey(source, assertionType))
+  }
+
+  /** 是否受信来源（供执行层判定「受信 + 非高风险 → 直接运行」） */
+  isTrustedSource(source?: string): boolean {
+    return !!source && this.trustedSources.has(source)
+  }
+
+  addTrustedSource(source: string): void {
+    if (source)
+      this.trustedSources.add(source)
   }
 
   /**

@@ -41,6 +41,8 @@ interface LoopDeps {
   onPlanCompleted?: (plan: Plan, status: 'completed' | 'aborted') => Promise<void>
   /** 任务失败回调 — 人格化安抚话术 */
   onTaskFailed?: (task: Task, error: string | undefined, attempt: number) => Promise<string | undefined>
+  /** 任务最终失败回调（全部重试耗尽后）— 结果回喂编排/派活状态 */
+  onTaskFailedFinal?: (task: Task, result: TaskResult, attempt: number) => Promise<void>
   /** 审计日志 */
   auditLog?: { append: (entry: { timestamp: string, taskId: string, type: 'cli' | 'ide' | 'desktop', source: string, result: 'success' | 'failure', error?: string, durationMs: number }) => Promise<void> }
   /** 规划器 — 动态调整 + 子计划生成 */
@@ -91,7 +93,7 @@ function isPlanAborted(plan: Plan): boolean {
 }
 
 export function createLoop(deps: LoopDeps) {
-  const { runner, permission, checkAcceptance, emit, confirmRequest, killRunningTask, onTaskCompleted, onPlanCompleted, onTaskFailed, auditLog, planner, params: loopParams } = deps
+  const { runner, permission, checkAcceptance, emit, confirmRequest, killRunningTask, onTaskCompleted, onPlanCompleted, onTaskFailed, onTaskFailedFinal, auditLog, planner, params: loopParams } = deps
   const fileLogger = getFileLogger()
   // 从注入参数取重试延迟/子计划深度/最大并行度 — yaml executor 节优先，缺省回退硬编码
   const retryDelays = loopParams?.retryDelaysMs?.length ? loopParams.retryDelaysMs : RETRY_DELAYS_MS
@@ -217,6 +219,8 @@ export function createLoop(deps: LoopDeps) {
         if (result.error === '用户拒绝') {
           taskError = result.error
           emit('task_failed', { taskId: task.id, attempt, error: result.error, result })
+          // 拒绝/超时自动拒绝同样是终态 — 结果回喂编排者，清除 busy/回填「上次派活」
+          try { await onTaskFailedFinal?.(task, result, attempt) } catch { /* 忽略 */ }
           if (task.critical) {
             abortSignal.aborted = true
             plan.status = 'aborted'
@@ -253,6 +257,8 @@ export function createLoop(deps: LoopDeps) {
       }
 
       // 全部重试失败 — 使用局部变量判断，不依赖共享状态
+      // 结果回喂（编排者清除 busy / 面板「上次派活」回填失败）；用户拒绝已在上面 return 处理
+      try { await onTaskFailedFinal?.(task, { taskId: task.id, ok: false, error: taskError, durationMs: 0 }, retryDelays.length - 1) } catch { /* 忽略 */ }
       if (task.critical) {
         abortSignal.aborted = true
         plan.status = 'aborted'

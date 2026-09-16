@@ -96,14 +96,14 @@ function getTypeColor(type: string) {
           ]"
           @click="isCapturing ? stopCapture() : startCapture()"
         >
-          {{ isCapturing ? 'Stop' : 'Start' }}
+          {{ isCapturing ? t('tamagotchi.settings.devtools.pages.context-flow.stop') : t('tamagotchi.settings.devtools.pages.context-flow.start') }}
         </button>
         
         <button
           class="px-3 py-1.5 rounded-lg text-sm font-medium bg-neutral-500/10 text-neutral-600 hover:bg-neutral-500/20 transition-all duration-200"
           @click="clearEntries"
         >
-          Clear
+          {{ t('tamagotchi.settings.devtools.pages.context-flow.clear') }}
         </button>
       </div>
     </div>
@@ -111,7 +111,7 @@ function getTypeColor(type: string) {
     <!-- Entries List -->
     <div class="flex-1 overflow-auto p-4">
       <div v-if="contextEntries.length === 0" class="flex items-center justify-center h-full text-neutral-400">
-        No context entries captured yet
+        {{ t('tamagotchi.settings.devtools.pages.context-flow.no-entries') }}
       </div>
       
       <div v-else class="flex flex-col gap-2">

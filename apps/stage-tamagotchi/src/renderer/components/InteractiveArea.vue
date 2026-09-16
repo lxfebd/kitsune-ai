@@ -26,6 +26,7 @@ import { useRouter } from 'vue-router'
 import workletUrl from '@kitsune/stage-ui/workers/vad/process.worklet?worker&url'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
+import ExecutorToolCallBlock from './chat-tool-renderers/executor-tool-call-block.vue'
 
 import { useChatSyncStore } from '../stores/chat-sync'
 
@@ -133,6 +134,12 @@ const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter'
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
+  executor_plan: ExecutorToolCallBlock,
+  executor_run: ExecutorToolCallBlock,
+  executor_stop: ExecutorToolCallBlock,
+  executor_status: ExecutorToolCallBlock,
+  coordinator_delegate: ExecutorToolCallBlock,
+  coordinator_team: ExecutorToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
   'enter': t('stage.send-mode.enter'),
@@ -180,13 +187,20 @@ async function handleSend() {
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
   catch (error) {
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
+    const message = errorMessageFrom(error) ?? 'Failed to send message'
+    // 超时类错误：消息可能已被 authority 接收处理（BroadcastChannel 已发出），
+    // 只是响应未在限定时间内回来。此时不回填输入框，避免 user 重新回车导致重复发送；
+    // 仅把错误作为一条对话消息展示，用户能看到发送状态。
+    const isTimeout = message.includes('Timed out')
+    if (!isTimeout) {
+      messageInput.value = textToSend
+      attachments.value = attachmentsToSend
+    }
     chatSession.setSessionMessages(chatSession.activeSessionId, [
       ...messages.value,
       {
         role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
+        content: message,
       },
     ])
   }

@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { TaskPusher, TOOL_ALLOWLIST } from './taskPusher.js'
 
@@ -54,7 +57,25 @@ describe('TaskPusher P2 运行时注册表', () => {
     const spawnSpy = vi.spyOn(tp, 'spawnCommand').mockResolvedValue({ ok: true, output: 'done' })
     const result = await tp.pushTask({ tool: 'gemini', templateKey: 'prompt', input: '修 bug', userPermission: 'medium' })
     expect(result.ok).toBe(true)
-    expect(spawnSpy).toHaveBeenCalledWith('gemini', ['--print', '-p', '修 bug'], expect.any(String), 30000)
+    // env 缺省时合并输出仍含进程 env（含 PATH/SystemRoot），只校验 spawn 参数前缀与超时
+    expect(spawnSpy).toHaveBeenCalledWith('gemini', ['--print', '-p', '修 bug'], expect.any(String), 30000, expect.objectContaining({ PATH: expect.any(String) }))
+    spawnSpy.mockRestore()
+  })
+
+  it('pushTask 透传工具级 env 到 spawnCommand（dsh DSH_HOME 场景）', async () => {
+    const tp = new TaskPusher()
+    tp.registerTool('dsh', {
+      binary: 'dsh',
+      templates: [{ key: 'prompt', label: '派发任务(headless)', args: ['--profile', 'headless'], inputParam: null, maxLen: 3000 }],
+      timeoutMs: 300000,
+      riskLevel: 'medium',
+      env: { DSH_HOME: 'J:/deepseekhar/dsh-home' },
+    })
+    const spawnSpy = vi.spyOn(tp, 'spawnCommand').mockResolvedValue({ ok: true, output: 'done' })
+    const result = await tp.pushTask({ tool: 'dsh', templateKey: 'prompt', input: '列出目录', userPermission: 'medium' })
+    expect(result.ok).toBe(true)
+    // 任务文本是位置参数（inputParam:null → append 到 args 末尾），env 合并工具级 DSH_HOME
+    expect(spawnSpy).toHaveBeenCalledWith('dsh', ['--profile', 'headless', '列出目录'], expect.any(String), 300000, expect.objectContaining({ DSH_HOME: 'J:/deepseekhar/dsh-home', PATH: expect.any(String) }))
     spawnSpy.mockRestore()
   })
 
@@ -79,6 +100,187 @@ describe('TaskPusher P2 运行时注册表', () => {
     tp.getAvailableTools() // 触发 probe
     expect(tp.probeToolAvailability()['gemini2']).toBe(false) // 不存在的二进制
     probeSpy.mockRestore()
+  })
+
+  it('_resolveBinary Windows 上把 PATH 里的 .cmd 包装为 cmd.exe 调用（dsh 安装即启用）', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    // 真实临时目录里放 dsh.cmd（模拟 npm 全局安装入口）
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshbin-'))
+    writeFileSync(join(fakeBin, 'dsh.cmd'), '@echo off\necho mock\n')
+    const origPath = process.env.PATH
+    process.env.PATH = fakeBin + ';' + (origPath || '')
+    try {
+      const resolved = tp._resolveBinary('dsh')
+      expect(resolved).toEqual({ command: 'cmd.exe', argsPrefix: ['/d', '/s', '/c', join(fakeBin, 'dsh.cmd')] })
+      // PATH 里没有的二进制 → null（探活 available=false）
+      expect(tp._resolveBinary('nope')).toBeNull()
+    } finally {
+      platSpy.mockRestore()
+      process.env.PATH = origPath
+      rmSync(fakeBin, { recursive: true, force: true })
+    }
+  })
+
+  it('_resolveBinary 非 win32 直接原样返回 binary（无 .cmd 包装）', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
+    try {
+      expect(tp._resolveBinary('dsh')).toEqual({ command: 'dsh', argsPrefix: [] })
+    } finally {
+      platSpy.mockRestore()
+    }
+  })
+
+  it('_resolveBinary 绝对路径 binary（config 直接写安装位置）不依赖 PATH：命中 .CMD 包装为 cmd.exe', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshabs-'))
+    writeFileSync(join(fakeBin, 'dsh.CMD'), '@echo off\necho mock\n')
+    // 进程 PATH 完全不含 fakeBin — 证明绝对路径探测不沿 PATH
+    const origPath = process.env.PATH
+    process.env.PATH = 'C:\\Windows\\system32;C:\\Windows'
+    try {
+      const absPath = join(fakeBin, 'dsh.CMD')
+      const resolved = tp._resolveBinary(absPath)
+      expect(resolved).toEqual({ command: 'cmd.exe', argsPrefix: ['/d', '/s', '/c', absPath] })
+      // 不存在/不存在的绝对路径 → null
+      expect(tp._resolveBinary(join(fakeBin, 'missing.exe'))).toBeNull()
+    } finally {
+      platSpy.mockRestore()
+      process.env.PATH = origPath
+      rmSync(fakeBin, { recursive: true, force: true })
+    }
+  })
+
+  it('_resolveBinary node-shim .CMD（npm/pnpm 生成）直调 node，绕开 cmd.exe 二次解析破坏中文参数', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshshim-'))
+    const pkgDir = mkdtempSync(join(tmpdir(), 'dshpkg-'))
+    // 模拟 npm/pnpm 生成的 node shim：node "…\@pkg\bin.js" %*
+    const binJs = join(pkgDir, 'bin.js')
+    writeFileSync(binJs, '// mock\n')
+    writeFileSync(join(fakeBin, 'dsh.CMD'), `@IF EXIST "%~dp0\\node.exe" (\n  "%~dp0\\node.exe"  "%~dp0\\..\\@pkg\\bin.js" %*\n) ELSE (\n  node  "%~dp0\\..\\@pkg\\bin.js" %*\n)\n`)
+    // shim 目录与包目录的差异：%~dp0 = fakeBin，bin.js 实际在 pkgDir；手动把它对齐到 fakeBin\..\@pkg
+    mkdirSync(join(fakeBin, '..', '@pkg'), { recursive: true })
+    writeFileSync(join(fakeBin, '..', '@pkg', 'bin.js'), '// mock\n')
+    const origPath = process.env.PATH
+    process.env.PATH = 'C:\\Windows\\system32;C:\\Windows'
+    try {
+      const resolved = tp._resolveBinary(join(fakeBin, 'dsh.CMD'))
+      // 命中 node shim → 直调 node + bin.js，不再走 cmd.exe（否则中文 prompt 被 /c 二次解析拆坏）
+      expect(resolved.command).toBe('node')
+      expect(resolved.argsPrefix.length).toBe(1)
+      expect(resolved.argsPrefix[0].replace(/\\/g, '/')).toContain('@pkg/bin.js')
+      // 普通批处理（无 node shim 模式）仍走 cmd.exe 包装
+      writeFileSync(join(fakeBin, 'plain.CMD'), '@echo off\necho mock\n')
+      expect(tp._resolveBinary(join(fakeBin, 'plain.CMD'))).toEqual({
+        command: 'cmd.exe',
+        argsPrefix: ['/d', '/s', '/c', join(fakeBin, 'plain.CMD')],
+      })
+    } finally {
+      platSpy.mockRestore()
+      process.env.PATH = origPath
+      rmSync(fakeBin, { recursive: true, force: true })
+      rmSync(pkgDir, { recursive: true, force: true })
+    }
+  })
+
+  it('_nodeShimTarget 无匹配（非 node shim 批处理）返回 null，安全回退 cmd.exe', () => {
+    const tp = new TaskPusher()
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshplain-'))
+    writeFileSync(join(fakeBin, 'x.CMD'), '@echo off\nset FOO=1\necho done\n')
+    try {
+      expect(tp._nodeShimTarget(join(fakeBin, 'x.CMD'))).toBeNull()
+    } finally {
+      rmSync(fakeBin, { recursive: true, force: true })
+    }
+  })
+
+  it('probeToolAvailability 绝对路径 binary 直接存在性探活，即使 PATH 不含它（安装即启用不依赖 PATH）', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshprob-'))
+    writeFileSync(join(fakeBin, 'dsh.CMD'), '@echo off\necho mock\n')
+    const origPath = process.env.PATH
+    const absPath = join(fakeBin, 'dsh.CMD')
+    process.env.PATH = 'C:\\Windows\\system32;C:\\Windows'
+    try {
+      tp.registerTool('dsh-abs', {
+        binary: absPath,
+        templates: [{ key: 'prompt', args: ['--profile', 'headless'] }],
+      })
+      const avail = tp.probeToolAvailability()
+      expect(avail['dsh-abs']).toBe(true)
+      // 绝对路径指向不存在 → 不可用
+      tp.registerTool('dsh-missing', { binary: join(fakeBin, 'nope.CMD'), templates: [{ key: 'prompt' }] })
+      expect(tp.probeToolAvailability()['dsh-missing']).toBe(false)
+    } finally {
+      platSpy.mockRestore()
+      process.env.PATH = origPath
+      rmSync(fakeBin, { recursive: true, force: true })
+    }
+  })
+
+  it('_candidatePathDirs 进程 PATH 缺失时仍能发现用户级 PATH 里的 dsh.cmd（安装即启用不重启）', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    // 只在「用户级 PATH 目录」里放 dsh.cmd；进程 PATH 不含该目录
+    const fakeBin = mkdtempSync(join(tmpdir(), 'dshusr-'))
+    writeFileSync(join(fakeBin, 'dsh.cmd'), '@echo off\necho mock\n')
+    // 模拟进程启动早于安装：process.env.PATH 完全不含 fakeBin
+    const origPath = process.env.PATH
+    const origExec = require('node:child_process').execFileSync
+    try {
+      process.env.PATH = 'C:\\Windows\\system32;C:\\Windows'
+      // 拦截 reg query，返回 fakeBin 作为用户级 PATH（形如 reg 输出）
+      vi.spyOn(require('node:child_process'), 'execFileSync').mockImplementation((cmd, args) => {
+        if (cmd === 'reg')
+          return `\r\n\r\nHKEY_CURRENT_USER\\Environment\r\n    Path    REG_EXPAND_SZ    ${fakeBin}\r\n`
+        return origExec(cmd, args)
+      })
+      const resolved = tp._resolveBinary('dsh')
+      expect(resolved).toEqual({ command: 'cmd.exe', argsPrefix: ['/d', '/s', '/c', join(fakeBin, 'dsh.cmd')] })
+    } finally {
+      platSpy.mockRestore()
+      require('node:child_process').execFileSync.mockRestore?.()
+      process.env.PATH = origPath
+      rmSync(fakeBin, { recursive: true, force: true })
+    }
+  })
+
+  it('_resolveBinary 发现链：PATH 未命中时经 npm prefix -g 的全局 bin 找到 dsh（跨机器不写死路径）', () => {
+    const tp = new TaskPusher()
+    const platSpy = vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    // 模拟 npm 全局安装：dsh.cmd 只存在于 npm prefix 根目录（Windows npm 行为），
+    // PATH 与用户级 PATH 均不含它 → 只能靠 npm prefix -g 发现。
+    const fakeNpmRoot = mkdtempSync(join(tmpdir(), 'npmglob-'))
+    writeFileSync(join(fakeNpmRoot, 'dsh.cmd'), '@echo off\necho mock\n')
+    const origPath = process.env.PATH
+    const origExec = require('node:child_process').execFileSync
+    try {
+      process.env.PATH = 'C:\\Windows\\system32;C:\\Windows'
+      vi.spyOn(require('node:child_process'), 'execFileSync').mockImplementation((cmd, args) => {
+        // 拦截 Windows 包装调用 cmd.exe /c npm prefix -g → 返回假 npm 全局根
+        if (cmd === 'cmd.exe' && Array.isArray(args) && args.some(a => typeof a === 'string' && a.includes('npm prefix')))
+          return `${fakeNpmRoot}\r\n`
+        if (cmd === 'reg') // 用户级 PATH 也空
+          return `\r\n\r\nHKEY_CURRENT_USER\\Environment\r\n`
+        return origExec(cmd, args)
+      })
+      const resolved = tp._resolveBinary('dsh')
+      expect(resolved).toEqual({ command: 'cmd.exe', argsPrefix: ['/d', '/s', '/c', join(fakeNpmRoot, 'dsh.cmd')] })
+      // probe 探活走同一条发现链 → 也命中
+      tp.registerTool('dsh', { binary: 'dsh', templates: [{ key: 'prompt', args: ['--profile', 'headless'] }] })
+      expect(tp.probeToolAvailability()['dsh']).toBe(true)
+    } finally {
+      platSpy.mockRestore()
+      require('node:child_process').execFileSync.mockRestore?.()
+      process.env.PATH = origPath
+      rmSync(fakeNpmRoot, { recursive: true, force: true })
+      delete tp._npmBinCache
+    }
   })
 })
 

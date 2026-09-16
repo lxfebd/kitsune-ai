@@ -36,7 +36,12 @@ const koffiState = vi.hoisted(() => {
           case 'SetCursorPos':
             return (x: number, y: number) => { calls.push({ kind: 'setcursorpos', x, y }); return true }
           case 'GetCursorPos':
-            return (pt: number[]) => { pt[0] = 100; pt[1] = 200; return true }
+            // 真实 koffi 经 void* 直传 Buffer（共享内存），fake 需写字节模拟 API 回填
+            return (pt: Buffer) => {
+              pt.writeInt32LE(100, 0)
+              pt.writeInt32LE(200, 4)
+              return true
+            }
           case 'mouse_event':
             return (flags: number, dx: number, dy: number, data: number) => {
               calls.push({ kind: 'mouse_event', flags, dx, dy, data })
@@ -234,6 +239,16 @@ describe.runIf(isWindows)('WindowsKoffiAutomation (fake koffi 注入)', () => {
     const sizes = koffiState.calls.filter((c): c is { kind: 'sendinput-size', size: number } & FakeCall => c.kind === 'sendinput-size').map(c => c.size)
     expect(sizes.length).toBeGreaterThan(0)
     expect(sizes.every(s => s === 40)).toBe(true)
+  })
+
+  it('sendKeyboardInput 用 Buffer 直传，不经 koffi.alloc/view（Electron 崩溃回归）', async () => {
+    // 假 koffi 不再需要 alloc/view；若实现回退到 koffi.view 路径，mock 无 view 将抛错
+    await fresh.type('K')
+    const inputs = sendInputs()
+    expect(inputs).toHaveLength(2)
+    expect(inputs[0].ki.wScan).toBe('K'.charCodeAt(0))
+    // 确认 mock 的 alloc/view 从未被消费（旧实现会调用它们）
+    expect(koffiState.calls.some(c => c.kind === 'sendinput-size')).toBe(true)
   })
 
   it('暴露 scroll 平台能力', async () => {

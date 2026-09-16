@@ -85,7 +85,6 @@
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@pinia/colada": "catalog:",
     "@proj-airi/chromatic": "catalog:",
-    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@ricky0123/vad-web": "catalog:",
     "@shikijs/rehype": "catalog:",
     "@shopify/draggable": "catalog:",

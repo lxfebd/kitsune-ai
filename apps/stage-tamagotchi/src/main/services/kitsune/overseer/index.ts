@@ -86,6 +86,7 @@ import {
   electronDirectorReview,
   electronDirectorApprove,
   electronDirectorReject,
+  electronDirectorRevise,
   electronDirectorEvent,
   electronDirectorList,
   electronDirectorDetail,
@@ -119,7 +120,7 @@ import { generatePlan } from './executor/planGenerator'
 import type { Task, TaskResult, ToolInventoryItem } from './executor/planGenerator'
 import { createPlanner } from './executor/planner'
 import { setSyncedProviderConfig } from './executor/llmHelper'
-import { directorReviewLatest, directorApprove, directorReject, listDirectorPlans, getDirectorPlanDetail } from './director'
+import { directorReviewLatest, directorApprove, directorReject, directorRevise, listDirectorPlans, getDirectorPlanDetail } from './director'
 import { createDirectorWatcher } from './director.watcher'
 import { createCoordinator } from './coordinator'
 import { createGuidanceService, type GuidanceService, type GuidanceTrigger } from './guidance'
@@ -158,7 +159,9 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   const fileLogger = getFileLogger()
   const pushFilter = new PushFilter()
   const correctionTracker = new CorrectionTracker()
-  const permissionModel = new PermissionModel()
+  const permissionModel = new PermissionModel({
+    trustedSources: config.tools.filter(t => t.enabled && t.cli?.trusted).map(t => t.id),
+  })
   // 启动时加载持久化的白名单，避免重启后用户需重新确认所有权限
   void permissionModel.load()
 
@@ -240,6 +243,7 @@ export function createOverseerService(params: { context: MainContext, config: Ov
       binary: tool.cli.binary,
       timeoutMs: tool.cli.timeoutMs,
       riskLevel: tool.cli.riskLevel,
+      env: tool.cli.env,
       templates: tool.cli.templates?.length
         ? tool.cli.templates
         : [{ key: 'prompt', label: '发送指令', args: [], inputParam: null, maxLen: 2000 }],
@@ -405,6 +409,11 @@ export function createOverseerService(params: { context: MainContext, config: Ov
     },
     onPlanCompleted: writePlanMemory,
     onTaskFailed: generatePersonaFeedback,
+    // 重试耗尽后的最终失败也回喂编排者 — 否则 activeAssignments 永不清理，
+    // 面板一直「干活中」、「上次派活」永不回填（CLI 不存在等场景必现）
+    onTaskFailedFinal: async (task, result) => {
+      await coordinatorTaskOutcome(task, result)
+    },
     auditLog,
     planner,
     params: config.executor,
@@ -419,6 +428,9 @@ export function createOverseerService(params: { context: MainContext, config: Ov
       const s = supervisor.getStatus()
       return Boolean(s[id]?.isRunning) || mcpActivity.isActive(id)
     },
+    // dsh 是 headless CLI：空闲时不驻留进程，按进程检测恒「离线」。
+    // 传可用性探针让团队页按「binary 存在」判在线，如实反映派工已就绪。
+    probeAvailability: () => taskPusher.probeToolAvailability(),
     runPlan: plan => loop.runPlan(plan),
     getExecutorStatus: () => loop.getStatus(),
     emit: (type, payload) => emitExecutorEvent(type as ExecutorEventPayload['type'], payload),
@@ -455,13 +467,22 @@ export function createOverseerService(params: { context: MainContext, config: Ov
   // 工具运行状态合并：文件/进程嗅探（supervisor 各 monitor 的 isRunning）
   // 或 MCP 活动上报在 TTL 窗口内 → running。三处工具状态构建（bridge 快照/
   // IPC/服务 getStatus）统一走这里，避免分散重复且漏掉 MCP 信号。
+  // dsh 收敛：dsh 是 headless CLI，空闲时不保持进程 —— 进程嗅探恒「未运行」，
+  // 但 binary 存在（安装即启用）即视为就绪可用，与团队面板的可用性判定保持一致。
+  const toolAvailability = taskPusher.probeToolAvailability()
+  function isToolRunning(t: { id: string, cli?: { binary?: string } }, supervisorStatus: Record<string, any>) {
+    return Boolean(supervisorStatus[t.id]?.isRunning) || mcpActivity.isActive(t.id) || Boolean(t.cli?.binary && toolAvailability[t.id])
+  }
   function buildToolStatusList() {
     const supervisorStatus = supervisor.getStatus()
     return config.tools.map(t => ({
       id: t.id,
       name: t.name,
       enabled: t.enabled,
-      running: Boolean(supervisorStatus[t.id]?.isRunning) || mcpActivity.isActive(t.id),
+      running: isToolRunning(t, supervisorStatus),
+      // 可派活：有 CLI 且非 perceiveOnly（如 zcode/workbuddy 只感知不干活）。
+      // 渲染进程据此区分「真正的执行工具」与「仅感知」两类，避免 8 个 agent 平铺误导。
+      dispatchable: Boolean(t.enabled && t.cli?.binary && !t.perceiveOnly),
     }))
   }
 
@@ -1299,6 +1320,16 @@ ${errorText}`,
     const plan = req.plan
     if (!Array.isArray(plan.tasks) || plan.tasks.length === 0)
       return { ok: false, error: 'plan.tasks 为空或格式错误' }
+    // 防「假执行」：CLI 任务没有可执行指令（prompt 空）时直接拒绝，
+    // 避免 dsh 收到空任务文本 → 只建 session 不干活 → 模型误报已完成。
+    const emptyPromptTasks = (plan.tasks as Array<{ type?: string, prompt?: string, title?: string, provider?: string }>)
+      .filter(t => t.type === 'cli' && !String(t.prompt ?? '').trim())
+    if (emptyPromptTasks.length > 0) {
+      return {
+        ok: false,
+        error: `计划包含 ${emptyPromptTasks.length} 个没有指令的 CLI 任务（如「${emptyPromptTasks[0].title ?? emptyPromptTasks[0].provider ?? '?'}」），请重新用 executor_plan 生成计划`,
+      }
+    }
     // 不 await，异步执行；执行状态通过 electronExecutorEvent 流式推送到渲染进程
     loop.runPlan(plan)
     return { ok: true }
@@ -1348,6 +1379,16 @@ ${errorText}`,
       context.emit(electronDirectorEvent, result.verdict)
     }
     return result
+  })
+
+  // 驳回后修订 — 按评审意见让 LLM 重写任务清单并写回（清空 verdict 回到待评审）
+  defineInvokeHandler(context, electronDirectorRevise, async (req) => {
+    if (!req?.planId)
+      return { ok: false, error: 'planId 不能为空' }
+    const result = await directorRevise(req.planId)
+    return result.ok && result.plan
+      ? { ok: true, plan: { id: result.plan.id, requirement: result.plan.requirement, taskCount: result.plan.tasks.length, status: result.plan.status, createdAt: result.plan.createdAt } }
+      : { ok: false, error: result.error ?? '修订失败' }
   })
 
   // 总监页只读查询 — 计划列表 / 单个详情

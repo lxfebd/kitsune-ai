@@ -27,7 +27,6 @@
     "@pinia/colada": "catalog:",
     "@kitsune/audio": "workspace:^",
     "@kitsune/ccc": "workspace:^",
-    "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@kitsune/font-chillroundm": "workspace:^",
     "@kitsune/font-cjkfonts-allseto": "workspace:^",
     "@kitsune/font-xiaolai": "workspace:^",

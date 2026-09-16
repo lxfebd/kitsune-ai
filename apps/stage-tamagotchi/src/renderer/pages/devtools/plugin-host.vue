@@ -212,15 +212,14 @@ async function reloadPlugin(plugin: Plugin) {
                 ]"
                 @click.stop="togglePlugin(plugin)"
               >
-                {{ plugin.status === 'active' ? 'Disable' : 'Enable' }}
+                {{ plugin.status === 'active' ? t('tamagotchi.settings.devtools.pages.plugin-host.disable') : t('tamagotchi.settings.devtools.pages.plugin-host.enable') }}
               </button>
               
               <button
                 class="px-3 py-1.5 rounded-lg text-xs font-medium bg-neutral-500/10 text-neutral-600 hover:bg-neutral-500/20 transition-all duration-200"
                 @click.stop="reloadPlugin(plugin)"
               >
-                Reload
-              </button>
+                {{ t('tamagotchi.settings.devtools.pages.plugin-host.reload') }}
             </div>
           </div>
         </div>

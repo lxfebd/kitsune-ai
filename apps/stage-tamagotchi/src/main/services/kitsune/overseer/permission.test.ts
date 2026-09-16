@@ -67,3 +67,34 @@ describe('PermissionModel.isHighRisk', () => {
     expect(model.isHighRisk({ prompt: 'npm build', assertionType: 'compile_success' })).toBe(false)
   })
 })
+
+describe('PermissionModel 受信来源（trustedSources）', () => {
+  const trusted = new PermissionModel({ trustedSources: ['dsh'] })
+  const untrusted = new PermissionModel()
+
+  it('受信来源的普通 CLI 操作无需确认', () => {
+    expect(trusted.needsConfirm({ source: 'dsh', assertion: { type: 'cli:run' } })).toBe(false)
+  })
+
+  it('非受信来源仍需确认（向后兼容）', () => {
+    expect(untrusted.needsConfirm({ source: 'dsh', assertion: { type: 'cli:run' } })).toBe(true)
+    expect(untrusted.needsConfirm({ source: 'claude_code', assertion: { type: 'cli:run' } })).toBe(true)
+  })
+
+  it('isTrustedSource 判断', () => {
+    expect(trusted.isTrustedSource('dsh')).toBe(true)
+    expect(trusted.isTrustedSource('claude_code')).toBe(false)
+    expect(trusted.isTrustedSource(undefined)).toBe(false)
+  })
+
+  it('addTrustedSource 运行时扩充', () => {
+    const m = new PermissionModel()
+    expect(m.needsConfirm({ source: 'opencode', assertion: { type: 'cli:run' } })).toBe(true)
+    m.addTrustedSource('opencode')
+    expect(m.needsConfirm({ source: 'opencode', assertion: { type: 'cli:run' } })).toBe(false)
+  })
+
+  it('受信来源但缺 assertionType 仍需确认（防御）', () => {
+    expect(trusted.needsConfirm({ source: 'dsh' })).toBe(true)
+  })
+})

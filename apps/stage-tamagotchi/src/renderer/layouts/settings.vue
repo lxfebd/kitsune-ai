@@ -35,8 +35,26 @@ watchEffect(() => {
   }
 })
 
-// 侧栏 = 5 个「组合」入口：点击进入卡片页（/settings/group/<id>），页内每成员一张卡片。
-// 组合活动态 = 当前路径命中该组合任一成员页（含组合页自身）。
+// 侧栏 = 5 个「组合」展开为分组；成员子项直接进功能页（砍掉中间卡片墙）。
+// 默认全展开；可手动收起；导航到某分组页面时自动展开该组，避免迷路。
+const expandedGroupIds = ref<Set<string>>(new Set(settingsGroups.map(g => g.id)))
+
+function toggleGroup(id: string) {
+  const next = new Set(expandedGroupIds.value)
+  if (next.has(id))
+    next.delete(id)
+  else
+    next.add(id)
+  expandedGroupIds.value = next
+}
+
+function isMemberActive(member: { exclude?: string[], match: string[] }) {
+  const path = route.path
+  if (member.exclude?.some(p => path === p || path.startsWith(`${p}/`)))
+    return false
+  return member.match.some(p => path === p || path.startsWith(`${p}/`))
+}
+
 const activeGroupId = computed(() => {
   const path = route.path
   const matchedGroup = settingsGroups.find((group) => {
@@ -49,6 +67,43 @@ const activeGroupId = computed(() => {
     })
   })
   return matchedGroup?.id
+})
+
+// 当前激活成员所属分组自动展开
+watchEffect(() => {
+  const gid = activeGroupId.value
+  if (gid && !expandedGroupIds.value.has(gid)) {
+    const next = new Set(expandedGroupIds.value)
+    next.add(gid)
+    expandedGroupIds.value = next
+  }
+})
+
+// 搜索：过滤分组与成员，命中即展开；空则恢复正常分组浏览
+const searchQuery = ref('')
+const filteredGroups = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q)
+    return settingsGroups
+
+  return settingsGroups
+    .map(group => ({
+      ...group,
+      members: group.members.filter(m =>
+        t(m.labelKey).toLowerCase().includes(q)
+        || t(`settings.groups.cards.${m.id}.description`).toLowerCase().includes(q),
+      ),
+    }))
+    .filter(group => group.members.length > 0 || t(group.labelKey).toLowerCase().includes(q))
+})
+
+watchEffect(() => {
+  if (searchQuery.value.trim()) {
+    const next = new Set<string>()
+    for (const g of filteredGroups.value)
+      next.add(g.id)
+    expandedGroupIds.value = next
+  }
 })
 
 const parentRoute = computed(() => {
@@ -118,38 +173,60 @@ function sendWindow(channel: string) {
         </div>
       </div>
 
-      <!-- Navigation:5 个「组合」入口,点击进入卡片页,不再平铺折叠 -->
-      <nav class="flex flex-col gap-0.5 p-3 flex-1 overflow-y-auto scrollbar-none">
-        <RouterLink
-          v-for="group in settingsGroups"
-          :key="group.id"
-          :to="group.to"
-          :class="[
-            'group relative flex items-center gap-2.5 min-h-[38px] px-3 rounded-lg',
-            'text-[13px] no-underline transition-all duration-150',
-            activeGroupId === group.id
-              ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
-              : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5',
-          ]"
-        >
-          <!-- Active indicator bar -->
-          <div
-            v-if="activeGroupId === group.id"
+      <!-- Navigation: 5 个组合展开为分组，成员子项直接可点（砍掉中间卡片墙） -->
+      <nav class="flex flex-col gap-1 p-3 flex-1 overflow-y-auto scrollbar-none">
+        <!-- 搜索：输入关键词直达页面 -->
+        <div class="relative mb-1">
+          <input
+            v-model="searchQuery"
+            type="text"
+            :placeholder="t('tamagotchi.stage.settings.search-placeholder')"
+            class="w-full h-8 pl-8 pr-3 rounded-lg text-[12px] outline-none
+                   bg-black/5 dark:bg-white/5
+                   text-neutral-700 dark:text-neutral-200
+                   placeholder:text-neutral-400 dark:placeholder:text-neutral-500
+                   border border-transparent focus:border-primary-500/40
+                   transition-all duration-150"
+          >
+          <span class="i-solar:magnifer-bold-duotone absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400 dark:text-neutral-500 pointer-events-none" />
+        </div>
+
+        <template v-for="group in filteredGroups" :key="group.id">
+          <!-- 分组头：图标 + 组名（点击收起/展开） -->
+          <button
+            type="button"
             :class="[
-              'absolute left-0 top-1/2 -translate-y-1/2 w-[4px] h-5 rounded-full',
-              'bg-primary-500 dark:bg-primary-400',
+              'group flex w-full items-center gap-2 min-h-[34px] px-3 rounded-lg text-left',
+              'text-[12px] font-medium tracking-wide uppercase',
+              'text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300',
+              expandedGroupIds.has(group.id) ? 'mt-1' : 'mt-1 mb-0.5',
             ]"
-          />
-          <div :class="[
-            group.icon,
-            'w-4 h-4 shrink-0 transition-colors duration-150',
-            activeGroupId === group.id
-              ? 'text-primary-500 dark:text-primary-400'
-              : 'text-neutral-400 dark:text-neutral-500 group-hover:text-neutral-600 dark:group-hover:text-neutral-300',
-          ]" />
-          <span class="truncate">{{ t(group.labelKey) }}</span>
-          <div class="i-solar:alt-arrow-right-bold-duotone w-3 h-3 shrink-0 ml-auto opacity-40 group-hover:opacity-80 transition-opacity" />
-        </RouterLink>
+            @click="toggleGroup(group.id)"
+          >
+            <span :class="[group.icon, 'w-4 h-4 shrink-0']" />
+            <span class="flex-1 truncate">{{ t(group.labelKey) }}</span>
+            <span :class="['i-solar:alt-arrow-down-bold-duotone w-3 h-3 shrink-0 transition-transform', expandedGroupIds.has(group.id) ? '' : '-rotate-90']" />
+          </button>
+
+          <!-- 成员子项：直接进功能页 -->
+          <template v-if="expandedGroupIds.has(group.id)">
+            <RouterLink
+              v-for="member in group.members"
+              :key="member.id"
+              :to="member.to"
+              :class="[
+                'group relative flex items-center gap-2.5 min-h-[34px] px-3 rounded-lg',
+                'text-[13px] no-underline transition-all duration-150 ml-3',
+                isMemberActive(member)
+                  ? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
+                  : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 hover:bg-black/5 dark:hover:bg-white/5',
+              ]"
+            >
+              <span :class="[member.icon, 'w-4 h-4 shrink-0', isMemberActive(member) ? 'text-primary-500 dark:text-primary-400' : 'text-neutral-400 dark:text-neutral-500']" />
+              <span class="truncate">{{ t(member.labelKey) }}</span>
+            </RouterLink>
+          </template>
+        </template>
       </nav>
     </aside>
 
@@ -244,6 +321,9 @@ function sendWindow(channel: string) {
     <div class="i-solar:user-bold-duotone" />
     <div class="i-solar:card-bold-duotone" />
     <div class="i-solar:link-bold-duotone" />
+    <div class="i-solar:clipboard-check-bold-duotone" />
+    <div class="i-solar:users-group-rounded-bold-duotone" />
+    <div class="i-solar:play-bold-duotone" />
   </div>
 </template>
 

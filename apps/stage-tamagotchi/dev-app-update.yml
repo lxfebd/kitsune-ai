@@ -1,7 +1,7 @@
 provider: github
-# NOTICE: 配置为你的 GitHub 仓库，格式：owner/repo
-owner: ''
-repo: ''
+# NOTICE: 更新源指向自有仓库（lxfebd/kitsune-ai），不要回退到上游默认
+owner: lxfebd
+repo: kitsune-ai
 updaterCacheDirName: kitsune-updater
 allowPrerelease: true
 channel: nightly

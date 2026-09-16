@@ -195,6 +195,9 @@ class TaskPusher {
       timeoutMs: typeof cfg.timeoutMs === 'number' && cfg.timeoutMs > 0 ? cfg.timeoutMs : 60_000,
       riskLevel: ['low', 'medium', 'high'].includes(cfg.riskLevel) ? cfg.riskLevel : 'medium',
       custom: cfg.custom === true,
+      // 工具级环境变量（如 dsh 的 DSH_HOME）— spawn 时合并进 process.env，
+      // 支持「安装即启用」型工具：binary 在 PATH 即可探活可用，env 指向它的 home 目录
+      env: cfg.env && typeof cfg.env === 'object' ? { ...cfg.env } : undefined,
     };
     if (this._extraTools.has(key)) {
       console.warn(`[TaskPusher] registerTool 覆盖已注册工具: ${key}`);
@@ -280,8 +283,9 @@ class TaskPusher {
    * @param {string} [options.input] - 用户输入内容
    * @param {string} [options.cwd] - 工作目录
    * @param {string} [options.userPermission] - 用户当前权限级别
+   * @param {Record<string,string>} [options.env] - 本次调用额外的环境变量（合并进进程 env）
    */
-  async pushTask({ tool, templateKey, input = '', cwd = process.cwd(), userPermission = 'medium' }) {
+  async pushTask({ tool, templateKey, input = '', cwd = process.cwd(), userPermission = 'medium', env } = {}) {
     // 1. 工具白名单检查（内置 + 运行时注册）
     const toolConfig = this._resolveTool(tool);
     if (!toolConfig) {
@@ -323,7 +327,10 @@ class TaskPusher {
     }
 
     // 6. 执行命令（使用 spawn 避免 shell 注入）
-    const result = await this.spawnCommand(toolConfig.binary, args, cwd, toolConfig.timeoutMs);
+    //    环境变量 = 进程 env + 工具级 env（registerTool 的 cfg.env，如 dsh 的 DSH_HOME）+ 调用级 env
+    const toolEnv = toolConfig.env || {};
+    const mergedEnv = { ...process.env, ...toolEnv, ...env };
+    const result = await this.spawnCommand(toolConfig.binary, args, cwd, toolConfig.timeoutMs, mergedEnv);
 
     // P3 试点：结构化模板（claude --output-format=json）——解析 stdout JSON Lines，
     // 把逐条错误信号回填到 result，执行层无需人读文本即可判断成败/失败原因。
@@ -362,14 +369,195 @@ class TaskPusher {
   }
 
   /**
-   * 使用 spawn 执行命令（非 shell 模式，防注入）
+   * 解析可执行文件的完整路径（Windows 专用）。
+   *
+   * 裸 `spawn('dsh', args)` 在 Windows 上无法解析 PATH 里的 `.cmd/.bat`（Node 非 shell
+   * spawn 只认 exe），而 npm 全局安装的 CLI（如 `npm i -g @deepseek-ai/dsh`）生成的正
+   * 是 `dsh.cmd` → 会 ENOENT 失败。这里沿发现链探测出完整可执行路径：
+   *   1. binary 本身是绝对路径（config 可显式写安装位置）→ 直接存在性检查
+   *   2. PATH + 用户级 PATH（注册表 HKCU\Environment，进程 PATH 是启动快照合并）
+   *   3. npm 全局 bin（`npm prefix -g/bin` 动态查询）— 跨机器通用：任何电脑
+   *      `npm i -g` 装的 CLI 都会出现在这里，无需用户改 PATH 也无需写死绝对路径
+   * 找到 `.exe` / 无扩展名文件 → 直接可 spawn；`.cmd` / `.bat` → cmd.exe 包装。
+   * 找不到时返回 null，由调用方回退为裸 spawn（Linux 与非 PATH 场景兼容）。
+   * @private
    */
-  spawnCommand(binary, args, cwd, timeoutMs) {
+  _resolveBinary(binary) {
+    if (process.platform !== 'win32') return { command: binary, argsPrefix: [] };
+    // 1. 绝对路径 binary（config cli.binary 直接写安装位置）：按字面存在性检查
+    if (path.isAbsolute(binary)) {
+      const r = this._tryResolve(binary);
+      if (r) return r;
+      return null;
+    }
+    // 2. PATH（进程 + 用户级注册表）
+    for (const dir of this._candidatePathDirs()) {
+      if (!dir) continue;
+      for (const ext of ['.exe', '.cmd', '.bat']) {
+        const r = this._tryResolve(path.join(dir, binary + ext));
+        if (r) return r;
+      }
+    }
+    // 3. npm 全局 bin — 跨机器自动发现「安装即启用」的 CLI：
+    //    npm prefix -g 输出全局 node_modules 父目录，bin 在其下；避免写死每台机器的绝对路径。
+    for (const dir of this._npmGlobalBinCandidates()) {
+      for (const ext of ['.cmd', '.exe', '.bat']) {
+        const r = this._tryResolve(path.join(dir, binary + ext));
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * npm 全局 bin 候选目录 = `npm prefix -g` 的全局目录本身（Windows npm 把 .cmd
+   * shim 直接放这里）+ 其 bin 子目录（非 Windows 惯例）。缓存查询结果，避免
+   * 每次 resolve/probe 都触发子进程。发现失败时返回空数组。
+   * @private
+   */
+  _npmGlobalBinCandidates() {
+    if (this._npmBinCache) return this._npmBinCache;
+    const out = [];
+    try {
+      const { execFileSync } = require('node:child_process');
+      // Windows 上 npm 是 npm.cmd：非 shell spawn 无法直接执行（同 .cmd 坑），
+      // 借 cmd.exe 包装；非 Windows 直接跑 npm（PATH 里的 node bin）。
+      const isWin = process.platform === 'win32';
+      const prefix = isWin
+        ? execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm prefix -g'], { encoding: 'utf-8', windowsHide: true, timeout: 5000 }).trim()
+        : execFileSync('npm', ['prefix', '-g'], { encoding: 'utf-8', timeout: 5000 }).trim();
+      if (prefix) {
+        // Windows: npm i -g 的 shim(.cmd/.exe) 直接落在 <prefix> 根；Unix 惯例是 <prefix>/bin
+        const roots = [prefix, path.join(prefix, 'bin')];
+        for (const r of roots) {
+          try {
+            if (fs.existsSync(r) && fs.statSync(r).isDirectory() && !out.includes(r)) out.push(r);
+          } catch { /* 忽略不可读目录 */ }
+        }
+      }
+    } catch { /* npm 不可用 — 忽略 */ }
+    this._npmBinCache = out;
+    return out;
+  }
+
+  /**
+   * 对单个候选路径做存在性检查 + 返回可 spawn 形态。
+   * 命中 `.exe` / 无扩展名文件 → 直接 spawn；
+   * 命中 `.cmd/.bat` 且是 **node shim**（内容形如 `node "<abs>\bin.js" %*`，npm/pnpm
+   * 生成的现代 CLI 入口）→ 解析成 `spawn(node, [script, ...args])` 数组传参直调。
+   *   原因：cmd.exe 的 `/c` 会做二次命令行解析，把带中文/引号/反斜杠的任务文本
+   *   （如 dsh 派活 prompt）拆坏——dsh 建了 session 却收不到完整任务、空转退出。
+   *   直调 node 走 spawn 数组传参（无 shell 层），参数原样到达，无注入面。
+   * 其余 `.cmd/.bat`（普通批处理）→ 借 cmd.exe 包装（args 仍数组传参）。
+   * 不存在返回 null。
+   * @private
+   */
+  _tryResolve(fullPath) {
+    try {
+      if (!fs.existsSync(fullPath)) return null;
+      const ext = path.extname(fullPath).toLowerCase();
+      if (ext !== '.cmd' && ext !== '.bat')
+        return { command: fullPath, argsPrefix: [] };
+      const nodeShim = this._nodeShimTarget(fullPath);
+      if (nodeShim)
+        return { command: nodeShim.command, argsPrefix: nodeShim.argsPrefix };
+      return { command: 'cmd.exe', argsPrefix: ['/d', '/s', '/c', fullPath] };
+    } catch { return null; }
+  }
+
+/**
+   * 尝试把 `.cmd/.bat` 解析成 node shim 直调形态：读取批处理内容，匹配
+   * `node  "…bin.js" %*` 或 `"…node.exe" "…bin.js" %*`（npm/pnpm 生成的 shim
+   * 固定模式，路径常用 `%~dp0` 指代批处理自身目录）。命中返回
+   * `{ command: <node 可执行>, argsPrefix: [script] }`；非 node shim / 读取失败 /
+   * 无匹配返回 null（调用方安全回退 cmd.exe 包装）。
+   * @private
+   */
+  _nodeShimTarget(batchPath) {
+    try {
+      const content = fs.readFileSync(batchPath, 'utf8');
+      const m = content.match(/^\s*(?:(?:"([^"]+node(?:\.exe)?)"|node)\s+)?(?:"([^"]+)"|(\S+))\s+%\*\s*$/im);
+      if (!m)
+        return null;
+      // m[2]/m[3] = 脚本入口（bin.js）；m[1] = shim 里的 node 可执行（可能带 %~dp0）
+      const script = m[2] || m[3];
+      if (!script)
+        return null;
+      const scriptAbs = this._expandBatchVar(script, batchPath);
+      if (!path.isAbsolute(scriptAbs))
+        return null;
+      let nodeExe = m[1] ? this._expandBatchVar(m[1], batchPath) : '';
+      if (nodeExe && !fs.existsSync(nodeExe))
+        nodeExe = '';
+      return { command: nodeExe || 'node', argsPrefix: [scriptAbs] };
+    } catch { return null; }
+  }
+
+  /**
+   * 展开批处理变量 `%~dp0`（= 批处理文件所在目录，带尾反斜杠）为真实绝对路径。
+   * 无 `%~dp0` 时原样返回。
+   * @private
+   */
+  _expandBatchVar(p, batchPath) {
+    if (!p.includes('%~dp0'))
+      return p;
+    const dir = path.dirname(batchPath);
+    return p.replace(/%~dp0\\?/g, `${dir}${path.sep}`).replace(/%~dp0/g, dir);
+  }
+
+  /**
+   * Windows 候选 PATH 目录集合 = 进程 PATH + 用户级 PATH（注册表 HKCU\Environment）。
+   * 进程 PATH 是启动时快照 — 用户后装工具（如 `npm i -g dsh` 写入用户 PATH）不会被
+   * 启动早于安装的常驻进程看到；合并用户级 PATH 让「安装即启用」无需重启应用。
+   * 非 Windows / 读取失败时回退为进程 PATH。
+   * @private
+   */
+  _candidatePathDirs() {
+    const dirs = (process.env.PATH || '').split(path.delimiter);
+    if (process.platform !== 'win32') return dirs;
+    try {
+      const { execFileSync } = require('node:child_process');
+      // reg query HKCU\Environment /v Path — 用户级 PATH（npm -g 装包写这里）
+      const raw = execFileSync('reg', ['query', 'HKCU\\Environment', '/v', 'Path'], {
+        encoding: 'utf-8',
+        windowsHide: true,
+        timeout: 5000,
+      });
+      const line = raw.split(/\r?\n/).find(l => /^\s*Path\s+REG_(EXPAND_)?SZ\s+(.+)$/i.test(l));
+      const value = line ? line.replace(/^\s*Path\s+REG_(EXPAND_)?SZ\s+/i, '').trim() : '';
+      if (value) {
+        for (const d of value.split(path.delimiter)) {
+          const t = d.trim();
+          if (t && !dirs.includes(t))
+            dirs.push(t);
+        }
+      }
+    } catch { /* 注册表读取失败忽略 — 退回进程 PATH */ }
+    return dirs;
+  }
+
+  /**
+   * 使用 spawn 执行命令（非 shell 模式，防注入）
+   * @param {string} binary - 可执行文件
+   * @param {string[]} args - 参数数组
+   * @param {string} cwd - 工作目录
+   * @param {number} timeoutMs - 超时（毫秒）
+   * @param {Record<string,string>} [env] - 环境变量；缺省时继承 process.env
+   */
+  spawnCommand(binary, args, cwd, timeoutMs, env) {
     return new Promise((resolve) => {
       let stdout = '';
       let stderr = '';
       let timedOut = false;
       let sigkillTimer = null;
+
+      // Windows：沿 PATH 解析出可执行文件完整路径（.cmd/.bat 用 cmd.exe 包装），
+      // 让「npm i -g dsh → PATH 出现 dsh.cmd → 探活 available + spawn 成功」的
+      // 安装即启用闭环成立；非 Windows 或解析失败回退为裸 spawn。
+      const resolved = this._resolveBinary(binary);
+      const command = resolved ? resolved.command : binary;
+      const argsPrefix = resolved ? resolved.argsPrefix : [];
+      const spawnArgs = [...argsPrefix, ...args];
 
       const timer = setTimeout(() => {
         timedOut = true;
@@ -380,9 +568,9 @@ class TaskPusher {
         }, 5000);
       }, timeoutMs);
 
-      const child = spawn(binary, args, {
+      const child = spawn(command, spawnArgs, {
         cwd,
-        env: process.env,
+        env: env || process.env,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -418,7 +606,10 @@ class TaskPusher {
           output: stdout.substring(0, 10000),
           stderr: stderr.substring(0, 2000),
           exitCode: code,
-          error: code !== 0 && code !== null ? `进程退出码: ${code}` : undefined,
+          // 非零退出码带 stderr 尾巴，排队/诊断时能直接看到失败原因（如 dsh 缺模型报错）
+          error: code !== 0 && code !== null
+            ? `进程退出码: ${code}` + (stderr.trim() ? ` — ${stderr.trim().slice(0, 300)}` : '')
+            : undefined,
         });
       });
 
@@ -529,7 +720,9 @@ class TaskPusher {
     if (this._binaryCache) return this._binaryCache
 
     const cache = {}
-    const pathDirs = (process.env.PATH || '').split(path.delimiter)
+    // 发现目录 = PATH（进程+用户级） + npm 全局 bin。跨机器通用：只要 `npm i -g` 装了
+    // CLI（dsh 等），无需用户改 PATH 或写死绝对路径，探活即可命中。
+    const discoveryDirs = [...this._candidatePathDirs(), ...this._npmGlobalBinCandidates()]
     const isWin = process.platform === 'win32'
     // Windows 上可执行文件扩展名
     const exts = isWin ? ['', '.exe', '.cmd', '.bat'] : ['']
@@ -540,25 +733,30 @@ class TaskPusher {
       const binary = cfg.binary
       let found = false
 
-      for (const dir of pathDirs) {
-        if (!dir) continue
-        for (const ext of exts) {
-          try {
-            const fullPath = path.join(dir, binary + ext)
-            if (fs.existsSync(fullPath)) {
-              // 非 Windows 上检查可执行位
-              if (!isWin) {
-                try {
-                  const stat = fs.statSync(fullPath)
-                  if (!(stat.mode & 0o111)) continue
-                } catch { continue }
+      // 绝对路径 binary（config cli.binary 直接写安装位置）：只做存在性检查
+      if (path.isAbsolute(binary)) {
+        found = this._tryResolve(binary) !== null
+      } else {
+        for (const dir of discoveryDirs) {
+          if (!dir) continue
+          for (const ext of exts) {
+            try {
+              const fullPath = path.join(dir, binary + ext)
+              if (fs.existsSync(fullPath)) {
+                // 非 Windows 上检查可执行位
+                if (!isWin) {
+                  try {
+                    const stat = fs.statSync(fullPath)
+                    if (!(stat.mode & 0o111)) continue
+                  } catch { continue }
+                }
+                found = true
+                break
               }
-              found = true
-              break
-            }
-          } catch { /* 继续 */ }
+            } catch { /* 继续 */ }
+          }
+          if (found) break
         }
-        if (found) break
       }
 
       cache[key] = found

@@ -45,11 +45,13 @@ export async function setupInlayWindow(params: {
     },
     { breakpoints: resolutionBreakpoints },
   )
-  const height = width / 4
+  // NOTICE: 高度含顶部小部件行（token 消耗 / 工作流 / dsh 状态），
+  // 4096:250 适配：旧值 width/4 只容纳两个下拉，放不下小部件
+  const height = Math.max(width / 3 + 24, 240)
 
   window.setBounds({
     width,
-    height: width / 4,
+    height,
     x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
     y: mapForBreakpoints(
       displayBounds.height,

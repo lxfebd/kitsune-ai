@@ -124,7 +124,7 @@ async function handleRegister() {
             <input
               v-model="loginForm.email"
               type="email"
-              :placeholder="t('settings.pages.account.login.emailPlaceholder', 'your@email.com')"
+              :placeholder="t('settings.pages.account.login.emailPlaceholder', 'Your email')"
               :class="[
                 'px-3 py-2 rounded-lg text-sm',
                 'bg-white dark:bg-neutral-900',
@@ -230,7 +230,7 @@ async function handleRegister() {
             <input
               v-model="registerForm.email"
               type="email"
-              :placeholder="t('settings.pages.account.register.emailPlaceholder', 'your@email.com')"
+              :placeholder="t('settings.pages.account.register.emailPlaceholder', 'Your email')"
               :class="[
                 'px-3 py-2 rounded-lg text-sm',
                 'bg-white dark:bg-neutral-900',

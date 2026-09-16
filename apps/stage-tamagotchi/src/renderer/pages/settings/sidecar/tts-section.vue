@@ -295,9 +295,42 @@ async function refreshConfig() {
       deviceInput.value = config.device
     if (config?.threads !== undefined)
       threadsInput.value = config.threads
+    if (config?.defaultVoice !== undefined)
+      defaultVoiceInput.value = config.defaultVoice
   }
   catch (e) {
     setError(e)
+  }
+}
+
+// 默认合成声线 — 从已注册声线里选，持久化到 gpt-sovits config；合成未显式指定 voice 时使用
+const defaultVoiceInput = ref('')
+const savingDefaultVoice = ref(false)
+const currentDefaultVoice = computed(() => defaultVoiceInput.value || 'ailini')
+const defaultVoiceOptions = computed(() => {
+  if (!voices.value.length)
+    return []
+  return voices.value.map(v => ({ label: v.name, value: v.id }))
+})
+
+async function saveDefaultVoice() {
+  const value = defaultVoiceInput.value
+  if (!value)
+    return
+  savingDefaultVoice.value = true
+  clearMessages()
+  try {
+    const r = await invokeSetConfig({ defaultVoice: value })
+    if (r.needsRestart)
+      infoMessage.value = '默认声线已保存'
+    else
+      infoMessage.value = '默认声线已保存'
+  }
+  catch (e) {
+    setError(e)
+  }
+  finally {
+    savingDefaultVoice.value = false
   }
 }
 
@@ -522,6 +555,9 @@ async function refreshVoices() {
   try {
     const result = await invokeListVoices()
     voices.value = result?.voices ?? []
+    // 声线列表加载后，若当前默认声线不在列表内且列表非空，补选列表第一个
+    if (voices.value.length && !voices.value.some(v => v.id === defaultVoiceInput.value))
+      defaultVoiceInput.value = voices.value[0].id
   }
   catch (e) {
     // 列表刷新失败不阻塞页面其他功能
@@ -1110,6 +1146,30 @@ onMounted(() => {
             label="克隆声线"
             icon="i-solar:copy-bold-duotone"
             @click="cloneVoiceAction"
+          />
+        </div>
+      </div>
+
+      <!-- 默认合成声线 -->
+      <div class="flex flex-col gap-1 mt-3">
+        <span class="text-[10px] font-medium text-neutral-600 dark:text-neutral-300">
+          默认合成声线（桌宠说话/合成未指定声线时使用）
+        </span>
+        <div class="flex items-center gap-2">
+          <FieldSelect
+            v-model="defaultVoiceInput"
+            label="默认声线"
+            :options="defaultVoiceOptions"
+            placeholder="选择声线（缺省 ailini）"
+            class="flex-1"
+          />
+          <Button
+            variant="primary" size="sm"
+            label="保存"
+            :loading="savingDefaultVoice"
+            :disabled="!defaultVoiceInput || defaultVoiceInput === currentDefaultVoice"
+            icon="i-solar:diskette-bold-duotone"
+            @click="saveDefaultVoice"
           />
         </div>
       </div>

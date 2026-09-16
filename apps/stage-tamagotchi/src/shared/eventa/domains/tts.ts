@@ -24,10 +24,12 @@ export const electronTtsGetConfig = defineInvokeEventa<{
   port: number | undefined
   device: string | undefined
   threads: number | undefined
+  /** 默认合成声线 id（合成未显式指定 voice 时使用） */
+  defaultVoice: string | undefined
 }>('eventa:invoke:electron:tts:get-config')
 export const electronTtsSetConfig = defineInvokeEventa<
   { needsRestart: boolean },
-  { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number }
+  { dir?: string, port?: number, device?: 'auto' | 'cpu' | 'cuda' | 'cuda-half', threads?: number, defaultVoice?: string }
 >('eventa:invoke:electron:tts:set-config')
 
 // 应用配置并自动热加载：停止当前实例 → 用新配置重启 → 轮询就绪 → 返回成功/回滚。

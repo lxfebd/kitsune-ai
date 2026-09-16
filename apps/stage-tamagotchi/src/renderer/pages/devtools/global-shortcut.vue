@@ -272,16 +272,16 @@ onUnmounted(() => {
           <thead class="bg-neutral-100 dark:bg-neutral-900">
             <tr>
               <th class="px-3 py-2 text-left">
-                Id
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.id') }}
               </th>
               <th class="px-3 py-2 text-left">
-                Accelerator
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.accelerator') }}
               </th>
               <th class="px-3 py-2 text-left">
                 {{ t('tamagotchi.settings.devtools.pages.global-shortcut.receiving-key-ups') }}
               </th>
               <th class="px-3 py-2 text-left">
-                Description
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.description-label') }}
               </th>
               <th class="px-3 py-2" />
             </tr>
@@ -355,13 +355,13 @@ onUnmounted(() => {
           <thead class="bg-neutral-100 dark:bg-neutral-900">
             <tr>
               <th class="px-3 py-2 text-left">
-                Time
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.time') }}
               </th>
               <th class="px-3 py-2 text-left">
-                Id
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.id') }}
               </th>
               <th class="px-3 py-2 text-left">
-                Phase
+                {{ t('tamagotchi.settings.devtools.pages.global-shortcut.phase') }}
               </th>
               <th class="px-3 py-2 text-left">
                 Δ ms

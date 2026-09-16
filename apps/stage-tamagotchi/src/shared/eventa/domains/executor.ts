@@ -38,7 +38,7 @@ export interface ExecutorEventPayload {
   personaMessage?: string
   /** dag_level_started — DAG 层级索引 */
   levelIndex?: number
-  /** dag_level_started — 当前层级任务数 */
+  /** dag_level_started / coordination_started — 当前层级（或编排拆出）的任务数 */
   taskCount?: number
   /** plan_adjusted — 失败任务 ID */
   failedTaskId?: string
@@ -54,12 +54,12 @@ export interface ExecutorEventPayload {
   highRisk?: boolean
   /** coordination_started — 编排会话涉及的 agent 数 */
   agentCount?: number
-  /** coordination_started — 编排拆出的任务数 */
-  coordinationTaskCount?: number
   /** agent_outcome — 派活目标 agent id */
   agentId?: string
   /** agent_outcome — 该次派活的任务标题 */
   title?: string
+  /** agent_outcome — 派活是否成功（DispatchRecord.ok 平铺发出） */
+  ok?: boolean
   /** agent_outcome — 派活完成时间戳 */
   at?: number
 }
@@ -84,4 +84,25 @@ export interface OverseerLlmProviderConfig {
 
 export const electronOverseerLlmProvider = defineInvokeEventa<{ ok: boolean }, OverseerLlmProviderConfig>(
   'eventa:invoke:electron:overseer:llm-provider',
+)
+
+// 渲染进程 Chat 的 LLM 请求经主进程代理转发（Node fetch 无 CORS 限制）。
+// 中转服务（如 llm.941-fitness-studio.top）对带 Authorization 的跨域 OPTIONS 预检返回 401，
+// 渲染进程直接 fetch 会撞 CORS（Failed to fetch），必须走主进程。
+export interface LlmProxyFetchRequest {
+  url: string
+  init?: {
+    method?: string
+    headers?: Record<string, string>
+    body?: string
+  }
+}
+export interface LlmProxyFetchResponse {
+  status: number
+  statusText: string
+  headers: Record<string, string>
+  body: string
+}
+export const electronLlmProxyFetch = defineInvokeEventa<LlmProxyFetchResponse, LlmProxyFetchRequest>(
+  'eventa:invoke:electron:llm-proxy-fetch',
 )

@@ -238,14 +238,18 @@ describe('createConnectorService', () => {
       const handler = handlers().get(electronConnectorSendTask.sendEvent.id)!
       const res = await handler({ id: 'vscode.editor', task: { type: 'web:fetch', payload: { url: 'https://example.com' } } }, undefined)
 
-      expect(res).toEqual({ ok: true })
+      expect(res.ok).toBe(true)
+      expect(res.taskId).toBeTypeOf('string')
       expect(serverFake.sendToPeer).toHaveBeenCalledTimes(1)
       const [peerId, raw] = serverFake.sendToPeer.mock.calls[0]!
       expect(peerId).toBe('peer-1')
 
       const message = JSON.parse(raw as string) as Record<string, unknown>
       expect(message.type).toBe('task:execute')
-      expect(message.data).toEqual({ type: 'web:fetch', payload: { url: 'https://example.com' } })
+      const data = message.data as Record<string, unknown>
+      // 参数平铺到 data 顶层（插件端 executeTask 从 data.path / data.code / data.command 读取），
+      // 并注入 taskId 供 task:result 回执匹配
+      expect(data).toEqual({ type: 'web:fetch', url: 'https://example.com', taskId: res.taskId })
       const metadata = message.metadata as { source: { id: string }, event: { id: string } }
       expect(metadata.source.id).toBe('kitsune:stage-tamagotchi')
       expect(metadata.event.id).toBeTypeOf('string')
@@ -260,6 +264,40 @@ describe('createConnectorService', () => {
       const handler = handlers().get(electronConnectorSendTask.sendEvent.id)!
       const res = await handler({ id: 'vscode.editor', task: { type: 'x' } }, undefined)
       expect(res).toEqual({ ok: false, error: 'Peer disconnected' })
+    })
+
+    it('overrides payload.type with the authoritative task type at the top level', async () => {
+      serverFake.messageHandler('peer-1', JSON.stringify({
+        type: 'extension:announce',
+        data: { identity: { id: 'vscode.editor' } },
+      }))
+      const handler = handlers().get(electronConnectorSendTask.sendEvent.id)!
+      // 调用方 payload 混入 type 也不得覆盖任务动作 — data.type 是权威字段
+      const res = await handler({ id: 'vscode.editor', task: { type: 'open_file', payload: { type: 'evil', path: '/a.ts' } } }, undefined)
+
+      const [, raw] = serverFake.sendToPeer.mock.calls[0]!
+      const data = (JSON.parse(raw as string) as { data: Record<string, unknown> }).data
+      expect(data.type).toBe('open_file')
+      expect(data.path).toBe('/a.ts')
+      expect(data.taskId).toBe(res.taskId)
+      expect(res).toEqual({ ok: true, taskId: expect.any(String) })
+    })
+
+    it('sendTask returns the taskId used for receipt matching', () => {
+      serverFake.messageHandler('peer-1', JSON.stringify({
+        type: 'extension:announce',
+        data: { identity: { id: 'vscode.editor' } },
+      }))
+      const sent = service.sendTask('vscode.editor', { type: 'open_file', payload: { path: '/a.ts' } })
+      expect(sent.ok).toBe(true)
+      expect(sent.taskId).toBeTypeOf('string')
+      const [, raw] = serverFake.sendToPeer.mock.calls.at(-1)!
+      const data = (JSON.parse(raw as string) as { data: Record<string, unknown> }).data
+      // service 层注入的 taskId 与 sendTask 返回的一致（executor 用它对回执）
+      expect(data.taskId).toBe(sent.taskId)
+      // 内部字段不得污染插件参数
+      expect(data.path).toBe('/a.ts')
+      expect(Object.keys(data)).not.toContain('payload')
     })
   })
 

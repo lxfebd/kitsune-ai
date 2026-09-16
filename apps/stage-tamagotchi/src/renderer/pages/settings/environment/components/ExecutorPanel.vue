@@ -115,7 +115,9 @@ async function executorExecute() {
   executorPlan.value.status = 'pending'
   executorTaskResults.value.clear()
   executorTaskPersonaMessages.value.clear()
-  await invokeExecutorRun({ plan: executorPlan.value })
+  // executorPlan.value 是 Vue 响应式 Proxy，Electron IPC（structuredClone）无法克隆 Proxy，
+  // 会抛「An object could not be cloned.」导致页面渲染崩溃。先深拷贝成纯对象再传。
+  await invokeExecutorRun({ plan: JSON.parse(JSON.stringify(executorPlan.value)) })
 }
 
 async function executorStop() {

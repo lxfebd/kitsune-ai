@@ -72,8 +72,8 @@ function parseStructuredOutput(output: string): { subtype: string | null, error:
 }
 
 interface TaskRunnerDeps {
-  taskPusher: { spawnCommand: (binary: string, args: string[], cwd: string, timeoutMs: number) => Promise<any>, getToolConfig: (tool: string) => any, sanitizeInput: (raw: string, maxLength?: number) => string }
-  connectors: { getStatus: (id: string) => ConnectorInfo | null, sendTask: (id: string, task: { type: string, payload?: Record<string, unknown> }) => { ok: boolean, error?: string } }
+  taskPusher: { spawnCommand: (binary: string, args: string[], cwd: string, timeoutMs: number, env?: Record<string, string>) => Promise<any>, getToolConfig: (tool: string) => any, sanitizeInput: (raw: string, maxLength?: number) => string }
+  connectors: { getStatus: (id: string) => ConnectorInfo | null, sendTask: (id: string, task: { type: string, payload?: Record<string, unknown> }) => { ok: boolean, error?: string, taskId?: string } }
   context: { on: (event: any, handler: (payload: any) => void) => () => void }
   allowedRoots: string[]
   desktopAutomation?: DesktopAutomationService
@@ -135,7 +135,7 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
       args.push(sanitized)
     const timeoutMs = task.timeoutMs ?? cfg.timeoutMs
     const start = Date.now()
-    const result = await taskPusher.spawnCommand(cfg.binary, args, task.cwd, timeoutMs)
+    const result = await taskPusher.spawnCommand(cfg.binary, args, task.cwd, timeoutMs, cfg.env)
     // P3：结构化模板的解析结果（claude --output-format=json）透传给规划器/验收，
     // 让自动修复失败原因来自 JSON 信号而非人读文本。
     let structured: any
@@ -167,12 +167,13 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
     }
 
     const start = Date.now()
-    // NOTICE: connectors.sendTask 是同步的，不是 Promise
+    // NOTICE: connectors.sendTask 是同步的，不是 Promise；返回的 taskId 是插件回执的匹配键
     const sent = connectors.sendTask(task.connectorId, { type: task.action, payload: task.payload })
     if (!sent.ok) {
       fileLogger.debug('[taskRunner] runIdeTask', { eventId: 'runIdeTask', node: task.id, action: 'sendTask', result: sent.error })
       return { taskId: task.id, ok: false, error: sent.error, durationMs: Date.now() - start }
     }
+    const receiptTaskId = sent.taskId ?? task.id
 
     // 等 task:result 事件回来，按 action 类型动态超时
     const timeoutMs = ideTimeouts[task.action] ?? 30_000
@@ -187,7 +188,7 @@ export function createTaskRunner(deps: TaskRunnerDeps) {
       // 业务 payload 在 body 字段；task:result 事件由 connectors 服务 emit。
       const off = context.on(electronConnectorTaskResult, (event) => {
         const payload = event.body
-        if (payload.taskId !== task.id)
+        if (payload.taskId !== receiptTaskId)
           return
         clearTimeout(timer)
         off()

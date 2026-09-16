@@ -253,8 +253,8 @@ describe('doctor: checkOverseer', () => {
       enabled: true,
       running: true,
       tools: [
-        { id: 'tool-a', name: 'A', enabled: true, running: false },
-        { id: 'tool-b', name: 'B', enabled: true, running: true },
+        { id: 'tool-a', name: 'A', enabled: true, running: false, dispatchable: true },
+        { id: 'tool-b', name: 'B', enabled: true, running: true, dispatchable: true },
       ],
       updatedAt: Date.now(),
     })
@@ -279,7 +279,7 @@ describe('doctor: checkOverseer', () => {
       enabled: true,
       running: true,
       tools: [
-        { id: 'tool-a', name: 'A', enabled: true, running: true },
+        { id: 'tool-a', name: 'A', enabled: true, running: true, dispatchable: true },
       ],
       updatedAt: Date.now(),
     })
@@ -430,11 +430,15 @@ describe('doctor: checkSidecar deep health check', () => {
 })
 
 describe('doctor: fixOne', () => {
-  it('restarts sidecar when fixPayload.sidecarId is present', async () => {
+  it('restarts sidecar when fixPayload.sidecarId is present and healthCheck passes', async () => {
     const restartMock = vi.fn((_id: string) => Promise.resolve({ id: _id, state: 'running', pid: 123, restartCount: 0, updatedAt: 0 } as any))
+    // run() 阶段探测到崩溃（unhealthy）→ 产生 FAIL；restart 后健康检查通过（healthy）→ FIXED
+    const healthMock = vi.fn()
+      .mockResolvedValueOnce({ healthy: false, reason: 'crashed' })
+      .mockResolvedValue({ healthy: true })
     const sidecar = createMockSidecar({
       listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'error', pid: null, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
-      healthCheck: vi.fn(() => Promise.resolve({ healthy: false, reason: 'crashed' })),
+      healthCheck: healthMock,
       restart: restartMock,
     })
 
@@ -453,6 +457,31 @@ describe('doctor: fixOne', () => {
     expect(sidecarFix).toBeDefined()
     expect(sidecarFix!.level).toBe('FIXED')
     expect(sidecarFix!.detail).toContain('restarted')
+    expect(restartMock).toHaveBeenCalledWith('comfyui')
+  })
+
+  it('returns MANUAL when sidecar restarts but healthCheck still fails (no fake green)', async () => {
+    const restartMock = vi.fn((_id: string) => Promise.resolve({ id: _id, state: 'running', pid: 123, restartCount: 0, updatedAt: 0 } as any))
+    const sidecar = createMockSidecar({
+      listStatuses: vi.fn(() => ([{ id: 'comfyui', state: 'error', pid: null, restartCount: 0, updatedAt: 0 }] as SidecarStatus[])),
+      healthCheck: vi.fn(() => Promise.resolve({ healthy: false, reason: 'crashed' })),
+      restart: restartMock,
+    })
+
+    const service = createDoctorService({
+      context: createMockContext() as never,
+      sidecarService: sidecar,
+      overseerService: null,
+      pluginHost: null,
+    })
+
+    await service.run()
+    const fixResults = await service.fix()
+
+    const sidecarFix = fixResults.find(r => r.category === 'sidecar')
+    expect(sidecarFix).toBeDefined()
+    expect(sidecarFix!.level).toBe('MANUAL')
+    expect(sidecarFix!.detail).toContain('not healthy')
     expect(restartMock).toHaveBeenCalledWith('comfyui')
   })
 
@@ -560,7 +589,7 @@ describe('doctor: runAllChecks integration', () => {
     const overseer = createMockOverseer({
       enabled: true,
       running: true,
-      tools: [{ id: 't1', name: 'T1', enabled: true, running: true }],
+      tools: [{ id: 't1', name: 'T1', enabled: true, running: true, dispatchable: true }],
       updatedAt: Date.now(),
     })
     const pluginHost = createMockPluginHost({
