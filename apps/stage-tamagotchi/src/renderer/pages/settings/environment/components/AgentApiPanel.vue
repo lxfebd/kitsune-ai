@@ -103,14 +103,9 @@ onMounted(loadAgents)
     <Callout v-if="infoMessage" theme="lime" :label="tn('agent-api.info-title')">
       {{ infoMessage }}
     </Callout>
-    <div flex="~ col gap-1">
-      <h3 class="text-sm font-semibold">
-        {{ tn('agent-api.title') }}
-      </h3>
-      <p class="text-xs text-neutral-500 dark:text-neutral-400">
-        {{ tn('agent-api.description') }}
-      </p>
-    </div>
+    <p class="text-xs text-neutral-500 dark:text-neutral-400">
+      {{ tn('agent-api.description') }}
+    </p>
 
     <div v-if="!agents.length" class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
       {{ tn('agent-api.empty') }}

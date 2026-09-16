@@ -10,18 +10,24 @@ import type { PipelineStageId } from './stages'
 const route = useRoute()
 const run = useRunPipeline()
 
+const STAGE_IDS: PipelineStageId[] = ['goal', 'plan', 'review', 'assign', 'work', 'monitor', 'product', 'submit']
+
 // 旧深链兼容：/settings/overseer|executor|director|team 曾经是独立子页，
 // 收敛后统一进流水线页。保留定位到对应区块（监控/工作/评审/分配），避免深链失效。
-watch(() => route.path, (path) => {
-  const anchor = path.endsWith('/overseer')
-    ? 'monitor'
-    : path.endsWith('/executor')
-      ? 'work'
-      : path.endsWith('/director')
-        ? 'review'
-        : path.endsWith('/team')
-          ? 'assign'
-          : undefined
+// 重定向后的 URL 带 ?stage=<id>（见 main.ts beforeEach），此处统一消费。
+watch(() => route.fullPath, (fullPath) => {
+  const stageQuery = route.query.stage
+  const anchor: PipelineStageId | undefined = typeof stageQuery === 'string' && (STAGE_IDS as string[]).includes(stageQuery)
+    ? stageQuery as PipelineStageId
+    : (fullPath.endsWith('/overseer')
+      ? 'monitor'
+      : fullPath.endsWith('/executor')
+        ? 'work'
+        : fullPath.endsWith('/director')
+          ? 'review'
+          : fullPath.endsWith('/team')
+            ? 'assign'
+            : undefined)
   if (anchor) {
     requestAnimationFrame(() => {
       scrollToStage(anchor)

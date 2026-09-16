@@ -94,14 +94,9 @@ async function fixDoctor() {
       {{ errorMessage }}
     </Callout>
     <div class="flex items-center justify-between gap-2 flex-wrap">
-      <div flex="~ col gap-1">
-        <h3 class="text-sm font-semibold">
-          {{ tn('doctor.title') }}
-        </h3>
-        <p class="text-xs text-neutral-500 dark:text-neutral-400">
-          {{ tn('doctor.description') }}
-        </p>
-      </div>
+      <p class="text-xs text-neutral-500 dark:text-neutral-400">
+        {{ tn('doctor.description') }}
+      </p>
       <div class="flex items-center gap-2">
         <Button
           variant="primary" size="sm"

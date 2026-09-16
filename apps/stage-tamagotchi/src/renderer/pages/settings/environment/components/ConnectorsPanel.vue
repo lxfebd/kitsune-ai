@@ -224,14 +224,9 @@ onMounted(loadConnectors)
     <Callout v-if="errorMessage" theme="orange" :label="tn('connectors.error-title')">
       {{ errorMessage }}
     </Callout>
-    <div flex="~ col gap-1">
-      <h3 class="text-sm font-semibold">
-        {{ tn('connectors.title') }}
-      </h3>
-      <p class="text-xs text-neutral-500 dark:text-neutral-400">
-        {{ tn('connectors.description') }}
-      </p>
-    </div>
+    <p class="text-xs text-neutral-500 dark:text-neutral-400">
+      {{ tn('connectors.description') }}
+    </p>
 
     <div v-if="!connectors.length" class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
       {{ tn('connectors.empty') }}

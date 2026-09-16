@@ -41,8 +41,6 @@ nav:
   data: 数据管理
   modules: 插件模块
   director: 总监评审
-  executor: 自主执行
-  overseer: 监工
   team: 我的 AI 团队
   pipeline: 运行流水线
   environment: 环境适配
@@ -51,7 +49,6 @@ nav:
   connectors: 连接器
   mcp-agent: MCP 接入
   sidecar: 本地服务
-  account: 账号
   connection: 连接
   kitsune-card: Kitsune 卡片
   group:
@@ -86,8 +83,6 @@ groups:
       description: 插件模块、记忆体与集成连接
     data:
       description: 数据管理、导入导出与重置
-    account:
-      description: 账号与登录状态
     kitsune-card:
       description: 角色卡预设与形象配置
     models:
@@ -100,10 +95,6 @@ groups:
       description: 远程连接与服务器通道
     director:
       description: 对 AI 计划进行评审与裁决
-    executor:
-      description: 自主执行任务与计划进度
-    overseer:
-      description: 监工统计与实时事件流
     team:
       description: 子 agent 花名册与派活状态
     pipeline:
@@ -1945,42 +1936,6 @@ pages:
       errors:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
-  account:
-    title: 账号
-    description: 管理您的账号设置与同步偏好
-    login:
-      title: 登录
-      email: 邮箱
-      emailPlaceholder: 您的邮箱
-      password: 密码
-      passwordPlaceholder: ••••••••
-      signIn: 登录
-      signingIn: 登录中...
-      or: 或
-      createAccount: 创建账号
-    register:
-      title: 创建账号
-      name: 名称
-      namePlaceholder: 您的名字
-      email: 邮箱
-      emailPlaceholder: 您的邮箱
-      password: 密码
-      passwordPlaceholder: ••••••••
-      confirmPassword: 确认密码
-      confirmPasswordPlaceholder: ••••••••
-      create: 创建账号
-      creating: 创建中...
-      back: 返回
-    actions:
-      profile: 编辑资料
-      sync: 同步设置
-      flux: Flux 余额
-      logout: 退出登录
-    info:
-      title: 关于账号
-      description: 您的账号可用于跨设备同步设置、获取 Flux 积分用于 AI 服务，以及管理角色库。
-    unavailable:
-      message: 服务端账号后端尚未启用。跨设备同步、Flux 积分与角色库管理将在服务端认证 API 接入后开放。
   sidecar:
     title: 本地服务管理
     description: 管理本地子进程服务（ComfyUI 图像生成、GPT-SoVITS 语音合成）的启动、停止与状态。

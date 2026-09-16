@@ -258,13 +258,6 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
-    '/settings/account/': RouteRecordInfo<
-      '/settings/account/',
-      '/settings/account',
-      Record<never, never>,
-      Record<never, never>,
-      | never
-    >,
     '/settings/connection/': RouteRecordInfo<
       '/settings/connection/',
       '/settings/connection',
@@ -296,13 +289,6 @@ declare module 'vue-router/auto-routes' {
     '/settings/environment/': RouteRecordInfo<
       '/settings/environment/',
       '/settings/environment',
-      Record<never, never>,
-      Record<never, never>,
-      | never
-    >,
-    '/settings/executor/': RouteRecordInfo<
-      '/settings/executor/',
-      '/settings/executor',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -478,13 +464,6 @@ declare module 'vue-router/auto-routes' {
     '/settings/modules/x': RouteRecordInfo<
       '/settings/modules/x',
       '/settings/modules/x',
-      Record<never, never>,
-      Record<never, never>,
-      | never
-    >,
-    '/settings/overseer/': RouteRecordInfo<
-      '/settings/overseer/',
-      '/settings/overseer',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -1127,12 +1106,6 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
-    'src/renderer/pages/settings/account/index.vue': {
-      routes:
-        | '/settings/account/'
-      views:
-        | never
-    }
     '../../packages/stage-pages/src/pages/settings/connection/index.vue': {
       routes:
         | '/settings/connection/'
@@ -1160,12 +1133,6 @@ declare module 'vue-router/auto-routes' {
     'src/renderer/pages/settings/environment/index.vue': {
       routes:
         | '/settings/environment/'
-      views:
-        | never
-    }
-    'src/renderer/pages/settings/executor/index.vue': {
-      routes:
-        | '/settings/executor/'
       views:
         | never
     }
@@ -1316,12 +1283,6 @@ declare module 'vue-router/auto-routes' {
     '../../packages/stage-pages/src/pages/settings/modules/x.vue': {
       routes:
         | '/settings/modules/x'
-      views:
-        | never
-    }
-    'src/renderer/pages/settings/overseer/index.vue': {
-      routes:
-        | '/settings/overseer/'
       views:
         | never
     }

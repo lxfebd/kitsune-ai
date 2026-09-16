@@ -46,6 +46,20 @@ const router = createRouter({
   routes: setupLayouts(routes as RouteRecordRaw[]),
 })
 
+// 旧深链兜底：executor/overseer/account 设置页已收敛（内容并入流水线），
+// 老链接不再生成路由，重定向防止落空页白屏。
+const DEPRECATED_SETTINGS_REDIRECTS: Array<[RegExp, string]> = [
+  [/^\/settings\/executor(?:\/.*)?$/, '/settings/pipeline?stage=work'],
+  [/^\/settings\/overseer(?:\/.*)?$/, '/settings/pipeline?stage=monitor'],
+  [/^\/settings\/account(?:\/.*)?$/, '/settings'],
+]
+router.beforeEach((to) => {
+  for (const [pattern, replacement] of DEPRECATED_SETTINGS_REDIRECTS) {
+    if (pattern.test(to.path))
+      return { path: replacement, replace: true }
+  }
+})
+
 createApp(App)
   .use(MotionPlugin)
   .use(autoAnimatePlugin)
