@@ -132,9 +132,13 @@ function sendWindow(channel: string) {
 </script>
 
 <template>
+  <!-- 根网格必须显式约束行高：未设 grid-template-rows 时行高为 auto，
+       会被内容（长页面/展开的侧边栏）撑到超过视口高，
+       使 overflow-auto 的 main 跟随行高膨胀、自身永远滚不动，长内容溢出窗外。
+       minmax(0, 1fr) 把行高钉在视口高（h-100dvh），main 内部再滚动。 -->
   <div
     class="grid h-100dvh w-100vw overflow-hidden text-neutral-800 dark:text-neutral-200 bg-white/80 dark:bg-neutral-950/80 backdrop-blur-2xl"
-    :style="{ gridTemplateColumns: `var(--settings-sidebar-width, 192px) minmax(0, 1fr)` }"
+    :style="{ gridTemplateColumns: `var(--settings-sidebar-width, 192px) minmax(0, 1fr)`, gridTemplateRows: 'minmax(0, 1fr)' }"
   >
     <!-- Sidebar -->
     <aside class="flex flex-col border-r border-black/[0.06] dark:border-white/[0.06] bg-black/3 dark:bg-white/3 backdrop-blur-xl">
