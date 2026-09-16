@@ -231,7 +231,7 @@ function sendWindow(channel: string) {
     </aside>
 
     <!-- Content -->
-    <main ref="scrollContainer" class="flex flex-col min-w-0 min-h-0 overflow-auto">
+    <main ref="scrollContainer" class="flex flex-col min-w-0 overflow-auto">
       <!-- Header bar with drag region -->
       <div
         class="flex items-center justify-between px-6 pt-12 pb-4 border-b border-black/[0.06] dark:border-white/[0.06] shrink-0"
@@ -257,8 +257,10 @@ function sendWindow(channel: string) {
         </div>
       </div>
 
-      <!-- Page content -->
-      <div class="flex-1 min-h-0">
+      <!-- Page content: min-h-0 会导致内容区高度锁死在剩余空间，
+           长内容（流水线/健康检查等）溢出且 main 滚不动。
+           去掉 min-h-0 让内容区随内容自然撑高，由外层 main 统一滚动。 -->
+      <div>
         <div
           class="mx-auto px-6 py-6"
           :style="{ maxWidth: 'var(--settings-content-max-width, 1024px)' }"

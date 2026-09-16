@@ -49,8 +49,8 @@ export function setupSettingsWindowReusableFunc(params: {
   const reusable = createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Settings',
-      width: 900.0,
-      height: 640.0,
+      width: 1100.0,
+      height: 820.0,
       show: false,
       frame: false,
       skipTaskbar: false,
