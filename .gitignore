@@ -115,6 +115,10 @@ enum-live.mjs
 docs/
 # 例外：scenarios 包里的 docs 场景是实际场景代码（imports 截图资产），不是内部文档
 !packages/scenarios-stage-tamagotchi-browser/src/scenes/docs/
+# 例外：i18n locales 的 docs/ 是文档站 i18n 源文件（index.ts + theme.yaml + versions.yaml），
+# 被各语言 src/locales/*/index.ts 以 import './docs' 直接引用，是构建必需输入；
+# 不入库会使 CI postinstall 报 UNRESOLVED_IMPORT（Could not resolve './docs'）
+!packages/i18n/src/locales/*/docs/
 # Rust / napi-rs 构建产物（cargo target 与 .node 二进制，平台特定不入库）
 /target/
 *.node
