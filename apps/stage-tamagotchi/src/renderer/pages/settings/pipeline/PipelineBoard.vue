@@ -47,6 +47,13 @@ function personaMessageFor(task: Task, run: RunPipeline): string {
   return run.personaMessages.value.get(task.id) ?? ''
 }
 
+function currentTaskTitle(run: RunPipeline): string {
+  const id = run.status.value.currentTaskId
+  if (!id)
+    return ''
+  return run.plan.value?.tasks.find(t => t.id === id)?.title ?? id
+}
+
 function terminalChip(run: RunPipeline): { label: string, cls: string } {
   const status = run.plan.value?.status
   if (status === 'completed')
@@ -113,9 +120,9 @@ function terminalChip(run: RunPipeline): { label: string, cls: string } {
           variant="primary" size="sm"
           :loading="run.busy.value"
           :disabled="!run.requirement.value.trim() || run.isRunning.value"
-          :label="t('settings.pages.pipeline.goal.generate')"
+          :label="t('settings.pages.pipeline.goal.generate-execute')"
           icon="i-solar:magic-stick-3-bold-duotone"
-          @click="run.generate()"
+          @click="run.generateAndExecute()"
         />
       </div>
     </section>
@@ -164,12 +171,6 @@ function terminalChip(run: RunPipeline): { label: string, cls: string } {
           :label="t('settings.pages.pipeline.review.approve-execute')"
           icon="i-solar:check-circle-bold-duotone"
           @click="run.execute()"
-        />
-        <Button
-          variant="secondary" size="sm"
-          :disabled="run.isRunning.value"
-          :label="t('settings.pages.pipeline.review.generate-only')"
-          icon="i-solar:list-check-bold-duotone"
         />
         <Button
           v-if="run.isRunning.value"
@@ -226,7 +227,7 @@ function terminalChip(run: RunPipeline): { label: string, cls: string } {
         <div v-if="run.status.value.currentTaskId" class="flex items-center gap-2 rounded-xl border border-primary-500/30 bg-primary-500/5 px-3 py-2 text-xs">
           <span class="i-svg-spinners:ring size-3.5 text-amber-500" />
           <span class="text-neutral-700 dark:text-neutral-200">
-            {{ t('settings.pages.pipeline.work.current', { task: run.status.value.currentTaskId }) }}
+            {{ t('settings.pages.pipeline.work.current', { title: currentTaskTitle(run) }) }}
           </span>
         </div>
         <details class="text-xs">
@@ -316,15 +317,28 @@ function terminalChip(run: RunPipeline): { label: string, cls: string } {
           <div
             v-for="[taskId, result] of [...run.taskResults.value.entries()].slice(0, 20)"
             :key="taskId"
-            class="flex items-center gap-2 rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] px-2.5 py-1.5"
+            class="flex flex-col gap-1 rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] px-2.5 py-2"
           >
-            <span :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase', result.ok ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300']">
-              {{ result.ok ? 'OK' : 'FAIL' }}
-            </span>
-            <span class="truncate font-mono text-[10px] text-neutral-400 dark:text-neutral-500">{{ taskId }}</span>
-            <span class="ml-auto font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
-              {{ (result.durationMs / 1000).toFixed(1) }}s
-            </span>
+            <div class="flex items-center gap-2">
+              <span :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase', result.ok ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/15 text-red-700 dark:text-red-300']">
+                {{ result.ok ? 'OK' : 'FAIL' }}
+              </span>
+              <span class="truncate text-[11px] font-medium text-neutral-700 dark:text-neutral-200">
+                {{ run.plan.value?.tasks.find(t => t.id === taskId)?.title || taskId }}
+              </span>
+              <span class="ml-auto shrink-0 font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
+                {{ (result.durationMs / 1000).toFixed(1) }}s
+              </span>
+            </div>
+            <div v-if="result.error" class="text-[10px] text-red-600 dark:text-red-400 break-all">
+              {{ result.error }}
+            </div>
+            <details v-if="result.output" class="text-[10px]">
+              <summary class="cursor-pointer text-neutral-500 dark:text-neutral-400 select-none">
+                {{ t('settings.pages.pipeline.product.show-output') }}
+              </summary>
+              <pre class="mt-1.5 whitespace-pre-wrap break-all rounded-md bg-black/5 dark:bg-white/5 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-neutral-600 dark:text-neutral-300 max-h-48 overflow-auto">{{ result.output }}</pre>
+            </details>
           </div>
         </div>
       </div>
@@ -333,7 +347,77 @@ function terminalChip(run: RunPipeline): { label: string, cls: string } {
       </div>
     </section>
 
-    <!-- ⑧ 提交归档 -->
+    <!-- ⑧ dsh 会话 — 派活落盘证据 -->
+    <section :id="'pipeline-block-dsh'" class="settings-panel scroll-mt-4 flex flex-col gap-2">
+      <div class="flex items-start justify-between gap-2">
+        <div flex="~ col gap-1">
+          <h3 class="text-sm font-semibold">
+            {{ t('settings.pages.pipeline.dsh.title') }}
+          </h3>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.pipeline.dsh.description') }}
+          </p>
+        </div>
+        <Button
+          variant="secondary" size="sm"
+          :loading="run.dshSessionsLoading.value"
+          :label="t('settings.pages.pipeline.dsh.refresh')"
+          icon="i-solar:refresh-bold-duotone"
+          @click="run.refreshDshSessions()"
+        />
+      </div>
+
+      <div v-if="run.dshSessionsError.value" class="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+        {{ t('settings.pages.pipeline.dsh.error') }}：{{ run.dshSessionsError.value }}
+      </div>
+
+      <div v-else-if="run.dshSessions.value.length" class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-3 text-xs">
+          <span class="rounded-full bg-neutral-400/15 px-2 py-0.5 text-neutral-600 dark:text-neutral-300">
+            {{ t('settings.pages.pipeline.dsh.total', { count: run.dshSessions.value.length }) }}
+          </span>
+          <span class="rounded-full bg-sky-500/15 px-2 py-0.5 text-sky-700 dark:text-sky-300">
+            {{ t('settings.pages.pipeline.dsh.content-count', { count: run.dshSessions.value.filter(s => s.content).length }) }}
+          </span>
+        </div>
+        <div v-if="!run.dshSessions.value.some(s => s.content)" class="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
+          {{ t('settings.pages.pipeline.dsh.no-content-hint') }}
+        </div>
+        <div class="flex flex-col gap-1">
+          <div
+            v-for="s in run.dshSessions.value.slice(0, 12)"
+            :key="s.id"
+            class="flex flex-col gap-1 rounded-lg border border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-white/[0.02] px-2.5 py-2"
+          >
+            <div class="flex items-center gap-2">
+              <span :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium', s.content ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-neutral-400/15 text-neutral-600 dark:text-neutral-400']">
+                {{ s.content ? t('settings.pages.pipeline.dsh.content-badge') : t('settings.pages.pipeline.dsh.zombie-badge') }}
+              </span>
+              <span class="truncate text-[11px] font-medium text-neutral-700 dark:text-neutral-200">
+                {{ s.title || s.project }}
+              </span>
+              <span class="ml-auto shrink-0 font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
+                {{ s.messageCount }} evt · {{ new Date(s.modifiedAt).toLocaleString() }}
+              </span>
+            </div>
+            <div v-if="s.title" class="truncate font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
+              {{ s.project }}
+            </div>
+            <div v-else-if="s.cwd" class="truncate font-mono text-[10px] text-neutral-400 dark:text-neutral-500">
+              {{ s.cwd }}
+            </div>
+          </div>
+          <div v-if="run.dshSessions.value.length > 12" class="py-1 text-center text-[10px] text-neutral-400 dark:text-neutral-500">
+            … 共 {{ run.dshSessions.value.length - 12 }} 个更早的会话
+          </div>
+        </div>
+      </div>
+      <div v-else class="border-2 border-neutral-200 dark:border-neutral-800 rounded-lg border-dashed p-4 text-center text-xs text-neutral-500">
+        {{ t('settings.pages.pipeline.dsh.empty') }}
+      </div>
+    </section>
+
+    <!-- ⑨ 提交归档 -->
     <section :id="'pipeline-block-submit'" class="settings-panel scroll-mt-4 flex flex-col gap-2">
       <div flex="~ col gap-1">
         <h3 class="text-sm font-semibold">

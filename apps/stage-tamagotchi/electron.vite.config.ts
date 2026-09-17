@@ -317,6 +317,9 @@ export default defineConfig({
               '**/settings/modules/mcp.vue',
               '**/settings/modules/memory-long-term.vue',
               '**/settings/modules/memory-short-term.vue',
+              // /settings 总览页由 app 自己的新版卡片页提供（settings-nav 5 组），
+              // 排除 stage-pages 的旧版分组页，避免同名路由被旧文件覆盖。
+              '**/settings/index.vue',
             ],
           },
           {
@@ -327,7 +330,6 @@ export default defineConfig({
               '**/settings/data/**',
               '**/settings/models/**',
               '**/settings/system/general.vue',
-              '**/settings/index.vue',
             ],
           },
         ],

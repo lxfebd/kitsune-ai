@@ -85,6 +85,8 @@ groups:
       description: 数据管理、导入导出与重置
     kitsune-card:
       description: 角色卡预设与形象配置
+    account:
+      description: 账号与云服务配置
     models:
       description: 模型引擎与 API 提供商
     speech:
@@ -95,6 +97,10 @@ groups:
       description: 远程连接与服务器通道
     director:
       description: 对 AI 计划进行评审与裁决
+    executor:
+      description: 自主执行与任务派发
+    overseer:
+      description: 监工状态与实时事件流
     team:
       description: 子 agent 花名册与派活状态
     pipeline:
@@ -111,6 +117,12 @@ groups:
       description: GPT-SoVITS 与 ComfyUI 本地服务
     health:
       description: 系统健康检查与自动修复
+settings-groups:
+  core: 核心设置
+  features: 功能特性
+  data: 数据管理
+  advanced: 高级选项
+  other: 其他
 about:
   title: 项目
   build-info: 应用构建信息
@@ -2035,6 +2047,7 @@ pages:
       input-label: 目标
       input-placeholder: 描述需求，如「优化 src/auth.ts 的性能瓶颈」
       generate: 生成计划
+      generate-execute: 生成并执行
     plan:
       empty: 暂无计划。在上方输入目标后点击「生成计划」。
     review:
@@ -2048,7 +2061,7 @@ pages:
       hint: 任务按 DAG 分层并行分发，子 agent 通过 CLI/API 独立接收指令。
       empty: 尚无任务可分派。
     work:
-      current: 正在执行任务 #{task}
+      current: 正在执行：{title}
       table-title: 任务明细
       type: 类型
       title: 描述
@@ -2060,6 +2073,7 @@ pages:
       total: 总任务 {count}
       completed: 已完成 {count}
       failed: 失败 {count}
+      show-output: 查看产物输出
       empty: 暂无任务结果。
     submit:
       completed: 已完成并归档
@@ -2073,6 +2087,17 @@ pages:
       completed: 已完成
       failed: 已失败
     task-error-fmt: '%{idx} — %{error}'
+    dsh:
+      title: dsh 会话
+      description: 派给 dsh 的每条指令都会在 DSH_HOME 下建一个会话，这里展示 dsh 实际收到并执行的工作记录
+      refresh: 刷新
+      total: 共 {count} 个会话
+      content-count: '{count} 个有工作记录'
+      empty: 暂无会话。执行流水线后 dsh 会自动创建会话。
+      content-badge: 有工作
+      zombie-badge: 空会话
+      no-content-hint: 全部会话都没有工作记录 — dsh 收到了指令但没真正干活，可能是 headless 模型未配置或任务未派发成功
+      error: 读取失败
   environment:
     title: 环境适配中心
     description: 管理 IDE 连接器、Agent API 适配、健康检查与运行时策略。

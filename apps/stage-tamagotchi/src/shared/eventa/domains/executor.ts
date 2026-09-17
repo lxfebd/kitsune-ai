@@ -19,6 +19,47 @@ export const electronExecutorStatus = defineInvokeEventa<ExecutorStatus>(
   'eventa:invoke:electron:executor:status',
 )
 
+// ——— dsh 会话可见性 ———
+// renderer 请求主进程扫描 dsh home 下的会话（DSH_HOME 来自 overseer.yaml 的 dsh 工具 cli.env），
+// 让用户能看到「给 dsh 派了什么活、dsh 是否真的在干活」。
+export interface DshSessionSummary {
+  /** 会话 id（如 session-<uuid>） */
+  id: string
+  /** 会话所属项目目录（sessions 下的顶层目录名，去掉 '--' 包裹） */
+  project: string
+  /** 会话创建时间戳（毫秒） */
+  createdAt: number
+  /** 会话工作目录（header.cwd） */
+  cwd?: string
+  /** 会话业务事件数（projcache 最大 seq；0 表示从未真正对话） */
+  messageCount: number
+  /** 会话标题（projcache rows.title，降级取首条用户指令文本；截断） */
+  title?: string
+  /** 最近一条消息的文本预览（截断，用于面板展示） */
+  lastPreview?: string
+  /** 本会话是否有真实工作内容（messageCount > 0） */
+  content: boolean
+  /** 会话文件最后修改时间（毫秒） */
+  modifiedAt: number
+  /** 压缩文件大小（字节） */
+  sizeBytes: number
+  /** 记录来源：projcache=投影缓存（真实工作），jsonl=事件流文件（空壳降级） */
+  source?: 'projcache' | 'jsonl'
+}
+export type DshSessionsResult = {
+  ok: true
+  /** 扫描到的全部会话（按 modifiedAt 降序） */
+  sessions: DshSessionSummary[]
+  /** 会话根目录（DSH_HOME/sessions），未配置时为空字符串 */
+  root: string
+} | {
+  ok: false
+  error: string
+}
+export const electronDshSessions = defineInvokeEventa<DshSessionsResult>(
+  'eventa:invoke:electron:dsh-sessions',
+)
+
 export interface ExecutorEventPayload {
   type: 'plan_started' | 'task_started' | 'task_completed' | 'task_failed'
     | 'plan_completed' | 'plan_aborted' | 'plan_stopped'

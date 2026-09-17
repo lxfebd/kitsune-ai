@@ -403,7 +403,13 @@ app.whenReady().then(async () => {
       pluginHostRef = deps.pluginHost
       void deps.pluginHost.init()
 
-      const { context } = createContext(ipcMain)
+      // getWindows 返回所有含 webContents 的窗口 — eventa outbound 事件
+      // （executor task_started/task_completed、overseer 推送、健康检查实时
+      // 结果等）会广播到每个窗口，设置页/舞台页都能收到。缺省时适配器
+      // targets 为空数组 → 所有主进程主动推送静默丢失（任务永远「等待中」）。
+      const { context } = createContext(ipcMain, undefined, {
+        getWindows: () => BrowserWindowValue.getAllWindows(),
+      })
       const { createMemoryService } = await import('./services/kitsune/memory')
       const { createPersonaService } = await import('./services/kitsune/persona')
       const { setupArtistryBridge } = await import('./services/kitsune/widgets/artistry-bridge')

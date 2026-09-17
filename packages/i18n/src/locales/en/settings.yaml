@@ -122,6 +122,12 @@ groups:
       description: GPT-SoVITS and ComfyUI local services
     health:
       description: System health checks and auto-repair
+settings-groups:
+  core: Core Settings
+  features: Features
+  data: Data Management
+  advanced: Advanced Options
+  other: Other
 about:
   title: Project
   build-info: Build Information
@@ -1935,6 +1941,7 @@ pages:
       input-label: Goal
       input-placeholder: e.g. "Optimize the performance bottleneck in src/auth.ts"
       generate: Generate Plan
+      generate-execute: Generate & Run
     plan:
       empty: No plan yet. Describe a goal above and click "Generate Plan".
     review:
@@ -1948,7 +1955,7 @@ pages:
       hint: Tasks are dispatched in DAG levels; sub-agents receive instructions via CLI/API.
       empty: Nothing to assign yet.
     work:
-      current: 'Running task #{task}'
+      current: 'Running: {title}'
       table-title: Task details
       type: Type
       title: Title
@@ -1960,6 +1967,7 @@ pages:
       total: 'Total {count}'
       completed: 'Done {count}'
       failed: 'Failed {count}'
+      show-output: Show artifact output
       empty: No task results yet.
     submit:
       completed: Completed & archived
@@ -1973,6 +1981,17 @@ pages:
       completed: Completed
       failed: Failed
     task-error-fmt: '%{idx} — %{error}'
+    dsh:
+      title: dsh Sessions
+      description: Every instruction dispatched to dsh creates a session under DSH_HOME — here is what dsh actually received and did
+      refresh: Refresh
+      total: '{count} sessions'
+      content-count: '{count} with records'
+      empty: No sessions yet. Running the pipeline will make dsh create sessions.
+      content-badge: worked
+      zombie-badge: empty
+      no-content-hint: None of the sessions have work records — dsh received instructions but did not actually work. The headless model may be unconfigured or the dispatch failed.
+      error: Read failed
   environment:
     title: Environment Adaptation
     description: Manage IDE connectors, Agent API adapters, health checks, and runtime policies.

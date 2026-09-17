@@ -84,8 +84,14 @@ tools:
       trusted: true
       # 工具级环境变量：指定 dsh home（profiles/sessions 都在其下），
       # 不设则回退 ~/.dsh。taskPusher spawn 时合并进进程 env。
+      #
+      # ⚠️ 2026-09-17 修复：之前指到 J 盘源码仓 dsh-home，而用户日常打开的
+      # dsh 桌面版（DeepSeek Harness Electron）用的是
+      # %APPDATA%/DeepSeek Harness/dsh-home —— 三个 home 互不相通，派活全
+      # 落在用户看不到的目录，「dsh 工作区看不到新建任务」根因。已改指桌面版
+      # home，headless profile 已复制过去，派活直接进用户工作区。
       env:
-        DSH_HOME: J:\xiangm_transfer\deepseekhar_transfer\deepseekhar\dsh-home
+        DSH_HOME: C:\Users\31672\AppData\Roaming\DeepSeek Harness\dsh-home
       templates:
         - key: prompt
           label: 派发任务(headless)

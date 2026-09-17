@@ -1,10 +1,11 @@
-import type { ExecutorEventPayload, ExecutorStatus, Plan, TaskResult } from '../../../../shared/eventa'
+import type { DshSessionSummary, ExecutorEventPayload, ExecutorStatus, Plan, TaskResult } from '../../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@kitsune/electron-vueuse'
 import { computed, onScopeDispose, ref, type ComputedRef, type Ref } from 'vue'
 
 import {
+  electronDshSessions,
   electronExecutorEvent,
   electronExecutorGenerate,
   electronExecutorRun,
@@ -31,8 +32,15 @@ export interface RunPipeline {
   statusLabelParams: ComputedRef<Record<string, unknown>>
   statusBadge: ComputedRef<string>
   snapshot: ComputedRef<PipelineSnapshot>
+  // ——— dsh 会话可见性 ———
+  dshSessions: Ref<DshSessionSummary[]>
+  dshSessionsError: Ref<string>
+  dshSessionsLoading: Ref<boolean>
+  refreshDshSessions: () => Promise<void>
   // ——— 行为 ———
   generate: (requirement?: string) => Promise<void>
+  /** 一键生成并执行：已有计划直接执行，否则生成后自动执行 */
+  generateAndExecute: (requirement?: string) => Promise<void>
   execute: () => Promise<void>
   stop: () => Promise<void>
   clear: () => void
@@ -44,6 +52,7 @@ export function useRunPipeline(): RunPipeline {
   const invokeRun = useElectronEventaInvoke(electronExecutorRun)
   const invokeStop = useElectronEventaInvoke(electronExecutorStop)
   const invokeStatus = useElectronEventaInvoke(electronExecutorStatus)
+  const invokeDshSessions = useElectronEventaInvoke(electronDshSessions)
 
   const requirement = ref('')
   const busy = ref(false)
@@ -53,6 +62,28 @@ export function useRunPipeline(): RunPipeline {
   const taskResults = ref<Map<string, TaskResult>>(new Map())
   const personaMessages = ref<Map<string, string>>(new Map())
   const errorMessage = ref('')
+  // dsh 会话可见性
+  const dshSessions = ref<DshSessionSummary[]>([])
+  const dshSessionsError = ref('')
+  const dshSessionsLoading = ref(false)
+
+  async function refreshDshSessions() {
+    dshSessionsLoading.value = true
+    dshSessionsError.value = ''
+    try {
+      const result = await invokeDshSessions()
+      if (result?.ok && result.sessions)
+        dshSessions.value = result.sessions
+      else
+        dshSessionsError.value = (result as { error?: string } | undefined)?.error ?? '读取 dsh 会话失败'
+    }
+    catch (e) {
+      dshSessionsError.value = errorMessageFrom(e) ?? '读取 dsh 会话失败'
+    }
+    finally {
+      dshSessionsLoading.value = false
+    }
+  }
 
   // ——— 编排/总监状态（流水线投影用） ———
   const coordinationStarted = ref(false)
@@ -148,6 +179,16 @@ export function useRunPipeline(): RunPipeline {
     }
   }
 
+  async function generateAndExecute(input?: string) {
+    const raw = input ?? requirement.value
+    if (!raw.trim() || isRunning.value)
+      return
+    // 总是按当前需求重新生成（覆盖旧 plan），再无缝执行——「生成并执行」意图明确。
+    await generate(raw)
+    if (plan.value)
+      await execute()
+  }
+
   async function execute() {
     if (!plan.value)
       return
@@ -206,6 +247,16 @@ export function useRunPipeline(): RunPipeline {
     else if (payload.type === 'plan_completed' || payload.type === 'plan_aborted' || payload.type === 'plan_stopped') {
       isRunning.value = false
       status.value.currentTaskId = null
+      // 同步主进程 plan 终态（loop 在 plan.status='running'→completed/aborted 后 emit），
+      // 否则计划卡片永远停在 execute() 开头写的 'pending' → 用户看到「任务一直等待中」。
+      if (plan.value) {
+        if (payload.type === 'plan_completed') {
+          const s = payload.status
+          plan.value.status = s === 'completed' || s === 'running' || s === 'pending' || s === 'aborted' ? s : 'completed'
+        }
+        else
+          plan.value.status = 'aborted' // plan_aborted / plan_stopped 同终态呈现
+      }
     }
     else if (payload.type === 'pet_alert') {
       errorMessage.value = payload.message ?? ''
@@ -244,10 +295,12 @@ export function useRunPipeline(): RunPipeline {
     }
   }
   void initStatus()
+  void refreshDshSessions()
 
   return {
     requirement, busy, isRunning, plan, status, taskResults, personaMessages, errorMessage,
     completedTaskIds, failedTaskIds, stats, statusLabelKey, statusLabelParams, statusBadge, snapshot,
-    generate, execute, stop, clear,
+    dshSessions, dshSessionsError, dshSessionsLoading, refreshDshSessions,
+    generate, generateAndExecute, execute, stop, clear,
   }
 }

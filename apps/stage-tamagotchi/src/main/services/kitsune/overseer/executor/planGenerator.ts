@@ -203,8 +203,24 @@ function buildUserPrompt(requirement: string, cwd: string, codeStyleProfile?: Co
 }
 
 function extractJson(text: string): string {
-  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-  return match ? match[1].trim() : text.trim()
+  // 优先取 ```json 代码块；块不存在时退化为「第一个 { 到最后一个 }」区间，
+  // 鲁棒处理 LLM 返回纯文本前缀/围栏混杂的情况。
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fenced)
+    return fenced[1].trim()
+  const firstBrace = text.indexOf('{')
+  const lastBrace = text.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace)
+    return text.slice(firstBrace, lastBrace + 1).trim()
+  return text.trim()
+}
+
+/** 清理 JSON.parse 前会炸掉的常见瑕疵：行尾逗号。 */
+function scrubJson(raw: string): string {
+  return raw
+    .replace(/,\s*}/g, '}')
+    .replace(/,\s*]/g, ']')
+    .trim()
 }
 
 function normalizeTask(cwd: string, toolInventory?: ToolInventoryItem[]): (raw: any) => Task {
@@ -278,11 +294,13 @@ export async function generatePlan(
 
   let parsed: { tasks: any[] }
   try {
-    const json = extractJson(llmResult.text!)
+    const json = scrubJson(extractJson(llmResult.text!))
     parsed = JSON.parse(json)
   }
   catch {
-    return { ok: false, error: '计划生成失败：LLM 返回格式错误' }
+    // 带上 LLM 原文片段便于定位；对 UI 展示只保留一句，避免刷屏长文本
+    const snippet = (llmResult.text ?? '').slice(0, 120).replace(/\s+/g, ' ')
+    return { ok: false, error: `计划生成失败：LLM 返回格式错误（原文开头：${snippet}…）` }
   }
 
   // 校验 parsed.tasks 为数组

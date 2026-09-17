@@ -82,6 +82,8 @@ import {
   electronExecutorRun,
   electronExecutorStop,
   electronExecutorStatus,
+  electronDshSessions,
+  type DshSessionsResult,
   electronExecutorEvent,
   electronDirectorReview,
   electronDirectorApprove,
@@ -122,6 +124,7 @@ import { createPlanner } from './executor/planner'
 import { setSyncedProviderConfig } from './executor/llmHelper'
 import { directorReviewLatest, directorApprove, directorReject, directorRevise, listDirectorPlans, getDirectorPlanDetail } from './director'
 import { createDirectorWatcher } from './director.watcher'
+import { scanDshSessions } from './dsh-sessions'
 import { createCoordinator } from './coordinator'
 import { createGuidanceService, type GuidanceService, type GuidanceTrigger } from './guidance'
 import { getFileLogger } from '../logger'
@@ -1342,6 +1345,24 @@ ${errorText}`,
 
   defineInvokeHandler(context, electronExecutorStatus, async () => {
     return loop.getStatus()
+  })
+
+  // ——— dsh 会话可见性 ———
+  // 扫描 DSH_HOME/sessions（DSH_HOME 来自 yaml 里 dsh 工具的 cli.env），
+  // 让用户在面板上看到「给 dsh 派了什么活、dsh 有没有真的在干活」。
+  defineInvokeHandler(context, electronDshSessions, async (): Promise<DshSessionsResult> => {
+    try {
+      const dshTool = config.tools.find(t => t.id === 'dsh')
+      const dshHome = dshTool?.cli?.env?.DSH_HOME
+      if (!dshHome) {
+        return { ok: false, error: 'overseer.yaml 未配置 dsh 工具的 DSH_HOME（cli.env），无法读取会话' }
+      }
+      const { sessions, root } = scanDshSessions(dshHome)
+      return { ok: true, sessions, root }
+    }
+    catch (e) {
+      return { ok: false, error: (e as Error)?.message ?? '扫描 dsh 会话失败' }
+    }
   })
 
   // ——— 编排者（coordinator）IPC ———

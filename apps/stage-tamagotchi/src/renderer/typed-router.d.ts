@@ -844,18 +844,10 @@ declare module 'vue-router/auto-routes' {
       '/v2/settings',
       Record<never, never>,
       Record<never, never>,
-      | '/v2/settings/'
       | '/v2/settings/providers'
       | '/v2/settings/providers/'
       | '/v2/settings/providers/edit'
       | '/v2/settings/providers/edit/[providerId]/'
-    >,
-    '/v2/settings/': RouteRecordInfo<
-      '/v2/settings/',
-      '/v2/settings',
-      Record<never, never>,
-      Record<never, never>,
-      | never
     >,
     '/v2/settings/providers': RouteRecordInfo<
       '/v2/settings/providers',
@@ -1100,7 +1092,7 @@ declare module 'vue-router/auto-routes' {
       views:
         | never
     }
-    '../../packages/stage-pages/src/pages/settings/index.vue': {
+    'src/renderer/pages/settings/index.vue': {
       routes:
         | '/settings/'
       views:
@@ -1607,19 +1599,12 @@ declare module 'vue-router/auto-routes' {
     '../../packages/stage-pages/src/pages/v2/settings.vue': {
       routes:
         | '/v2/settings'
-        | '/v2/settings/'
         | '/v2/settings/providers'
         | '/v2/settings/providers/'
         | '/v2/settings/providers/edit'
         | '/v2/settings/providers/edit/[providerId]/'
       views:
         | 'default'
-    }
-    '../../packages/stage-pages/src/pages/v2/settings/index.vue': {
-      routes:
-        | '/v2/settings/'
-      views:
-        | never
     }
     '../../packages/stage-pages/src/pages/v2/settings/providers.vue': {
       routes:
