@@ -23,7 +23,8 @@ vi.mock('../../../libs/electron/persistence', () => ({
   },
 }))
 
-// stopComfyUI 的 taskkill /T 兜底会 spawn 一个真实进程，这里 mock 让其立即 exit
+// stopComfyUI 的 taskkill /T 兜底（win32）或 process.kill SIGTERM（unix）会接触真实进程，
+// 这里 mock spawn 让其立即 exit、mock process.kill 记录调用
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(() => {
     const child = {
@@ -260,8 +261,9 @@ describe('stopComfyUI', () => {
     expect(svc.stop).not.toHaveBeenCalled()
   })
 
-  it('stop 前读取 pid 并触发 taskkill /T 进程树兜底', async () => {
+  it('stop 前读取 pid 并触发进程树兜底（win32 taskkill /T，unix SIGTERM）', async () => {
     const { stopComfyUI } = await import('./index')
+    const isWin = process.platform === 'win32'
     let taskkillCalled = false
     const spawnMock = (await import('node:child_process')).spawn as unknown as ReturnType<typeof vi.fn>
     spawnMock.mockImplementation((bin: string, args: string[]) => {
@@ -279,6 +281,7 @@ describe('stopComfyUI', () => {
       }
       return child
     })
+    const killSpy = isWin ? null : vi.spyOn(process, 'kill').mockImplementation(() => true)
     const svc = makeFakeSidecar({
       getStatus: vi.fn(() => ({ id: 'comfyui', state: 'running', pid: 42, restartCount: 0, updatedAt: 0 })),
     })
@@ -287,7 +290,11 @@ describe('stopComfyUI', () => {
 
     expect(res.success).toBe(true)
     expect(svc.stop).toHaveBeenCalled()
-    expect(taskkillCalled).toBe(true)
+    if (isWin)
+      expect(taskkillCalled).toBe(true)
+    else
+      expect(killSpy).toHaveBeenCalledWith(42, 'SIGTERM')
+    killSpy?.mockRestore()
   })
 })
 

@@ -346,19 +346,21 @@ describe('端口解析 + Python 探测 + 配置变更检测（纯兜底链）', 
     expect(getGptSovitsPort()).toBe(9880)
   })
 
-  it('resolveGptSovitsPython 优先 runtime/python.exe，缺失时回退 py launcher', async () => {
+  it('resolveGptSovitsPython 优先自带 runtime，缺失时回退平台默认解释器', async () => {
     const { resolveGptSovitsPython } = await import('./index')
-    // Windows 分支：runtime 存在 → 返回该路径
+    const isWin = process.platform === 'win32'
+    // runtime 存在 → 返回对应平台解释器路径
     const runtimeDir = join(tempDir, 'runtime')
     await mkdir(runtimeDir, { recursive: true })
-    const pythonExe = join(runtimeDir, 'python.exe')
+    const pythonExe = isWin ? join(runtimeDir, 'python.exe') : join(runtimeDir, 'bin', 'python')
+    await mkdir(join(runtimeDir, 'bin'), { recursive: true })
     await writeFile(pythonExe, '')
     expect(resolveGptSovitsPython(tempDir)).toBe(pythonExe)
 
-    // 无 runtime → 回退 'py'（win32 官方安装器默认注册的 launcher）
+    // 无 runtime → 回退平台默认：win32 为 'py' launcher，unix 为 'python3'
     const bareDir = join(tempDir, 'bare')
     await mkdir(bareDir, { recursive: true })
-    expect(resolveGptSovitsPython(bareDir)).toBe('py')
+    expect(resolveGptSovitsPython(bareDir)).toBe(isWin ? 'py' : 'python3')
   })
 
   it('setGptSovitsConfig 仅在实际变更且 sidecar 运行时返回 needsRestart', async () => {
