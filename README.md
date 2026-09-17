@@ -153,6 +153,32 @@ The project is feature-complete for a personal desktop companion. Before invitin
 
 > 按时间倒序排列。每条记录对应一次提交或一组关联提交，说明**改了什么**和**为什么改**。
 
+### 2026-09-17 · `a1aada5` `11665b6` — GitHub 同步 + CI 全绿 + Release 恢复
+
+- **GitHub 公开仓上线**：仓库同步到 `lxfebd/kitsune-ai`（此前本地 40 commits 与远端 49 commits 无共同祖先，两线分叉已处理：备份 tag `backup-remote-master-2026-09-17` 后 force push 本地 master）。上传过滤规则：只传工程文件，测试/探针/交接文档/AI 日志不入仓。
+- **CI 修复**：`.gitignore` 的 `docs/` 规则误杀 `packages/i18n/src/locales/*/docs/` 下 27 个构建必需源文件（各语言 `index.ts`/`theme.yaml`/`versions.yaml`），导致 postinstall `UNRESOLVED_IMPORT` 全 job 挂；加例外还原入库。两处 Windows 平台语义测试（`resolveGptSovitsPython` / `stopComfyUI`）改为按 `process.platform` 分支断言，Linux runner 首次通过。**5/5 job 全绿**（Lint / Build ×2 / Unit Test / Type Check）。
+- **Release 恢复**：8/26 之后 master 从未打 tag，Release 工作流（仅在 push `v*` tag 时触发）未跑过，桌面安装包停更在 v0.10.4。本次恢复发布管线（详见 v0.10.5）。
+
+### 2026-09-16 · `e397565` `84ea765` `956c2f8` — 设置页收敛 + 滚动修复
+
+- **设置页重复功能收敛**：删除死账号页/自主执行/监工重复页，「我的 AI 团队」收敛为 Kitsune 卡片单入口，消 IDE 连接器双渲染；根网格显式约束行高 `minmax(0,1fr)`，修复全部设置页长内容无法滚动的真正根因；消除 pipeline 页与侧栏重复导航。
+
+### 2026-09-16 · `4c0bed1` — dsh 工作区可见性 + 流水线真实展示
+
+- **派活进入用户真实打开的桌面 dsh 工作区**：三个 dsh home 目录彼此独立导致派活落空，收敛统一指向桌宠桌面版 home；流水线产物/过程真实展示（计划生成→执行→产物），`DSH_HOME` 收敛。
+
+### 2026-09-13 · `6a90564` `2849e66` `2f0abe4` `9279951` `c85d111` — 编排与工程地基批次
+
+- **coordinator 编排层**：LLM 拆需求按画像派活 +「我的 AI 团队」设置页 + overseer.yaml 单一数据源（825 测试绿）。
+- **消除桌面控制双实现**：抽 `@kitsune/desktop-platform` 共享包（主套 koffi + MCP PowerShell 双实现统一）。
+- **Overseer 结构化感知**：P0 结构化工具信号 → P1 事件驱动感知（chokidar + 增量 tail）→ P2 运行时命令注册表 + P3 结构化 claude stdout。
+- **MCP 主动上报通道**：HTTP MCP server + `pet_report` 工具 + 12 源白名单 + 设置页接入模板。
+
+### 2026-09-07 · `648e6c5` `e8365a8` — 性能与工具链
+
+- **bm25-native napi-rs**：Rust 原生 BM25 记忆检索（21× 加速）。
+- **vitest 4.1.11**：修复 browser-mode `.vue` SFC 崩溃；ccc ESM 默认导入修复。
+
 ### 2026-08-26 · `e8d775a` — 修复流式 TTS 与 ASR 自动发送
 
 - **TTS 流式只出噪音/语气词**：GPT-SoVITS 流式合成（`-sm normal`）实际返回 OGG 帧（`pack_ogg`），但启动参数 `-mt raw` 污染了 HTTP `Content-Type` 为 `audio/raw`，旧逻辑据此误判为 `pcm-int16`，前端把 OGG 字节当 PCM 解码 → 噪音。修复：流式 `format` 固定为 `ogg`；前端改为自适应解码（先 `decodeAudioData`，失败回退 PCM int16 字节重解释）。
